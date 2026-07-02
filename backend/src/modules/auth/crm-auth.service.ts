@@ -4,6 +4,7 @@ import {
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { timingSafeEqual } from 'node:crypto';
 import { AuthSessionRepository } from './auth-session.repository';
 import type { AuthSessionRecord, CrmUser } from '../../shared/types/domain';
 import { LocalRuntimeConfigService } from '../../shared/config/local-runtime-config.service';
@@ -299,6 +300,11 @@ export class CrmAuthService {
   }): Promise<CrmLoginResult> {
     const config = this.localRuntimeConfigService.getCrmAuthConfig();
     const loginPath = config.loginPath || '/api/v2/auth/login';
+    const temporaryAdminLoginResult = this.authenticateTemporaryAdmin(params);
+    if (temporaryAdminLoginResult) {
+      return temporaryAdminLoginResult;
+    }
+
     if (config.mockEnabled) {
       const account = CRM_AUTH_ACCOUNTS.find(
         (item) =>
@@ -386,6 +392,59 @@ export class CrmAuthService {
       crmAccessToken: String(userToken),
       user,
     };
+  }
+
+  private authenticateTemporaryAdmin(params: {
+    login: string;
+    password: string;
+    corpId?: string;
+  }): CrmLoginResult | undefined {
+    if (process.env.TEMP_ADMIN_LOGIN_ENABLED !== 'true') {
+      return undefined;
+    }
+
+    const login = process.env.TEMP_ADMIN_LOGIN_USER?.trim();
+    const password = process.env.TEMP_ADMIN_LOGIN_PASSWORD ?? '';
+    if (!login || !password) {
+      throw new ServiceUnavailableException(
+        '临时管理员登录已开启，但账号或密码未配置。',
+      );
+    }
+
+    if (!this.safeEquals(params.login, login)) {
+      return undefined;
+    }
+
+    if (!this.safeEquals(params.password, password)) {
+      throw new UnauthorizedException('账号或密码错误。');
+    }
+
+    const adminUser = CRM_USERS.find((item) => item.id === 'user_admin');
+    if (!adminUser) {
+      throw new ServiceUnavailableException('系统管理员权限模板不存在。');
+    }
+
+    return {
+      corpId: params.corpId,
+      crmAccessToken: 'temporary-admin-session',
+      user: {
+        ...adminUser,
+        name:
+          process.env.TEMP_ADMIN_LOGIN_DISPLAY_NAME?.trim() ||
+          adminUser.name,
+        identitySource: 'mock',
+      },
+    };
+  }
+
+  private safeEquals(left: string, right: string): boolean {
+    const leftBuffer = Buffer.from(left);
+    const rightBuffer = Buffer.from(right);
+    if (leftBuffer.length !== rightBuffer.length) {
+      return false;
+    }
+
+    return timingSafeEqual(leftBuffer, rightBuffer);
   }
 
   private async bindWecomUserIfNeeded(
