@@ -114,6 +114,44 @@ describe('WecomBotService', () => {
     );
   });
 
+  it('看板模板卡片传入图片 URL 时应使用图文展示卡片并内嵌图表', () => {
+    const builder = new WecomDashboardCardBuilder();
+
+    const card = builder.buildDashboardCard({
+      queryId: 'query_dashboard_card_image',
+      title: '经营总览看板',
+      kpiItems: [
+        { label: '渠道商总数', value: '173家' },
+        { label: '报备数', value: '150个' },
+      ],
+      summary: '渠道经营情况已生成趋势图和关键指标。',
+      webDashboardUrl: 'http://127.0.0.1:3001/api/v1/public/analysis-results/query_dashboard_card_image/file',
+      dataSourceLabel: '当前用户权限范围 / CRM OpenAPI 实时数据',
+      imageUrl: 'http://127.0.0.1:3001/api/v1/public/wecom-dashboard-images/card.png',
+      imageAspectRatio: 1.78,
+      imageTitle: '图表看板',
+      imageDesc: '趋势图已内嵌展示',
+    });
+
+    expect(card).toEqual(
+      expect.objectContaining({
+        card_type: 'news_notice',
+        card_image: expect.objectContaining({
+          url: 'http://127.0.0.1:3001/api/v1/public/wecom-dashboard-images/card.png',
+          aspect_ratio: 1.78,
+        }),
+        image_text_area: expect.objectContaining({
+          image_url: 'http://127.0.0.1:3001/api/v1/public/wecom-dashboard-images/card.png',
+        }),
+        vertical_content_list: expect.arrayContaining([
+          expect.objectContaining({
+            title: '核心摘要',
+          }),
+        ]),
+      }),
+    );
+  });
+
   it('返回问数结果时应优先发送企业微信 Markdown 摘要', () => {
     const service = createService() as any;
 

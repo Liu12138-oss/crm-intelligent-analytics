@@ -7,7 +7,10 @@ import {
   Res,
 } from '@nestjs/common';
 import type { Response } from 'express';
+import { createReadStream, existsSync, statSync } from 'node:fs';
+import { resolve, sep } from 'node:path';
 import type { AnalysisResultRecord } from '../../shared/types/domain';
+import { LocalRuntimeConfigService } from '../../shared/config/local-runtime-config.service';
 import { formatWanAmount, type AmountSourceUnit } from '../../shared/utils/business-amount.util';
 import { AnalysisChannelPresenterService } from './analysis-channel-presenter.service';
 import { AnalysisRequestRepository } from './analysis-request.repository';
@@ -1912,5 +1915,60 @@ export class PublicAnalysisResultController {
       .replace(/>/gu, '&gt;')
       .replace(/"/gu, '&quot;')
       .replace(/'/gu, '&#39;');
+  }
+}
+
+@Controller('public/wecom-dashboard-images')
+export class PublicWecomDashboardImageController {
+  constructor(
+    private readonly localRuntimeConfigService: LocalRuntimeConfigService = new LocalRuntimeConfigService(),
+  ) {}
+
+  /**
+   * 读取企微模板卡片专用图表图片。
+   *
+   * 参数说明：`filename` 只能是程序生成的 PNG 文件名。
+   * 返回值说明：返回公开 PNG 图片流，供企微 news_notice 卡片加载。
+   * 调用注意事项：仅允许访问 `.runtime/public/wecom-dashboard-images`，禁止目录穿越。
+   */
+  @Get(':filename')
+  getWecomDashboardImage(
+    @Param('filename') filename: string,
+    @Res() response: Response,
+  ): void {
+    const imagePath = this.resolveDashboardImagePath(filename);
+    if (!imagePath || !existsSync(imagePath)) {
+      throw new NotFoundException('未找到企微看板图片。');
+    }
+
+    const stat = statSync(imagePath);
+    if (!stat.isFile()) {
+      throw new NotFoundException('未找到企微看板图片。');
+    }
+
+    response.setHeader('Content-Type', 'image/png');
+    response.setHeader('Content-Length', String(stat.size));
+    response.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    response.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+    createReadStream(imagePath).pipe(response);
+  }
+
+  private resolveDashboardImagePath(filename: string): string | undefined {
+    if (!/^[a-zA-Z0-9._-]+\.png$/u.test(filename)) {
+      return undefined;
+    }
+
+    const imageRoot = resolve(
+      this.localRuntimeConfigService.getRepoRoot(),
+      '.runtime',
+      'public',
+      'wecom-dashboard-images',
+    );
+    const imagePath = resolve(imageRoot, filename);
+    if (!imagePath.startsWith(`${imageRoot}${sep}`)) {
+      return undefined;
+    }
+
+    return imagePath;
   }
 }

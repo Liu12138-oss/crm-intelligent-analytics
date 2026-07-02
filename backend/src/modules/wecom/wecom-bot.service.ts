@@ -1,4 +1,6 @@
 ﻿import { Injectable, OnModuleInit } from '@nestjs/common';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type {
   AuditEventType,
   CrmCreateEntityType,
@@ -250,6 +252,12 @@ interface DashboardPublicSection {
   items?: string[];
   chartType?: string;
   chartData?: Record<string, unknown>;
+}
+
+interface DashboardCardImageBundle {
+  imageUrl?: string;
+  imageAspectRatio?: number;
+  imageAttachments: WecomDispatchImageAttachment[];
 }
 
 type WecomTaskReplyIntentLike = WecomTaskReplyRuntimeMetadata & {
@@ -1246,16 +1254,27 @@ export class WecomBotService implements OnModuleInit {
             analysisRoute: 'OPENAPI',
           } as import('../../shared/types/domain').AnalysisRequestRecord);
 
-          // 将看板 block 转换为企微可展示的增强格式（传入已保存的 queryId）
+          const dashboardPreviewPayload = this.buildDashboardPreviewPayload(
+            dashboardResult,
+            effectiveQuestionText,
+          );
+          const dashboardCardImageBundle = await this.buildDashboardCardImageBundle(
+            dashboardResult,
+            dashboardPreviewPayload,
+            dashboardQueryId,
+          );
+
+          // 将看板 block 转换为企微可展示的增强格式（传入已保存的 queryId 和卡片图 URL）
           const wecomDashboardPayload = this.convertDashboardResultToWecomFormat(
             dashboardResult,
             effectiveQuestionText,
             dashboardQueryId,
+            {
+              imageUrl: dashboardCardImageBundle.imageUrl,
+              imageAspectRatio: dashboardCardImageBundle.imageAspectRatio,
+            },
           );
-          imageAttachments = await this.buildDashboardImageAttachments(
-            dashboardResult,
-            wecomDashboardPayload,
-          );
+          imageAttachments = dashboardCardImageBundle.imageAttachments;
 
           // 保存 AnalysisResultRecord（供 Web 端点渲染）
           // 注意：在 convertDashboardResultToWecomFormat 之后保存，因为需要先获取 metricCardsForDetail 和 tableBlocksForDetail
@@ -1836,6 +1855,7 @@ export class WecomBotService implements OnModuleInit {
     dashboardResult: DashboardComposeResult,
     questionText: string,
     dashboardQueryId?: string,
+    cardImage?: { imageUrl?: string; imageAspectRatio?: number },
   ): {
     templateCards: WecomDispatchTemplateCard[];
     dispatchBlocks: StreamBlock[];
@@ -1872,10 +1892,7 @@ export class WecomBotService implements OnModuleInit {
     // 企微 text_notice 要求 card_action 为有效跳转动作；即使最终交付以长连接文本为主，
     // 也必须给卡片提供合法 URL，否则企微会按 42045 拒收模板卡片。
     const effectiveQueryId = dashboardQueryId ?? buildEntityId('query');
-    const dashboardBaseUrl = process.env.WECOM_DASHBOARD_BASE_URL?.trim();
-    const webDashboardUrl = dashboardBaseUrl
-      ? `${dashboardBaseUrl.replace(/\/+$/u, '')}/api/v1/public/analysis-results/${effectiveQueryId}/file`
-      : this.resolveWecomCardActionUrl(effectiveQueryId);
+    const webDashboardUrl = this.resolveDashboardPublicReportUrl(effectiveQueryId);
 
     const dataSourceLabel =
       dashboardResult.dataSource === 'OPENAPI_REALTIME'
@@ -1900,6 +1917,10 @@ export class WecomBotService implements OnModuleInit {
       sourceDesc: 'CRM智能助手',
       quoteTitle: this.resolveDashboardCardQuoteTitle(dashboardTemplate.cardTitle),
       quoteText: this.buildDashboardCardQuoteText(dashboardResult.blocks),
+      imageUrl: cardImage?.imageUrl,
+      imageAspectRatio: cardImage?.imageAspectRatio,
+      imageTitle: this.resolveDashboardCardImageTitle(dashboardTemplate.cardTitle),
+      imageDesc: this.buildDashboardCardImageDesc(dashboardResult),
     });
 
     const templateCards: WecomDispatchTemplateCard[] = [
@@ -2143,6 +2164,55 @@ export class WecomBotService implements OnModuleInit {
   }
 
   /**
+   * 解析图文卡片图片区标题。
+   *
+   * 参数说明：`cardTitle` 为当前企微动态看板标题。
+   * 返回值说明：返回不超过企微建议长度的图片说明标题。
+   */
+  private resolveDashboardCardImageTitle(cardTitle: string): string {
+    if (/漏斗|转化/u.test(cardTitle)) {
+      return '漏斗趋势';
+    }
+
+    if (/排行|贡献/u.test(cardTitle)) {
+      return '贡献排行';
+    }
+
+    if (/区域|覆盖|生态/u.test(cardTitle)) {
+      return '覆盖图示';
+    }
+
+    return '图表看板';
+  }
+
+  /**
+   * 构造图文卡片图片区说明。
+   *
+   * 参数说明：`dashboardResult` 为结构化看板结果。
+   * 返回值说明：返回适合企微卡片左图右文区域展示的短说明。
+   */
+  private buildDashboardCardImageDesc(dashboardResult: DashboardComposeResult): string {
+    const blockTypes = new Set(dashboardResult.blocks.map((block) => block.blockType));
+    if (blockTypes.has('composite-trend')) {
+      return '趋势图已内嵌展示';
+    }
+
+    if (blockTypes.has('funnel')) {
+      return '漏斗断点已内嵌展示';
+    }
+
+    if (blockTypes.has('grouped-bar') || blockTypes.has('sortable-table')) {
+      return '排行对比已内嵌展示';
+    }
+
+    if (blockTypes.has('geo-map')) {
+      return '区域覆盖已内嵌展示';
+    }
+
+    return '核心指标已内嵌展示';
+  }
+
+  /**
    * 构造看板卡片引用区短分析。
    *
    * 参数说明：`blocks` 为看板结构化区块。
@@ -2290,6 +2360,48 @@ export class WecomBotService implements OnModuleInit {
   }
 
   /**
+   * 预先构造看板图片生成所需的轻量载荷。
+   *
+   * 参数说明：`dashboardResult` 为结构化看板结果，`questionText` 为用户原始问题。
+   * 返回值说明：返回图片生成需要的模板、指标和明细行。
+   */
+  private buildDashboardPreviewPayload(
+    dashboardResult: DashboardComposeResult,
+    questionText: string,
+  ): {
+    dashboardTemplate: { code: string; cardTitle: string };
+    metricCardsForDetail: MetricCard[];
+    tableBlocksForDetail: Array<{ title?: string; rows?: Array<Record<string, unknown>> }>;
+  } {
+    const blocks = dashboardResult.blocks;
+    const dashboardTemplate = this.wecomDashboardTemplateResolverService.resolve({
+      questionText,
+      reportTitle: dashboardResult.reportTitle,
+      blocks,
+    });
+    const kpiBlock = blocks.find((block) => block.blockType === 'kpi-matrix');
+    const metricCardsForDetail: MetricCard[] = ((kpiBlock?.metrics ?? []).slice(0, 6)).map((metric) => ({
+      name: metric.label,
+      value: `${metric.value}${metric.unit ?? ''}`,
+    })) as unknown as MetricCard[];
+    const tableBlocksForDetail = blocks
+      .filter((block) => block.blockType === 'sortable-table')
+      .map((block) => ({
+        title: block.title,
+        rows: (block.rows ?? []) as Array<Record<string, unknown>>,
+      }));
+
+    return {
+      dashboardTemplate: {
+        code: dashboardTemplate.code,
+        cardTitle: dashboardTemplate.cardTitle,
+      },
+      metricCardsForDetail,
+      tableBlocksForDetail,
+    };
+  }
+
+  /**
    * 生成企微动态看板图片附件。
    *
    * 参数说明：`dashboardResult` 为看板结果，`dashboardPayload` 为已转换的企微载荷。
@@ -2304,43 +2416,164 @@ export class WecomBotService implements OnModuleInit {
       tableBlocksForDetail: Array<{ title?: string; rows?: Array<Record<string, unknown>> }>;
     },
   ): Promise<WecomDispatchImageAttachment[]> {
+    const bundle = await this.buildDashboardImageBundle(dashboardResult, dashboardPayload, {
+      layout: 'detail',
+    });
+    return bundle.imageAttachments;
+  }
+
+  /**
+   * 生成企微模板卡片内嵌图片包。
+   *
+   * 参数说明：`dashboardQueryId` 为当前看板查询 ID。
+   * 返回值说明：优先返回公开图片 URL；写公开图片失败时返回图片附件兜底。
+   */
+  private async buildDashboardCardImageBundle(
+    dashboardResult: DashboardComposeResult,
+    dashboardPayload: {
+      dashboardTemplate: { code: string; cardTitle: string };
+      metricCardsForDetail: MetricCard[];
+      tableBlocksForDetail: Array<{ title?: string; rows?: Array<Record<string, unknown>> }>;
+    },
+    dashboardQueryId: string,
+  ): Promise<DashboardCardImageBundle> {
+    const webDashboardUrl = this.resolveDashboardPublicReportUrl(dashboardQueryId);
+    return await this.buildDashboardImageBundle(dashboardResult, dashboardPayload, {
+      layout: 'card',
+      dashboardQueryId,
+      webDashboardUrl,
+    });
+  }
+
+  private async buildDashboardImageBundle(
+    dashboardResult: DashboardComposeResult,
+    dashboardPayload: {
+      dashboardTemplate: { code: string; cardTitle: string };
+      metricCardsForDetail: MetricCard[];
+      tableBlocksForDetail: Array<{ title?: string; rows?: Array<Record<string, unknown>> }>;
+    },
+    options: {
+      layout: 'detail' | 'card';
+      dashboardQueryId?: string;
+      webDashboardUrl?: string;
+    },
+  ): Promise<DashboardCardImageBundle> {
     if (!this.shouldRenderDashboardImage(dashboardPayload.dashboardTemplate.code)) {
-      return [];
+      return { imageAttachments: [] };
     }
 
     const variant = this.resolveDashboardImageVariant(dashboardPayload.dashboardTemplate.code);
     const rows = this.resolveDashboardImageRows(dashboardResult, dashboardPayload, variant);
     if (rows.length === 0) {
-      return [];
+      return { imageAttachments: [] };
     }
 
     try {
       const artifact = await this.wecomAnalysisTableImageService.renderTableImage({
-        title: `${dashboardPayload.dashboardTemplate.cardTitle}图片看板`,
+        title:
+          options.layout === 'card'
+            ? `${dashboardPayload.dashboardTemplate.cardTitle}图表看板`
+            : `${dashboardPayload.dashboardTemplate.cardTitle}图片看板`,
         summary: dashboardResult.executiveSummary,
         metricCards: dashboardPayload.metricCardsForDetail.slice(0, 4),
         variant,
+        layout: options.layout,
         rows,
       });
       if (!artifact) {
-        return [];
+        return { imageAttachments: [] };
       }
 
-      return [
-        {
-          sequence: 9000,
-          filename: artifact.filename,
-          buffer: artifact.buffer,
-          contentPreview: `${dashboardPayload.dashboardTemplate.cardTitle}图片看板｜${artifact.previewText}`,
-        },
-      ];
+      if (options.layout === 'card' && options.dashboardQueryId && options.webDashboardUrl) {
+        try {
+          const imageUrl = this.saveDashboardCardImage(
+            artifact.buffer,
+            options.dashboardQueryId,
+            options.webDashboardUrl,
+          );
+          return {
+            imageUrl,
+            imageAspectRatio: artifact.aspectRatio,
+            imageAttachments: [],
+          };
+        } catch (error) {
+          this.analysisLoggerService.logWarn('企微看板卡片图片保存失败，已降级为图片附件。', {
+            templateCode: dashboardPayload.dashboardTemplate.code,
+            reason: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      return {
+        imageAttachments: [
+          {
+            sequence: 9000,
+            filename: artifact.filename,
+            buffer: artifact.buffer,
+            contentPreview: `${dashboardPayload.dashboardTemplate.cardTitle}图片看板｜${artifact.previewText}`,
+          },
+        ],
+      };
     } catch (error) {
       this.analysisLoggerService.logWarn('企微动态看板图片生成失败，已降级为卡片和正文。', {
         templateCode: dashboardPayload.dashboardTemplate.code,
         reason: error instanceof Error ? error.message : String(error),
       });
-      return [];
+      return { imageAttachments: [] };
     }
+  }
+
+  /**
+   * 保存模板卡片图表图片并返回公开地址。
+   *
+   * 参数说明：`buffer` 为 PNG 内容，`dashboardQueryId` 为查询 ID，`webDashboardUrl` 为同一报告公开地址。
+   * 返回值说明：返回企业微信客户端可访问的公开图片 URL。
+   * 调用注意事项：文件名只使用安全字符，避免把问题文本或敏感字段写入路径。
+   */
+  private saveDashboardCardImage(
+    buffer: Buffer,
+    dashboardQueryId: string,
+    webDashboardUrl: string,
+  ): string {
+    const imageDir = join(
+      this.localRuntimeConfigService.getRepoRoot(),
+      '.runtime',
+      'public',
+      'wecom-dashboard-images',
+    );
+    mkdirSync(imageDir, { recursive: true });
+
+    const safeQueryId = this.normalizePublicImageFilenamePart(dashboardQueryId);
+    const filename = `wecom-dashboard-card-${safeQueryId}-${Date.now()}.png`;
+    writeFileSync(join(imageDir, filename), buffer, { mode: 0o644 });
+
+    return this.buildDashboardCardImageUrl(webDashboardUrl, filename);
+  }
+
+  private buildDashboardCardImageUrl(webDashboardUrl: string, filename: string): string {
+    try {
+      const reportUrl = new URL(webDashboardUrl);
+      const publicPathIndex = reportUrl.pathname.indexOf('/public/analysis-results/');
+      const apiPrefix =
+        publicPathIndex >= 0
+          ? reportUrl.pathname.slice(0, publicPathIndex)
+          : /\/api\/v1$/u.test(reportUrl.pathname)
+          ? reportUrl.pathname
+          : '/api/v1';
+      reportUrl.pathname = `${apiPrefix.replace(/\/+$/u, '')}/public/wecom-dashboard-images/${filename}`;
+      reportUrl.search = '';
+      reportUrl.hash = '';
+      return reportUrl.toString();
+    } catch {
+      const config = this.localRuntimeConfigService.getWecomRuntimeConfig();
+      const apiBaseUrl = this.resolvePublicApiBaseUrl(config.webBaseUrl);
+      return `${apiBaseUrl.replace(/\/+$/u, '')}/api/v1/public/wecom-dashboard-images/${filename}`;
+    }
+  }
+
+  private normalizePublicImageFilenamePart(value: string): string {
+    const normalized = value.replace(/[^a-zA-Z0-9_-]/gu, '-').replace(/-+/gu, '-');
+    return normalized.slice(0, 80) || 'query';
   }
 
   /**
@@ -11382,6 +11615,21 @@ export class WecomBotService implements OnModuleInit {
     return /(组合经营|合作伙伴开拓|客户报备与订单|渠道商经营贡献|服务商经营贡献)/u.test(
       reportTitle,
     );
+  }
+
+  /**
+   * 解析看板公开报告地址。
+   *
+   * 参数说明：`queryId` 为当前分析请求 ID。
+   * 返回值说明：返回企微卡片和卡片图片共同使用的公开后端地址。
+   */
+  private resolveDashboardPublicReportUrl(queryId: string): string {
+    const dashboardBaseUrl = process.env.WECOM_DASHBOARD_BASE_URL?.trim();
+    if (dashboardBaseUrl) {
+      return this.buildPublicAnalysisReportUrl(dashboardBaseUrl, queryId);
+    }
+
+    return this.resolveWecomCardActionUrl(queryId);
   }
 
   /**

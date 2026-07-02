@@ -12,6 +12,7 @@ interface WecomAnalysisTableImageInput {
   summary?: string;
   metricCards?: MetricCard[];
   variant?: 'ranking' | 'trend' | 'distribution' | 'map' | 'summary';
+  layout?: 'detail' | 'card';
   rows: Array<Record<string, unknown>>;
 }
 
@@ -19,6 +20,9 @@ export interface WecomAnalysisTableImageArtifact {
   filename: string;
   buffer: Buffer;
   previewText: string;
+  width: number;
+  height: number;
+  aspectRatio: number;
 }
 
 @Injectable()
@@ -32,7 +36,7 @@ export class WecomAnalysisTableImageService {
   private readonly footerHeight = 58;
   private readonly sequenceColumnWidth = 72;
   private readonly fontFamily =
-    'Microsoft YaHei, PingFang SC, Noto Sans CJK SC, Source Han Sans SC, sans-serif';
+    'Noto Sans CJK SC, Source Han Sans SC, WenQuanYi Micro Hei, WenQuanYi Zen Hei, Microsoft YaHei, PingFang SC, SimHei, sans-serif';
 
   /**
    * 生成企微可上传的分析结果表格图片。
@@ -49,13 +53,53 @@ export class WecomAnalysisTableImageService {
       return undefined;
     }
 
-    const svg = this.buildSvg(input, tableModel);
+    const svgResult =
+      input.layout === 'card'
+        ? this.buildCardSvg(input, tableModel)
+        : { svg: this.buildSvg(input, tableModel), height: this.resolveDetailImageHeight(input, tableModel) };
+    const svg = svgResult.svg;
     const buffer = await sharp(Buffer.from(svg)).png().toBuffer();
     return {
-      filename: `crm-analysis-table-${Date.now()}.png`,
+      filename:
+        input.layout === 'card'
+          ? `crm-analysis-card-${Date.now()}.png`
+          : `crm-analysis-table-${Date.now()}.png`,
       buffer,
-      previewText: `分析结果表格图片，共 ${tableModel.totalRowCount} 条，展示 ${tableModel.visibleRows.length} 条。`,
+      previewText:
+        input.layout === 'card'
+          ? `分析结果卡片图表，共 ${tableModel.totalRowCount} 条，展示核心趋势和指标。`
+          : `分析结果表格图片，共 ${tableModel.totalRowCount} 条，展示 ${tableModel.visibleRows.length} 条。`,
+      width: this.imageWidth,
+      height: svgResult.height,
+      aspectRatio: Number((this.imageWidth / svgResult.height).toFixed(2)),
     };
+  }
+
+  /**
+   * 解析明细图片高度。
+   *
+   * 参数说明：`input` 为图片输入，`tableModel` 为企微表格模型。
+   * 返回值说明：返回完整表格海报高度，供 PNG 元数据和企微卡片宽高比使用。
+   */
+  private resolveDetailImageHeight(
+    input: WecomAnalysisTableImageInput,
+    tableModel: ReturnType<typeof buildWecomMarkdownTableModel>,
+  ): number {
+    const metricCards = (input.metricCards ?? []).slice(0, 4);
+    const metricSectionHeight = metricCards.length > 0 ? this.metricCardHeight : 0;
+    const chartModel = this.buildChartModel(input, tableModel);
+    const chartSectionHeight = chartModel
+      ? this.resolveChartSectionHeight(chartModel)
+      : 0;
+
+    return (
+      this.titleHeight +
+      metricSectionHeight +
+      chartSectionHeight +
+      this.tableHeaderHeight +
+      tableModel.visibleRows.length * this.rowHeight +
+      this.footerHeight
+    );
   }
 
   /**
@@ -77,13 +121,7 @@ export class WecomAnalysisTableImageService {
     const chartSectionHeight = chartModel
       ? this.resolveChartSectionHeight(chartModel)
       : 0;
-    const imageHeight =
-      this.titleHeight +
-      metricSectionHeight +
-      chartSectionHeight +
-      this.tableHeaderHeight +
-      tableModel.visibleRows.length * this.rowHeight +
-      this.footerHeight;
+    const imageHeight = this.resolveDetailImageHeight(input, tableModel);
     const chartTop = this.titleHeight + metricSectionHeight;
     const tableTop = this.titleHeight + metricSectionHeight + chartSectionHeight;
     const title = this.truncate(input.title || 'CRM 智能分析结果', 34);
@@ -153,6 +191,87 @@ export class WecomAnalysisTableImageService {
   }
 
   /**
+   * 构造适合企微 news_notice 卡片首屏展示的紧凑图表。
+   *
+   * 参数说明：`input` 为图片输入，`tableModel` 为已归一化的结果表。
+   * 返回值说明：返回 SVG 字符串和图片高度。
+   * 调用注意事项：卡片版只放指标和图表，不放长表格，避免企微卡片中内容被挤到下方。
+   */
+  private buildCardSvg(
+    input: WecomAnalysisTableImageInput,
+    tableModel: ReturnType<typeof buildWecomMarkdownTableModel>,
+  ): { svg: string; height: number } {
+    const tableWidth = this.imageWidth - this.sidePadding * 2;
+    const metricCards = (input.metricCards ?? []).slice(0, 4);
+    const metricSectionHeight = metricCards.length > 0 ? this.metricCardHeight : 0;
+    const chartModel = this.buildChartModel(input, tableModel);
+    const chartSectionHeight = chartModel
+      ? this.resolveChartSectionHeight(chartModel)
+      : 0;
+    const imageHeight = Math.max(
+      560,
+      this.titleHeight + metricSectionHeight + chartSectionHeight + this.footerHeight,
+    );
+    const chartTop = this.titleHeight + metricSectionHeight;
+    const title = this.truncate(input.title || 'CRM 智能分析图表', 34);
+    const summary = this.truncate(
+      this.sanitizeSummary(input.summary || '以下为企业微信卡片版图表，便于直接查看趋势和对比。'),
+      54,
+    );
+    const metricCardsSvg = this.buildMetricCards(metricCards, this.titleHeight - 8, tableWidth);
+    const chartSvg = chartModel
+      ? this.buildChart(chartModel, chartTop, tableWidth)
+      : this.buildCardFallbackList(tableModel, chartTop, tableWidth);
+    const footerText = `图表基于本次返回数据生成，共 ${tableModel.totalRowCount} 条；完整明细请打开备查报告。`;
+
+    return {
+      height: imageHeight,
+      svg: `
+<svg xmlns="http://www.w3.org/2000/svg" width="${this.imageWidth}" height="${imageHeight}" viewBox="0 0 ${this.imageWidth} ${imageHeight}">
+  <rect width="100%" height="100%" fill="#F3F6F8"/>
+  <rect x="24" y="24" width="${this.imageWidth - 48}" height="${imageHeight - 48}" rx="26" fill="#FFFFFF"/>
+  <text x="${this.sidePadding}" y="64" font-family="${this.fontFamily}" font-size="30" font-weight="700" fill="#15202B">${this.escapeXml(title)}</text>
+  <text x="${this.sidePadding}" y="94" font-family="${this.fontFamily}" font-size="16" fill="#5C6670">${this.escapeXml(summary)}</text>
+  ${metricCardsSvg}
+  ${chartSvg}
+  <text x="${this.sidePadding}" y="${imageHeight - 30}" font-family="${this.fontFamily}" font-size="15" fill="#68727D">${this.escapeXml(footerText)}</text>
+</svg>`.trim(),
+    };
+  }
+
+  /**
+   * 构造无数值图表时的卡片兜底列表。
+   *
+   * 参数说明：`tableModel` 为表格模型，`top/tableWidth` 控制绘制区域。
+   * 返回值说明：返回前三条关键明细，保证图片不为空。
+   */
+  private buildCardFallbackList(
+    tableModel: ReturnType<typeof buildWecomMarkdownTableModel>,
+    top: number,
+    tableWidth: number,
+  ): string {
+    const rows = tableModel.visibleRows.slice(0, 4);
+    const columns = tableModel.columns.slice(0, 3);
+    const rowSvg = rows
+      .map((row, rowIndex) => {
+        const y = top + 62 + rowIndex * 54;
+        const text = columns
+          .map((column) => formatWecomMarkdownTableCellValue(row[column.key], column, row))
+          .filter((item) => item.trim() !== '')
+          .slice(0, 3)
+          .join(' / ');
+        return `
+  <rect x="${this.sidePadding}" y="${y - 30}" width="${tableWidth}" height="42" rx="12" fill="${rowIndex % 2 === 0 ? '#F8FAFC' : '#FFFFFF'}" stroke="#DDE5E0"/>
+  <text x="${this.sidePadding + 18}" y="${y - 4}" font-family="${this.fontFamily}" font-size="15" fill="#20303C">${this.escapeXml(this.truncate(text || `第 ${rowIndex + 1} 条`, 56))}</text>`;
+      })
+      .join('');
+
+    return `
+  <text x="${this.sidePadding}" y="${top + 30}" font-family="${this.fontFamily}" font-size="18" font-weight="700" fill="#15202B">${this.escapeXml('关键明细')}</text>
+  ${rowSvg}`;
+  }
+
+  /**
    * 构造企微图片顶部指标卡。
    *
    * 参数说明：`metricCards` 为结果中的关键指标，`top` 为卡片区域顶部，`tableWidth` 为内容宽度。
@@ -203,12 +322,15 @@ export class WecomAnalysisTableImageService {
     | undefined {
     const valueColumn =
       tableModel.columns.find((column) => column.valueType === 'amount') ??
-      tableModel.columns.find((column) => column.valueType === 'number');
+      tableModel.columns.find((column) => column.valueType === 'number') ??
+      this.resolveFallbackChartValueColumn(input.rows);
     if (!valueColumn) {
       return undefined;
     }
 
-    const labelColumn = tableModel.columns.find((column) => column.key !== valueColumn.key);
+    const labelColumn =
+      tableModel.columns.find((column) => column.key !== valueColumn.key) ??
+      this.resolveFallbackChartLabelColumn(input.rows, valueColumn.key);
     const items = tableModel.visibleRows
       .slice(0, 6)
       .map((row, index) => {
@@ -244,6 +366,79 @@ export class WecomAnalysisTableImageService {
       maxValue: Math.max(...items.map((item) => item.value)),
       items,
     };
+  }
+
+  /**
+   * 识别图表兜底数值列。
+   *
+   * 参数说明：`rows` 为图片数据行。
+   * 返回值说明：当企微表格白名单没有收录中文数值列时，返回适合画图的第一列数值。
+   */
+  private resolveFallbackChartValueColumn(
+    rows: Array<Record<string, unknown>>,
+  ): WecomMarkdownTableColumn | undefined {
+    const firstRow = rows[0];
+    if (!firstRow) {
+      return undefined;
+    }
+
+    const keys = Object.keys(firstRow);
+    const valueKey = keys.find((key) => {
+      if (this.isLikelyLabelColumnKey(key)) {
+        return false;
+      }
+
+      return rows.some((row) => this.toNumber(row[key]) > 0);
+    });
+    if (!valueKey) {
+      return undefined;
+    }
+
+    return {
+      key: valueKey,
+      label: valueKey,
+      valueType: this.isLikelyAmountColumnKey(valueKey) ? 'amount' : 'number',
+    };
+  }
+
+  /**
+   * 识别图表兜底标签列。
+   *
+   * 参数说明：`rows` 为图片数据行，`valueKey` 为已选数值列。
+   * 返回值说明：优先返回月份、阶段、区域、分组等可读标签列。
+   */
+  private resolveFallbackChartLabelColumn(
+    rows: Array<Record<string, unknown>>,
+    valueKey: string,
+  ): WecomMarkdownTableColumn | undefined {
+    const firstRow = rows[0];
+    if (!firstRow) {
+      return undefined;
+    }
+
+    const keys = Object.keys(firstRow).filter((key) => key !== valueKey);
+    const labelKey =
+      keys.find((key) => this.isLikelyLabelColumnKey(key)) ??
+      keys.find((key) => rows.some((row) => String(row[key] ?? '').trim() !== ''));
+    if (!labelKey) {
+      return undefined;
+    }
+
+    return {
+      key: labelKey,
+      label: labelKey,
+      valueType: 'text',
+    };
+  }
+
+  private isLikelyLabelColumnKey(key: string): boolean {
+    return /(月份|季度|日期|阶段|区域|大区|分组|分类|渠道|客户|名称|name|label|month|date|region|category|stage)/iu.test(
+      key,
+    );
+  }
+
+  private isLikelyAmountColumnKey(key: string): boolean {
+    return /(金额|额|收入|回款|amount|amt|income|revenue|price|money)/iu.test(key);
   }
 
   /**

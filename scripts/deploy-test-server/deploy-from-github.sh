@@ -33,6 +33,24 @@ ensure_traversable_path() {
   done
 }
 
+ensure_chinese_fonts() {
+  if command -v fc-match >/dev/null 2>&1 && fc-match "Noto Sans CJK SC" 2>/dev/null | grep -Eiq "Noto|WenQuanYi|Droid"; then
+    return
+  fi
+
+  echo "==> 检查中文字体"
+  if command -v apt-get >/dev/null 2>&1; then
+    if apt-get update && apt-get install -y fonts-noto-cjk fontconfig; then
+      fc-cache -f >/dev/null 2>&1 || true
+      echo "中文字体已准备完成"
+    else
+      echo "警告：中文字体安装失败，企微图片中文字可能显示异常；可稍后手动安装 fonts-noto-cjk。"
+    fi
+  else
+    echo "警告：当前系统未找到 apt-get，已跳过中文字体自动安装。"
+  fi
+}
+
 if [[ "${EUID}" -ne 0 ]]; then
   echo "请使用 root 用户执行：sudo REPO_URL=仓库地址 bash $0"
   exit 1
@@ -75,6 +93,8 @@ echo "==> 加载环境变量"
 set -a
 source "${ENV_FILE}"
 set +a
+
+ensure_chinese_fonts
 
 if [[ -z "${APP_WEB_BASE_URL:-}" ]]; then
   echo "backend.env 缺少 APP_WEB_BASE_URL"

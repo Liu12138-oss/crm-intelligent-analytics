@@ -4,7 +4,7 @@
  * 构建企微模板卡片，用于看板在企微会话中的展示。
  * 采用 stream_with_template_card 三段式：
  * 1. 流式阶段：stream 输出分析进度和关键结论文字
- * 2. 卡片阶段：text_notice 模板卡片展示 KPI 摘要 + 跳转链接
+ * 2. 卡片阶段：优先用 news_notice 模板卡片展示图表图片 + KPI 摘要 + 跳转链接
  * 3. 备查链接：卡片 jump_list 指向只读报告页，作为企微内结果的补充备查
  *
  * 参考企微开发者文档 path/101032 模板卡片类型
@@ -42,6 +42,14 @@ export interface DashboardCardParams {
   quoteTitle?: string;
   /** 卡片引用区正文，用于让企微首屏直接看到分析判断 */
   quoteText?: string;
+  /** 企微可访问的图表图片地址；有值时使用 news_notice 图文卡片 */
+  imageUrl?: string;
+  /** 图文卡片中的图表说明标题 */
+  imageTitle?: string;
+  /** 图文卡片中的图表说明正文 */
+  imageDesc?: string;
+  /** 图表图片宽高比，企微要求大于 1.3 且小于 2.25 */
+  imageAspectRatio?: number;
 }
 
 /**
@@ -55,10 +63,11 @@ export interface DashboardStreamChunk {
 @Injectable()
 export class WecomDashboardCardBuilder {
   /**
-   * 构建看板模板卡片（text_notice 类型）
+   * 构建看板模板卡片。
    *
    * 参数说明：`params` 为看板卡片构建参数。
    * 返回值说明：返回企微 template_card 对象，可直接传给 sendTemplateCardMessage。
+   * 有图表图片时返回 news_notice；无图片时回退 text_notice。
    * 调用注意事项：horizontal_content_list 最多 6 行，jump_list 最多 3 个。
    */
   buildDashboardCard(params: DashboardCardParams): Record<string, unknown> {
@@ -66,8 +75,9 @@ export class WecomDashboardCardBuilder {
     const primaryKpi = params.kpiItems[0];
     const secondaryKpis = primaryKpi ? params.kpiItems.slice(1) : params.kpiItems;
 
-    // KPI 摘要最多 6 项；企微 text_notice 模板卡片要求字段名为 keyname。
-    const horizontalContentList = secondaryKpis.slice(0, 6).map((item) => ({
+    // KPI 摘要最多 6 项；企微模板卡片要求字段名为 keyname。
+    const cardKpis = params.imageUrl ? params.kpiItems : secondaryKpis;
+    const horizontalContentList = cardKpis.slice(0, 6).map((item) => ({
       keyname: this.truncateCardText(item.label, 5),
       value: this.truncateCardText(item.value, 26),
     }));
@@ -80,6 +90,53 @@ export class WecomDashboardCardBuilder {
         url: params.webDashboardUrl,
       },
     ];
+
+    if (params.imageUrl) {
+      return {
+        card_type: 'news_notice',
+        source: {
+          desc: this.truncateCardText(params.sourceDesc ?? 'CRM智能助手', 13),
+          desc_color: 0,
+        },
+        main_title: {
+          title: this.truncateCardText(params.title, 26),
+          desc: this.truncateCardText(params.dataSourceLabel ?? '实时数据', 30),
+        },
+        card_image: {
+          url: params.imageUrl,
+          aspect_ratio: this.resolveCardImageAspectRatio(params.imageAspectRatio),
+        },
+        image_text_area: {
+          type: 1,
+          url: params.webDashboardUrl,
+          title: this.truncateCardText(params.imageTitle ?? '图表看板', 13),
+          desc: this.truncateCardText(params.imageDesc ?? params.summary, 30),
+          image_url: params.imageUrl,
+        },
+        quote_area: params.quoteText
+          ? {
+              type: 0,
+              title: this.truncateCardText(params.quoteTitle ?? '关键判断', 13),
+              quote_text: this.truncateCardText(params.quoteText, 80),
+            }
+          : undefined,
+        vertical_content_list: [
+          {
+            title: this.truncateCardText('核心摘要', 26),
+            desc: this.truncateCardText(params.summary, 112),
+          },
+        ],
+        horizontal_content_list: horizontalContentList,
+        jump_list: jumpList,
+        card_action: {
+          type: 1,
+          url: params.webDashboardUrl,
+        },
+        feedback: {
+          id: params.queryId,
+        },
+      };
+    }
 
     return {
       card_type: 'text_notice',
@@ -134,6 +191,20 @@ export class WecomDashboardCardBuilder {
     }
 
     return `${normalized.slice(0, Math.max(0, maxLength - 1))}…`;
+  }
+
+  /**
+   * 规整企微图文卡片图片宽高比。
+   *
+   * 参数说明：`value` 为图片真实宽高比。
+   * 返回值说明：返回企微允许范围内的宽高比。
+   */
+  private resolveCardImageAspectRatio(value?: number): number {
+    if (!value || !Number.isFinite(value)) {
+      return 1.78;
+    }
+
+    return Number(Math.min(2.24, Math.max(1.31, value)).toFixed(2));
   }
 
   /**

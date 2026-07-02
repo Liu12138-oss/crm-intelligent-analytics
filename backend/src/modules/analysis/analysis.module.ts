@@ -63,7 +63,10 @@ import { KnowledgeSedimentationService } from './knowledge-sedimentation.service
 import { LianruanCrmAnalysisExecutorService } from './lianruan-crm-analysis-executor.service';
 import { OpenApiMarkdownSnapshotSchedulerService } from './openapi-markdown-snapshot-scheduler.service';
 import { OpenApiMarkdownSnapshotService } from './openapi-markdown-snapshot.service';
-import { PublicAnalysisResultController } from './public-analysis-result.controller';
+import {
+  PublicAnalysisResultController,
+  PublicWecomDashboardImageController,
+} from './public-analysis-result.controller';
 import { QueryAstValidatorService } from './query-ast-validator.service';
 import { QueryCompilerService } from './query-compiler.service';
 import { QueryPreflightService } from './query-preflight.service';
@@ -78,7 +81,7 @@ import { QueryTemplateRepository } from '../query-assets/query-template.reposito
 
 @Module({
   imports: [DatabaseModule, AiModelsModule],
-  controllers: [PublicAnalysisResultController],
+  controllers: [PublicAnalysisResultController, PublicWecomDashboardImageController],
   providers: [
     AccessDecisionService,
     AccessPolicyRepository,
