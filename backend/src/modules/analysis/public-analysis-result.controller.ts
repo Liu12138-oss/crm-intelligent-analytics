@@ -447,7 +447,7 @@ export class PublicAnalysisResultController {
   ${this.renderDashboardChartScriptsHtml(chartSections)}
   <style>
     body{margin:0;background:#f3f6f8;color:#15202b;font-family:"Microsoft YaHei","PingFang SC",sans-serif;}
-    .page{max-width:1080px;margin:0 auto;padding:24px 16px 40px;}
+    .page{width:min(100% - 32px,1720px);max-width:none;margin:0 auto;padding:24px 0 40px;}
     .hero{background:linear-gradient(135deg,#eef8f4,#fff);border:1px solid #dfe9e5;border-radius:22px;padding:22px;box-shadow:0 16px 42px rgba(31,68,58,.08);}
     h1{margin:0 0 12px;font-size:24px;line-height:1.35;}
     h2{margin:0 0 12px;font-size:18px;}
@@ -456,6 +456,7 @@ export class PublicAnalysisResultController {
     .template-badge{display:inline-flex;align-items:center;gap:8px;margin:0 0 12px;padding:7px 12px;border-radius:999px;background:#e7f5ef;color:#176b52;font-size:13px;font-weight:800;}
     .template-badge small{color:#64736d;font-weight:700;}
     .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:18px 0;}
+    .report-flow{display:grid;grid-template-columns:1fr;gap:18px;align-items:start;}
     .card,.section{background:#fff;border:1px solid #e3ebe7;border-radius:18px;padding:16px;}
     .metric-name{color:#64736d;font-size:13px;}
     .metric-value{margin-top:8px;font-size:26px;font-weight:800;color:#176b52;}
@@ -509,7 +510,8 @@ export class PublicAnalysisResultController {
     .modal-agent-list{line-height:1.9;color:#43524b;font-size:13px;}
     .agent-item{display:inline;}
     .modal-no-data{padding:18px;border-radius:12px;background:#f7faf9;color:#7b8781;text-align:center;}
-    @media (max-width: 980px){.coverage-body{grid-template-columns:1fr}.coverage-map{height:360px}.coverage-head{align-items:flex-start;flex-direction:column}.coverage-legend{flex-wrap:wrap}.dashboard-chart{height:320px}.dashboard-chart--map{height:360px}.dashboard-chart-head{flex-direction:column}}
+    @media (min-width: 1280px){.hero{padding:26px 28px}.grid{grid-template-columns:repeat(6,minmax(0,1fr))}.report-flow{grid-template-columns:repeat(12,minmax(0,1fr))}.report-flow>.section{grid-column:1/-1;margin:0}.report-flow>.dashboard-chart-section{grid-column:span 7}.report-flow>.table-section{grid-column:span 6}.report-flow>.markdown-section{grid-column:1/-1}.report-flow>.coverage-shell{grid-column:1/-1}.dashboard-chart{height:390px}.dashboard-chart--map{height:520px}.coverage-body{grid-template-columns:260px minmax(0,1fr)}.coverage-map{height:540px}}
+    @media (max-width: 980px){.page{width:min(100% - 24px,1080px);padding-top:16px}.coverage-body{grid-template-columns:1fr}.coverage-map{height:360px}.coverage-head{align-items:flex-start;flex-direction:column}.coverage-legend{flex-wrap:wrap}.dashboard-chart{height:320px}.dashboard-chart--map{height:360px}.dashboard-chart-head{flex-direction:column}}
   </style>
 </head>
 <body>
@@ -521,11 +523,13 @@ export class PublicAnalysisResultController {
       <div class="meta">只读分析报告，生成时间：${this.escapeHtml(String(payload.completedAt ?? '未知'))}</div>
     </section>
     ${this.renderMetricCardsHtml(metricCards)}
-    ${this.renderDashboardTemplateSectionsHtml(sections)}
-    ${this.renderDashboardChartSectionsHtml(chartSections)}
-    ${this.renderCoverageSectionsHtml(sections)}
-    ${this.renderTablesHtml(tableBlocks)}
-    ${this.renderMarkdownHtml(String(report?.groundedMarkdown ?? payload.groundedExplanation ?? ''))}
+    <div class="report-flow">
+      ${this.renderDashboardTemplateSectionsHtml(sections)}
+      ${this.renderDashboardChartSectionsHtml(chartSections)}
+      ${this.renderCoverageSectionsHtml(sections)}
+      ${this.renderTablesHtml(tableBlocks)}
+      ${this.renderMarkdownHtml(String(report?.groundedMarkdown ?? payload.groundedExplanation ?? ''))}
+    </div>
   </main>
 </body>
 </html>`;
@@ -1374,7 +1378,7 @@ export class PublicAnalysisResultController {
       ? `<div class="table-hint">共 <strong>${tableBlock.rows.length}</strong> 条明细，默认展示为下拉滚动表格，可在表格内向下滚动查看更多。</div>`
       : '';
 
-    return `<section class="section"><h2>${this.escapeHtml(tableBlock.title)}</h2>${tableHintHtml}<div class="${tableWrapClass}">${tableHtml}</div></section>`;
+    return `<section class="section table-section"><h2>${this.escapeHtml(tableBlock.title)}</h2>${tableHintHtml}<div class="${tableWrapClass}">${tableHtml}</div></section>`;
   }
 
   /**
@@ -1892,7 +1896,7 @@ export class PublicAnalysisResultController {
       return '';
     }
 
-    return `<section class="section"><h2>报告说明</h2><p>${this.escapeHtml(markdown).replace(/\n/gu, '<br>')}</p></section>`;
+    return `<section class="section markdown-section"><h2>报告说明</h2><p>${this.escapeHtml(markdown).replace(/\n/gu, '<br>')}</p></section>`;
   }
 
   /**
