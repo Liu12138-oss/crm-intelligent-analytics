@@ -456,7 +456,7 @@ export class PublicAnalysisResultController {
     .template-badge{display:inline-flex;align-items:center;gap:8px;margin:0 0 12px;padding:7px 12px;border-radius:999px;background:#e7f5ef;color:#176b52;font-size:13px;font-weight:800;}
     .template-badge small{color:#64736d;font-weight:700;}
     .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:18px 0;}
-    .report-flow{display:grid;grid-template-columns:1fr;gap:18px;align-items:start;}
+    .report-flow{display:grid;grid-template-columns:1fr;gap:18px;align-items:start;grid-auto-flow:dense;}
     .card,.section{background:#fff;border:1px solid #e3ebe7;border-radius:18px;padding:16px;}
     .metric-name{color:#64736d;font-size:13px;}
     .metric-value{margin-top:8px;font-size:26px;font-weight:800;color:#176b52;}
@@ -510,7 +510,7 @@ export class PublicAnalysisResultController {
     .modal-agent-list{line-height:1.9;color:#43524b;font-size:13px;}
     .agent-item{display:inline;}
     .modal-no-data{padding:18px;border-radius:12px;background:#f7faf9;color:#7b8781;text-align:center;}
-    @media (min-width: 1280px){.hero{padding:26px 28px}.grid{grid-template-columns:repeat(6,minmax(0,1fr))}.report-flow{grid-template-columns:repeat(12,minmax(0,1fr))}.report-flow>.section{grid-column:1/-1;margin:0}.report-flow>.dashboard-chart-section{grid-column:span 7}.report-flow>.table-section{grid-column:span 6}.report-flow>.markdown-section{grid-column:1/-1}.report-flow>.coverage-shell{grid-column:1/-1}.dashboard-chart{height:390px}.dashboard-chart--map{height:520px}.coverage-body{grid-template-columns:260px minmax(0,1fr)}.coverage-map{height:540px}}
+    @media (min-width: 1280px){.hero{padding:26px 28px}.grid{grid-template-columns:repeat(6,minmax(0,1fr))}.report-flow{grid-template-columns:repeat(12,minmax(0,1fr))}.report-flow>.section{grid-column:1/-1;margin:0}.report-flow>.dashboard-chart-section{grid-column:span 6}.report-flow>.table-section{grid-column:span 6}.report-flow>.markdown-section{grid-column:1/-1}.report-flow>.coverage-shell{grid-column:1/-1}.dashboard-chart{height:390px}.dashboard-chart--map{height:520px}.coverage-body{grid-template-columns:260px minmax(0,1fr)}.coverage-map{height:540px}}
     @media (max-width: 980px){.page{width:min(100% - 24px,1080px);padding-top:16px}.coverage-body{grid-template-columns:1fr}.coverage-map{height:360px}.coverage-head{align-items:flex-start;flex-direction:column}.coverage-legend{flex-wrap:wrap}.dashboard-chart{height:320px}.dashboard-chart--map{height:360px}.dashboard-chart-head{flex-direction:column}}
   </style>
 </head>
