@@ -51,7 +51,7 @@ export class WecomDashboardMarkdownRendererService {
     lines.push(`- 数据范围：${params.dashboardResult.scopeSummary || '当前用户权限范围'}`);
     lines.push(`- 数据来源：${params.dashboardResult.dataSource === 'OPENAPI_REALTIME' ? 'CRM OpenAPI 实时数据' : 'CRM 同步数据'}`);
     lines.push('- 金额单位：人民币；金额类指标按 CRM 统计口径展示。');
-    lines.push(`- 口径说明：${context.hasOrderData ? '当前包含订单口径，可结合订单、报价、商机共同判断。' : '当前真实订单数据不足，优先使用商机或报价作为前置经营口径，不能等同真实成交。'}`);
+    lines.push(`- 口径说明：${context.hasOrderData ? '当前包含订单口径，可结合订单、报价、商机分层判断；所有对比只在同一对象和同一指标内进行。' : '当前真实订单数据不足，优先使用商机或报价作为前置经营口径，不能等同真实成交；所有对比只在同一对象和同一指标内进行。'}`);
     lines.push('');
     lines.push('【权限口径】');
     lines.push(`- 当前可见范围：${params.dashboardResult.scopeSummary || '当前用户权限范围'}`);
@@ -630,7 +630,7 @@ export class WecomDashboardMarkdownRendererService {
       ],
       REGION_COMPARISON: [
         `覆盖广度维度：${this.resolveRegionCoverageJudgement(context)}`,
-        `产出强弱维度：对比区域内报备、商机、报价和订单是否同步。`,
+        `产出强弱维度：区域之间只按同一指标对比，例如区域订单金额对区域订单金额、区域商机数对区域商机数。`,
         `异常区域维度：商机高但订单低的区域优先检查报价和合同节点。`,
         `负责人维度：区域问题需要下钻到负责人动作和截止时间。`,
       ],
@@ -673,7 +673,7 @@ export class WecomDashboardMarkdownRendererService {
       SERVICE_ECOSYSTEM: [
         `覆盖维度：看签约技术服务商覆盖了哪些区域。`,
         `成长维度：提名技术服务商要看是否具备转签约条件。`,
-        `贡献维度：比较技术服务商参与项目的商机、报价和订单贡献。`,
+        `贡献维度：按商机、报价、订单分别比较技术服务商参与项目的贡献，不把不同对象混成一个名次。`,
         `能力缺口维度：高商机低技术覆盖区域优先补生态能力。`,
       ],
       DISTRIBUTION_HEALTH: [
@@ -995,9 +995,14 @@ export class WecomDashboardMarkdownRendererService {
 
     return table.rows.slice(0, 3).map((row, index) => {
       const name = String(row.name ?? row.region ?? row.bigRegion ?? row.ownerName ?? row.customerName ?? `第${index + 1}项`);
-      const amount = row.amount ?? row.quoteAmount ?? row.opportunityAmount ?? row.orderAmount;
-      const count = row.count ?? row.registrationCount ?? row.opportunityCount ?? row.quoteCount ?? row.orderCount;
+      const metricLabel = this.resolveComparisonMetricLabel(table.title);
+      const metricValue = this.resolveRowMetricValue(row, metricLabel);
+      const amount = metricValue === undefined ? row.amount ?? row.quoteAmount ?? row.opportunityAmount ?? row.orderAmount : undefined;
+      const count = metricValue === undefined ? row.count ?? row.registrationCount ?? row.opportunityCount ?? row.quoteCount ?? row.orderCount : undefined;
       const parts = [`${index + 1}. ${name}`];
+      if (metricLabel && metricValue !== undefined) {
+        parts.push(`${metricLabel}${this.formatMetricValue(metricLabel, metricValue)}`);
+      }
       if (amount !== undefined) {
         parts.push(`金额${amount}`);
       }
@@ -1074,6 +1079,62 @@ export class WecomDashboardMarkdownRendererService {
    */
   private formatWan(amount: number): string {
     return `${(amount / 10000).toFixed(2)}万`;
+  }
+
+  /**
+   * 从标题解析同类对比指标。
+   */
+  private resolveComparisonMetricLabel(title: string): string | undefined {
+    const byMetric = title.match(/按(.+?)）/u)?.[1];
+    if (byMetric) {
+      return byMetric;
+    }
+
+    return title.match(/(?:区域|大区|渠道|负责人|团队)(.+?)(?:排行|对比|明细)/u)?.[1];
+  }
+
+  /**
+   * 读取同一指标对应的行值。
+   */
+  private resolveRowMetricValue(row: Record<string, unknown>, metricLabel?: string): number | undefined {
+    if (!metricLabel) {
+      return undefined;
+    }
+
+    const fieldByMetric: Array<[RegExp, string[]]> = [
+      [/订单金额/u, ['orderAmount', 'amount']],
+      [/报价金额/u, ['quoteAmount', 'amount']],
+      [/商机金额/u, ['opportunityAmount', 'oppAmount', 'amount']],
+      [/订单数|下单数/u, ['orderCount', 'count']],
+      [/报价数/u, ['quoteCount', 'count']],
+      [/商机数/u, ['opportunityCount', 'oppCount', 'count']],
+      [/报备数/u, ['registrationCount', 'count']],
+    ];
+    const fields = fieldByMetric.find(([pattern]) => pattern.test(metricLabel))?.[1] ?? [];
+    for (const field of fields) {
+      const value = Number(row[field] ?? 0);
+      if (Number.isFinite(value) && value > 0) {
+        return value;
+      }
+    }
+
+    return undefined;
+  }
+
+  /**
+   * 格式化同类对比指标值。
+   */
+  private formatMetricValue(metricLabel: string, value: number): string {
+    if (/金额/u.test(metricLabel)) {
+      const normalizedValue = Math.abs(value) >= 10000 ? value / 10000 : value;
+      return `${normalizedValue.toFixed(2)}万`;
+    }
+
+    if (/订单|下单/u.test(metricLabel)) {
+      return `${Number(value.toFixed(2))}单`;
+    }
+
+    return `${Number(value.toFixed(2))}个`;
   }
 
   /**

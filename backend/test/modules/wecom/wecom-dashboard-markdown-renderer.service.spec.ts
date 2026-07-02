@@ -160,4 +160,35 @@ describe('WecomDashboardMarkdownRendererService', () => {
     expect(funnelMarkdown).not.toContain('排序口径维度：');
     expect(rankingMarkdown).not.toContain('阶段量维度：');
   });
+
+  it('区域正文摘要应明确同类同指标对比口径', () => {
+    const result: DashboardComposeResult = {
+      ...dashboardResult,
+      blocks: [
+        ...dashboardResult.blocks,
+        {
+          blockId: 'dashboard-region-ranking',
+          blockType: 'sortable-table',
+          title: '区域订单金额排行明细',
+          columns: [],
+          rows: [
+            { region: '山东区', orderAmount: 120, opportunityAmount: 300 },
+            { region: '北京区', orderAmount: 80, opportunityAmount: 500 },
+          ],
+        },
+      ],
+    };
+
+    const markdown = service.render({
+      dashboardResult: result,
+      questionText: '不同区域的订单金额对比',
+      template: resolveWecomDashboardTemplateDefinition('REGION_COMPARISON'),
+      cardKpiItems: [{ label: '订单金额领先区域', value: '山东区 120万' }],
+    });
+
+    expect(markdown).toContain('所有对比只在同一对象和同一指标内进行');
+    expect(markdown).toContain('区域之间只按同一指标对比');
+    expect(markdown).toContain('1. 山东区，订单金额120.00万');
+    expect(markdown).not.toContain('1. 山东区，金额');
+  });
 });

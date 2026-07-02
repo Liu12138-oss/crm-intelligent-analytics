@@ -93,7 +93,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
   {
     templateId: 'tpl_agent_development',
     name: '代理商/渠道商数据运营看板',
-    description: '全国代理商/渠道商/服务商数据运营全景看板：核心KPI、合作级别分布、技术服务商建设、大区对比、省份覆盖、商机阶段分布、报价/订单状态、月度趋势、业务转化漏斗、区域贡献明细、代理商运营明细。对标 AI 直连数据库分析的运营看板。',
+    description: '全国代理商/渠道商/服务商数据运营全景看板：核心KPI、合作级别分布、技术服务商建设、区域同指标对比、省份覆盖、商机阶段分布、报价/订单状态、月度趋势、业务转化漏斗、区域贡献明细、代理商运营明细。对标 AI 直连数据库分析的运营看板。',
     profile: 'agent-development',
     defaultQuery: {},
     applicableRoles: [],
@@ -123,7 +123,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
   {
     templateId: 'tpl_region_overview',
     name: '区域经营概览',
-    description: '按区域统计下单、商机、报价等经营指标',
+    description: '按区域统计下单、商机、报价等经营指标；区域对比只按订单金额、商机数等同一指标口径展示',
     profile: 'region-overview',
     defaultQuery: {},
     applicableRoles: [],

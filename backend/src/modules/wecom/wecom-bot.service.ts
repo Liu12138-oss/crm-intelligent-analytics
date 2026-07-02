@@ -2095,7 +2095,7 @@ export class WecomBotService implements OnModuleInit {
       return {
         sectionType: 'DASHBOARD_CHART',
         title: block.title,
-        description: '分组柱状图用于比较不同区域、团队或渠道之间的经营贡献差异。',
+        description: block.description ?? '分组柱状图只比较同一指标在不同区域、团队或渠道之间的差异。',
         chartType: 'grouped-bar',
         chartData: {
           categories: block.categories,
@@ -2160,7 +2160,7 @@ export class WecomBotService implements OnModuleInit {
       return '头部对比';
     }
 
-    return '关键对比';
+    return '关键发现';
   }
 
   /**
@@ -2202,7 +2202,7 @@ export class WecomBotService implements OnModuleInit {
     }
 
     if (blockTypes.has('grouped-bar') || blockTypes.has('sortable-table')) {
-      return '排行对比已内嵌展示';
+      return '同类排行已内嵌展示';
     }
 
     if (blockTypes.has('geo-map')) {
@@ -2290,7 +2290,8 @@ export class WecomBotService implements OnModuleInit {
     const topIndex = series.values.reduce((maxIndex, value, index) => value > series.values[maxIndex] ? index : maxIndex, 0);
     const topCategory = barBlock.categories[topIndex] ?? '未命名';
     const topValue = series.values[topIndex] ?? 0;
-    return `对比领先：${topCategory} ${Number(topValue.toFixed(2))}`;
+    const metricLabel = this.normalizeDashboardMetricLabel(series.name);
+    return `${metricLabel}领先：${topCategory} ${this.formatDashboardComparableValue(metricLabel, topValue)}`;
   }
 
   /**
@@ -2916,7 +2917,7 @@ export class WecomBotService implements OnModuleInit {
     lines.push(`- 数据范围：${dashboardResult.scopeSummary || '当前用户权限范围'}`);
     lines.push(`- 数据来源：${dashboardResult.dataSource === 'OPENAPI_REALTIME' ? 'CRM OpenAPI 实时数据' : 'CRM 同步数据'}`);
     lines.push('- 金额单位：人民币；看板金额按系统统计口径展示。');
-    lines.push(`- 口径说明：${hasOrderData ? '当前包含订单口径，渠道贡献优先按订单金额解读。' : '当前真实订单数据不足，渠道贡献优先按报价金额或商机金额作为前置经营口径，不能等同真实成交。'}`);
+    lines.push(`- 口径说明：${hasOrderData ? '当前包含订单口径，渠道贡献优先按订单金额解读；所有对比只在同一对象和同一指标内进行。' : '当前真实订单数据不足，渠道贡献优先按报价金额或商机金额作为前置经营口径，不能等同真实成交；所有对比只在同一对象和同一指标内进行。'}`);
     lines.push('');
 
     lines.push('【权限口径】');
@@ -3170,7 +3171,10 @@ export class WecomBotService implements OnModuleInit {
       const topItems = barBlock.categories.slice(0, 3).map((category, index) => {
         const values = barBlock.series
           .slice(0, 2)
-          .map((series) => `${series.name}${series.values[index] ?? 0}`)
+          .map((series) => {
+            const metricLabel = this.normalizeDashboardMetricLabel(series.name);
+            return `${metricLabel}${this.formatDashboardComparableValue(metricLabel, this.toDashboardNumber(series.values[index]))}`;
+          })
           .join('，');
         return `${category}（${values}）`;
       });
@@ -3365,6 +3369,26 @@ export class WecomBotService implements OnModuleInit {
   private formatDashboardRate(rate: number): string {
     const normalizedRate = rate > 1 ? rate : rate * 100;
     return `${normalizedRate.toFixed(1)}%`;
+  }
+
+  private normalizeDashboardMetricLabel(label: string): string {
+    return label.replace(/（.*?）/gu, '').replace(/\(.*?\)/gu, '').trim() || '指标';
+  }
+
+  private formatDashboardComparableValue(metricLabel: string, value: number): string {
+    if (/金额|万/u.test(metricLabel)) {
+      return this.formatDashboardAmount(value);
+    }
+
+    if (/订单|下单/u.test(metricLabel)) {
+      return `${Number(value.toFixed(2))}单`;
+    }
+
+    if (/商机|报价|报备/u.test(metricLabel)) {
+      return `${Number(value.toFixed(2))}个`;
+    }
+
+    return String(Number(value.toFixed(2)));
   }
 
   private formatDashboardAmount(amount: unknown): string {
@@ -11139,7 +11163,7 @@ export class WecomBotService implements OnModuleInit {
       quote_area: comparisonText
         ? {
             type: 0,
-            title: this.truncateWecomCardText(options.hasImageAttachments ? '图表与对比' : '关键对比', 13),
+            title: this.truncateWecomCardText(options.hasImageAttachments ? '图表与发现' : '关键发现', 13),
             quote_text: this.truncateWecomCardText(comparisonText, 80),
           }
         : undefined,

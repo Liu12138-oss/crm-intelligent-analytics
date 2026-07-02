@@ -188,15 +188,20 @@ export class WecomDashboardKpiSelectorService {
     }
 
     const name = String(firstRow.name ?? firstRow.region ?? firstRow.bigRegion ?? firstRow.ownerName ?? '--');
+    const metricLabel = this.resolveComparisonMetricLabel(block.title);
+    const metricValue = this.resolveRowMetricValue(firstRow, metricLabel);
+    const value = metricValue === undefined
+      ? name
+      : `${name} ${this.formatSeriesValue(metricLabel ?? '', metricValue)}`;
     if (/区域|大区/u.test(block.title)) {
-      return [{ label: '领先区域', value: name }];
+      return [{ label: `${metricLabel ?? ''}领先区域`, value }];
     }
 
     if (/渠道|代理商|服务商|排行/u.test(block.title)) {
-      return [{ label: 'TOP1', value: name }];
+      return [{ label: metricLabel ? `${metricLabel}TOP1渠道` : 'TOP1', value }];
     }
 
-    return [{ label: 'TOP1', value: name }];
+    return [{ label: metricLabel ? `${metricLabel}TOP1` : 'TOP1', value }];
   }
 
   /**
@@ -331,7 +336,8 @@ export class WecomDashboardKpiSelectorService {
       const topIndex = this.findMaxValueIndex(series.values);
       const topCategory = block.categories[topIndex] ?? '未命名';
       const topValue = series.values[topIndex] ?? 0;
-      const label = `${this.normalizeMetricLabel(series.name)}领先`;
+      const categoryLabel = /区域|大区/u.test(block.title) ? '区域' : /渠道|代理商|服务商/u.test(block.title) ? '渠道' : '';
+      const label = `${this.normalizeMetricLabel(series.name)}领先${categoryLabel}`;
       return {
         label,
         value: `${topCategory} ${this.formatSeriesValue(series.name, topValue)}`,
@@ -420,6 +426,70 @@ export class WecomDashboardKpiSelectorService {
    */
   private normalizeMetricLabel(label: string): string {
     return label.replace(/（.*?）/gu, '').replace(/\(.*?\)/gu, '').trim();
+  }
+
+  /**
+   * 从区块标题中解析对比指标名。
+   *
+   * 参数说明：`title` 为看板区块标题。
+   * 返回值说明：能识别时返回“订单金额、商机数”等单一口径指标。
+   */
+  private resolveComparisonMetricLabel(title: string): string | undefined {
+    const normalizedTitle = title.trim();
+    const byMetric = normalizedTitle.match(/按(.+?)）/u)?.[1];
+    if (byMetric) {
+      return byMetric;
+    }
+
+    return normalizedTitle.match(/(?:区域|大区|负责人|团队)(.+?)(?:排行|对比|明细)/u)?.[1];
+  }
+
+  /**
+   * 根据指标名读取同口径数值。
+   *
+   * 参数说明：`row` 为排行表首行，`metricLabel` 为标题解析出的指标口径。
+   * 返回值说明：返回该口径对应的数值；无明确口径时返回 undefined。
+   */
+  private resolveRowMetricValue(
+    row: Record<string, string | number>,
+    metricLabel?: string,
+  ): number | undefined {
+    if (!metricLabel) {
+      return undefined;
+    }
+
+    const fieldByMetric: Array<[RegExp, string[]]> = [
+      [/订单金额/u, ['orderAmount', 'amount']],
+      [/报价金额/u, ['quoteAmount', 'amount']],
+      [/商机金额/u, ['opportunityAmount', 'oppAmount', 'amount']],
+      [/订单数|下单数/u, ['orderCount', 'count']],
+      [/报价数/u, ['quoteCount', 'count']],
+      [/商机数/u, ['opportunityCount', 'oppCount', 'count']],
+      [/报备数/u, ['registrationCount', 'count']],
+    ];
+    const fields = fieldByMetric.find(([pattern]) => pattern.test(metricLabel))?.[1] ?? [];
+    for (const field of fields) {
+      const value = this.toNumber(row[field]);
+      if (value > 0) {
+        return value;
+      }
+    }
+
+    return undefined;
+  }
+
+  /**
+   * 将卡片候选值转为数字。
+   */
+  private toNumber(value: unknown): number {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const normalized = Number(value.replace(/[,，万%％]/gu, ''));
+      return Number.isFinite(normalized) ? normalized : 0;
+    }
+    return 0;
   }
 
   /**

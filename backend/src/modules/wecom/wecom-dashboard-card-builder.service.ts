@@ -38,7 +38,7 @@ export interface DashboardCardParams {
   dataSourceLabel?: string;
   /** 来源标识，展示在卡片顶部 */
   sourceDesc?: string;
-  /** 卡片引用区标题，用于展示关键对比或图表摘要 */
+  /** 卡片引用区标题，用于展示关键发现或图表摘要 */
   quoteTitle?: string;
   /** 卡片引用区正文，用于让企微首屏直接看到分析判断 */
   quoteText?: string;
@@ -158,7 +158,7 @@ export class WecomDashboardCardBuilder {
       quote_area: params.quoteText
         ? {
             type: 0,
-            title: this.truncateCardText(params.quoteTitle ?? '关键对比', 13),
+            title: this.truncateCardText(params.quoteTitle ?? '关键发现', 13),
             quote_text: this.truncateCardText(params.quoteText, 80),
           }
         : undefined,

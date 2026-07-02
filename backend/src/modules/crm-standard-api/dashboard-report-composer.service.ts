@@ -58,7 +58,7 @@ export type DashboardBlock =
   | { blockId: string; blockType: 'kpi-matrix'; title: string; metrics: DashboardKpiMetric[]; columns?: number }
   | { blockId: string; blockType: 'concentration'; title: string; totalValue: number; totalUnits: number; tiers: DashboardConcentrationTier[]; oneTimeCount?: number; oneTimePercentage?: number; insights: string[]; unitLabel?: string }
   | { blockId: string; blockType: 'sortable-table'; title: string; columns: DashboardTableColumn[]; rows: Array<Record<string, string | number>>; searchable?: boolean; searchPlaceholder?: string; pageSize?: number; showSummary?: boolean; summaryRow?: Record<string, string | number> }
-  | { blockId: string; blockType: 'grouped-bar'; title: string; categories: string[]; series: Array<{ name: string; values: number[] }>; unitLabel?: string }
+  | { blockId: string; blockType: 'grouped-bar'; title: string; categories: string[]; series: Array<{ name: string; values: number[] }>; unitLabel?: string; description?: string }
   | { blockId: string; blockType: 'geo-map'; title: string; mapName: string; regions: Array<{ name: string; value: number; extra?: string }>; totalRegionCount?: number; coveredRegionCount?: number; unitLabel?: string }
   | { blockId: string; blockType: 'composite-trend'; title: string; categories: string[]; barSeries: Array<{ name: string; values: number[] }>; lineSeries?: Array<{ name: string; values: number[] }>; barUnitLabel?: string; lineUnitLabel?: string }
   | { blockId: string; blockType: 'pie-distribution'; title: string; segments: Array<{ name: string; value: number; color?: string }>; totalValue?: number; unitLabel?: string; insights?: string[] }
@@ -94,12 +94,19 @@ export interface DashboardTableColumn {
 
 type ContributionAmountField = 'orderAmount' | 'quoteAmount' | 'opportunityAmount';
 type ContributionCountField = 'orderCount' | 'quoteCount' | 'opportunityCount';
+type ContributionComparableField = ContributionAmountField | ContributionCountField | 'registrationCount';
 
 interface ContributionMeasure {
   amountField: ContributionAmountField;
   countField: ContributionCountField;
   amountLabel: string;
   countLabel: string;
+}
+
+interface ContributionComparisonMetric {
+  field: ContributionComparableField;
+  label: string;
+  unitLabel: string;
 }
 
 interface ProvinceResolution {
@@ -844,6 +851,31 @@ export class DashboardReportComposer {
     };
   }
 
+  /**
+   * 解析同类对比指标。
+   *
+   * 参数说明：`records` 为同一维度下的贡献记录，如区域、渠道商或负责人。
+   * 返回值说明：返回当前最适合做横向对比的单一指标；无可比数据时返回 null。
+   * 调用注意事项：只选一个指标做“对比/排行”口径，避免把商机、报价、订单混成一个综合领先结论。
+   */
+  private resolveContributionComparisonMetric(
+    records: Array<Partial<Record<ContributionComparableField, number>>>,
+  ): ContributionComparisonMetric | null {
+    const metricPriority: ContributionComparisonMetric[] = [
+      { field: 'orderAmount', label: '订单金额', unitLabel: '万' },
+      { field: 'quoteAmount', label: '报价金额', unitLabel: '万' },
+      { field: 'opportunityAmount', label: '商机金额', unitLabel: '万' },
+      { field: 'orderCount', label: '订单数', unitLabel: '单' },
+      { field: 'quoteCount', label: '报价数', unitLabel: '个' },
+      { field: 'opportunityCount', label: '商机数', unitLabel: '个' },
+      { field: 'registrationCount', label: '报备数', unitLabel: '个' },
+    ];
+
+    return metricPriority.find((metric) =>
+      records.reduce((sum, record) => sum + (record[metric.field] ?? 0), 0) > 0,
+    ) ?? null;
+  }
+
   // ===== 集中度分析构建 =====
 
   private buildConcentration(
@@ -999,7 +1031,12 @@ export class DashboardReportComposer {
       return null;
     }
 
-    const sorted = [...owners].sort((a, b) => (b.orderAmount ?? 0) - (a.orderAmount ?? 0));
+    const metric = this.resolveContributionComparisonMetric(owners);
+    if (!metric) {
+      return null;
+    }
+
+    const sorted = [...owners].sort((a, b) => (b[metric.field] ?? 0) - (a[metric.field] ?? 0));
     const rows = sorted.map((o, idx) => ({
       rank: idx + 1,
       name: o.ownerName ?? o.assignedStaffName ?? '--',
@@ -1012,7 +1049,7 @@ export class DashboardReportComposer {
     return {
       blockId: 'dashboard-owner-ranking',
       blockType: 'sortable-table',
-      title: '负责人排名明细',
+      title: `负责人${metric.label}排行明细`,
       searchable: true,
       searchPlaceholder: '搜索负责人...',
       pageSize: 10,
@@ -1035,11 +1072,12 @@ export class DashboardReportComposer {
       return null;
     }
 
-    const sorted = [...regions].sort((a, b) => {
-      const bAmount = (b.orderAmount ?? 0) || (b.quoteAmount ?? 0) || (b.opportunityAmount ?? 0);
-      const aAmount = (a.orderAmount ?? 0) || (a.quoteAmount ?? 0) || (a.opportunityAmount ?? 0);
-      return bAmount - aAmount;
-    });
+    const metric = this.resolveContributionComparisonMetric(regions);
+    if (!metric) {
+      return null;
+    }
+
+    const sorted = [...regions].sort((a, b) => (b[metric.field] ?? 0) - (a[metric.field] ?? 0));
     const rows = sorted.map((r, idx) => ({
       rank: idx + 1,
       region: r.region ?? r.bigRegion ?? '--',
@@ -1055,7 +1093,7 @@ export class DashboardReportComposer {
     return {
       blockId: 'dashboard-region-ranking',
       blockType: 'sortable-table',
-      title: '区域排名明细',
+      title: `区域${metric.label}排行明细`,
       pageSize: 10,
       columns: [
         { key: 'rank', label: '排名', sortable: true, isRank: true, width: '80px', align: 'center' },
@@ -1078,7 +1116,7 @@ export class DashboardReportComposer {
     // 复用 owner ranking table，标题改为"团队明细"
     const table = this.buildOwnerRankingTable(owners);
     if (table) {
-      return { ...table, blockId: 'dashboard-team-detail', title: '各团队签约明细' };
+      return { ...table, blockId: 'dashboard-team-detail', title: table.title.replace('负责人', '团队') };
     }
     return null;
   }
@@ -1092,20 +1130,23 @@ export class DashboardReportComposer {
       return null;
     }
 
-    const categories = regions.map((r) => r.region ?? r.bigRegion ?? '--');
-    const orderValues = regions.map((r) => Number((r.orderAmount ?? 0).toFixed(2)));
-    const oppValues = regions.map((r) => Number((r.opportunityAmount ?? 0).toFixed(2)));
+    const metric = this.resolveContributionComparisonMetric(regions);
+    if (!metric) {
+      return null;
+    }
+
+    const sorted = [...regions].sort((a, b) => (b[metric.field] ?? 0) - (a[metric.field] ?? 0));
+    const categories = sorted.map((r) => r.region ?? r.bigRegion ?? '--');
+    const values = sorted.map((r) => Number((r[metric.field] ?? 0).toFixed(2)));
 
     return {
       blockId: 'dashboard-region-comparison',
       blockType: 'grouped-bar',
-      title: '区域对比',
+      title: `区域${metric.label}对比`,
       categories,
-      series: [
-        { name: '下单金额（万）', values: orderValues },
-        { name: '商机金额（万）', values: oppValues },
-      ],
-      unitLabel: '万',
+      series: [{ name: metric.label, values }],
+      unitLabel: metric.unitLabel,
+      description: `同类对比：每根柱子均为区域维度下的${metric.label}，不把商机、报价、订单等不同业务对象互相比较。`,
     };
   }
 

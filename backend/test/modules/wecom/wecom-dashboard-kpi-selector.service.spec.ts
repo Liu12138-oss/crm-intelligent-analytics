@@ -96,6 +96,40 @@ describe('WecomDashboardKpiSelectorService', () => {
     );
   });
 
+  it('区域对比卡片应输出同指标领先区域，不生成无口径的对比领先', () => {
+    const result = buildDashboardResult();
+    result.blocks.push({
+      blockId: 'dashboard-region-comparison',
+      blockType: 'grouped-bar',
+      title: '区域订单金额对比',
+      categories: ['山东区', '北京区'],
+      series: [{ name: '订单金额', values: [120, 80] }],
+      unitLabel: '万',
+    });
+    result.blocks.push({
+      blockId: 'dashboard-region-ranking',
+      blockType: 'sortable-table',
+      title: '区域订单金额排行明细',
+      columns: [],
+      rows: [
+        { region: '山东区', orderAmount: 120, opportunityAmount: 300 },
+        { region: '北京区', orderAmount: 80, opportunityAmount: 400 },
+      ],
+    });
+
+    const items = service.selectCardKpiItems({
+      dashboardResult: result,
+      template: resolveWecomDashboardTemplateDefinition('REGION_COMPARISON'),
+    });
+
+    expect(items).toEqual(
+      expect.arrayContaining([
+        { label: '订单金额领先区域', value: '山东区 120万' },
+      ]),
+    );
+    expect(items.map((item) => item.label)).not.toContain('对比领先');
+  });
+
   it('数据质量模板在业务指标不足时应补齐兜底指标', () => {
     const result = buildDashboardResult();
     result.errors = ['接口超时'];

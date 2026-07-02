@@ -289,13 +289,23 @@ describe('DashboardReportComposer - agent-development block 组装', () => {
     const blockTypes = result.blocks.map((b) => b.blockType);
     console.log('[TEST] 生成的 block 类型:', blockTypes.join(', '));
 
-      // 关键 block 必须存在
-      expect(blockTypes).toContain('kpi-matrix');
-      // 如果 summary 端点有数据，应该有 pie-distribution
-      if (result.errors.length === 0) {
-        // 验证 block 数量合理（至少 4 个）
-        expect(result.blocks.length).toBeGreaterThanOrEqual(4);
-      }
+    // 关键 block 必须存在
+    expect(blockTypes).toContain('kpi-matrix');
+    // 如果 summary 端点有数据，应该有 pie-distribution
+    if (result.errors.length === 0) {
+      // 验证 block 数量合理（至少 4 个）
+      expect(result.blocks.length).toBeGreaterThanOrEqual(4);
+    }
+
+    const regionComparisonBlock = result.blocks.find((block) => block.blockType === 'grouped-bar');
+    expect(regionComparisonBlock).toBeDefined();
+    if (regionComparisonBlock?.blockType !== 'grouped-bar') {
+      throw new Error('未生成区域同指标对比图');
+    }
+    expect(regionComparisonBlock.title).toBe('区域订单金额对比');
+    expect(regionComparisonBlock.series).toHaveLength(1);
+    expect(regionComparisonBlock.series[0].name).toBe('订单金额');
+    expect(regionComparisonBlock.description).toContain('同类对比');
   });
 
   it('当 funnel 为 null 时应从 contributions 兜底生成漏斗', async () => {
@@ -422,5 +432,26 @@ describe('DashboardReportComposer - channel-order-summary 订单分析模板', (
     expect(partnerTable?.title).toContain('报价金额');
     expect(partnerTable && partnerTable.blockType === 'sortable-table' ? partnerTable.rows[0].amount : undefined).toBeGreaterThan(0);
     expect(partnerTable && partnerTable.blockType === 'sortable-table' ? partnerTable.rows[0].orderAmount : undefined).toBe(0);
+  });
+
+  it('区域经营看板应只按同一指标生成区域对比，不能把商机金额和订单金额混在同一对比图', async () => {
+    const result = await composer.compose('region-overview', {}, '不同区域的订单金额对比');
+    const regionComparisonBlock = result.blocks.find((block) => block.blockType === 'grouped-bar');
+    const regionTable = result.blocks.find((block) =>
+      block.blockType === 'sortable-table' && /区域/u.test(block.title),
+    );
+
+    expect(regionComparisonBlock).toBeDefined();
+    if (regionComparisonBlock?.blockType !== 'grouped-bar') {
+      throw new Error('未生成区域同指标对比图');
+    }
+
+    expect(regionComparisonBlock.title).toBe('区域订单金额对比');
+    expect(regionComparisonBlock.series).toHaveLength(1);
+    expect(regionComparisonBlock.series[0].name).toBe('订单金额');
+    expect(regionComparisonBlock.series.map((series) => series.name)).not.toEqual(
+      expect.arrayContaining(['商机金额（万）', '下单金额（万）']),
+    );
+    expect(regionTable?.title).toBe('区域订单金额排行明细');
   });
 });

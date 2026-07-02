@@ -718,12 +718,11 @@ describe('WecomBotService', () => {
           {
             blockId: 'dashboard-region-comparison',
             blockType: 'grouped-bar',
-            title: '区域对比',
+            title: '区域报价金额对比',
             categories: ['山东区', '北京区'],
-            series: [
-              { name: '报价金额（万）', values: [56, 20] },
-              { name: '商机金额（万）', values: [80, 30] },
-            ],
+            series: [{ name: '报价金额', values: [56, 20] }],
+            unitLabel: '万',
+            description: '同类对比：每根柱子均为区域维度下的报价金额。',
           },
           {
             blockId: 'dashboard-cooperation',
@@ -790,7 +789,7 @@ describe('WecomBotService', () => {
         }),
         sub_title_text: expect.stringContaining('渠道档案完整'),
         quote_area: expect.objectContaining({
-          title: '关键对比',
+          title: '关键发现',
           quote_text: expect.stringContaining('最大断点'),
         }),
         horizontal_content_list: expect.arrayContaining([
