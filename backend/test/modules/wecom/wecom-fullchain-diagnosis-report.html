@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企微看板全链路诊断报告 - 2026-06-25</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #f0f2f5; color: #1a1a2e; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+  .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 32px; border-radius: 16px; margin-bottom: 24px; box-shadow: 0 4px 20px rgba(102,126,234,0.3); }
+  .header h1 { font-size: 28px; margin-bottom: 8px; }
+  .header .meta { font-size: 14px; opacity: 0.85; }
+  .section { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .section h2 { font-size: 20px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #e8e8e8; color: #2c3e50; }
+  .section h3 { font-size: 16px; margin: 16px 0 10px; color: #34495e; }
+  .bug-card { border-left: 4px solid #e74c3c; background: #fdf0ef; padding: 16px; border-radius: 8px; margin-bottom: 12px; }
+  .bug-card.fixed { border-left-color: #27ae60; background: #f0faf4; }
+  .bug-card h4 { font-size: 15px; margin-bottom: 8px; color: #2c3e50; }
+  .bug-card .status { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 600; margin-left: 8px; }
+  .status.fixed { background: #27ae60; color: white; }
+  .status.found { background: #e74c3c; color: white; }
+  .code-block { background: #1e1e2e; color: #e0e0e0; padding: 14px; border-radius: 8px; font-family: 'Fira Code', 'Consolas', monospace; font-size: 13px; overflow-x: auto; margin: 10px 0; line-height: 1.5; }
+  .code-block .red { color: #f38ba8; }
+  .code-block .green { color: #a6e3a1; }
+  .code-block .yellow { color: #f9e2af; }
+  .code-block .blue { color: #89b4fa; }
+  .code-block .comment { color: #6c7086; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th { background: #f8f9fa; padding: 10px 12px; text-align: left; font-weight: 600; color: #2c3e50; border-bottom: 2px solid #dee2e6; }
+  td { padding: 10px 12px; border-bottom: 1px solid #e8e8e8; }
+  tr:hover { background: #f8f9fa; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+  .badge.pass { background: #d4edda; color: #155724; }
+  .badge.fail { background: #f8d7da; color: #721c24; }
+  .badge.bridge { background: #cce5ff; color: #004085; }
+  .badge.analyze { background: #fff3cd; color: #856404; }
+  .badge.exclude { background: #f8d7da; color: #721c24; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 16px 0; }
+  .summary-card { background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 16px; border-radius: 10px; text-align: center; }
+  .summary-card .number { font-size: 32px; font-weight: 700; color: #667eea; }
+  .summary-card .label { font-size: 13px; color: #6c757d; margin-top: 4px; }
+  .flow-diagram { background: #f8f9fa; border-radius: 10px; padding: 20px; margin: 12px 0; }
+  .flow-step { display: inline-block; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; margin: 4px; }
+  .flow-step.check { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
+  .flow-step.pass { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+  .flow-step.block { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+  .flow-arrow { display: inline-block; margin: 4px 2px; color: #999; font-size: 18px; }
+  .test-result { padding: 4px 0; }
+  .test-result .test-name { font-weight: 500; }
+  .test-result .test-status { float: right; }
+  .footer { text-align: center; padding: 24px; color: #6c757d; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>企微看板全链路诊断报告</h1>
+    <div class="meta">生成时间：2026-06-25 16:30 | 测试数：52 (27新+25现有) | 全部通过 ✅ | TypeScript 编译 ✅</div>
+  </div>
+
+  <div class="section">
+    <h2>📋 诊断概要</h2>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="number">2</div>
+        <div class="label">关键 Bug 修复</div>
+      </div>
+      <div class="summary-card">
+        <div class="number">4</div>
+        <div class="label">排除过滤加固层</div>
+      </div>
+      <div class="summary-card">
+        <div class="number">6</div>
+        <div class="label">测试场景</div>
+      </div>
+      <div class="summary-card">
+        <div class="number">52</div>
+        <div class="label">测试用例全通过</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>🐛 Bug #1：模板卡片字段名错误（已修复）</h2>
+    <div class="bug-card fixed">
+      <h4>根因：horizontal_content_list 字段名使用了 label/key 而非 keyname <span class="status fixed">已修复</span></h4>
+      <p style="margin: 8px 0; font-size: 14px;">企微 <code>text_notice</code> 模板卡片的 <code>horizontal_content_list</code> 数组要求每项字段名为 <strong>keyname</strong>（非 label、非 key）。使用错误字段名会导致企微 API 拒绝卡片或静默丢弃 KPI 列表，用户看不到模板卡片。</p>
+      <h3>修复前（错误）</h3>
+      <div class="code-block">
+<span class="comment">// wecom-bot.service.ts convertDashboardResultToWecomFormat()</span>
+<span class="red">const kpiItems = kpiMetrics.map((m) => ({
+  label: m.label,    </span><span class="comment">// ❌ 错误：应为 keyname</span>
+<span class="red">  value: m.value,
+}));</span>
+
+<span class="comment">// wecom-dashboard-card-builder.service.ts buildDashboardCard()</span>
+<span class="red">const horizontalContentList = params.kpiItems.map((item) => ({
+  key: item.label,    </span><span class="comment">// ❌ 错误：应为 keyname</span>
+<span class="red">  value: item.value,
+}));</span>
+      </div>
+      <h3>修复后（正确）</h3>
+      <div class="code-block">
+<span class="comment">// wecom-bot.service.ts convertDashboardResultToWecomFormat()</span>
+<span class="green">const kpiItems = kpiMetrics.map((m) => ({
+  keyname: m.label,   </span><span class="comment">// ✅ 正确：企微 API 要求 keyname</span>
+<span class="green">  value: m.value,
+}));</span>
+
+<span class="comment">// 同时增加了字段长度截断，符合企微 API 限制：
+//   keyname <= 5 字符, value <= 26 字符
+//   main_title.title <= 26, desc <= 30
+//   emphasis_content.title <= 12, desc <= 30</span>
+<span class="green">horizontal_content_list: kpiItems.map((item) => ({
+  keyname: truncateCard(item.keyname, 5),
+  value: truncateCard(String(item.value), 26),
+})),</span>
+      </div>
+      <p style="margin: 8px 0; font-size: 14px;"><strong>影响文件：</strong></p>
+      <ul style="margin-left: 20px; font-size: 14px;">
+        <li><code>wecom-bot.service.ts</code> — convertDashboardResultToWecomFormat() 方法，kpiItems 构建 + 卡片结构增强</li>
+        <li><code>wecom-dashboard-card-builder.service.ts</code> — buildDashboardCard() + buildTimeoutCard() 方法</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>🐛 Bug #2：场景③排除过滤未在信号层拦截（已修复）</h2>
+    <div class="bug-card fixed">
+      <h4>根因：hasExplicitWecomAnalysisOrBlockSignal 匹配"客户"关键词放行到 ANALYZE 分支 <span class="status fixed">已修复</span></h4>
+      <p style="margin: 8px 0; font-size: 14px;">"近3个月没有维护进度的客户情况" 包含"客户"关键词，被 <code>hasExplicitWecomAnalysisOrBlockSignal</code> 第 2342 行 <code>/商机|...|客户|.../</code> 匹配，返回 true → 进入 ANALYZE 分支。虽然 <code>isWecomDashboardAnalysisRequest</code> 有排除过滤，但信号层未拦截导致问题定位困难。</p>
+
+      <h3>修复策略：4 层排除过滤防线</h3>
+      <div class="flow-diagram">
+        <div class="flow-step check">① hasExplicitWecomAnalysisOrBlockSignal</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step check">② isWecomDashboardAnalysisRequest</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step check">③ 安全网 isExclusionarySafetyNet</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step check">④ 最终拦截（compose 前）</div>
+        <br><br>
+        <div class="flow-step block">排除匹配 → 强制走 executeRegularAnalysisPipeline</div>
+      </div>
+
+      <h3>统一排除函数 isExclusionaryFilterQuery</h3>
+      <div class="code-block">
+<span class="blue">private isExclusionaryFilterQuery</span>(normalizedText: string): boolean {
+  <span class="comment">// 四组排除模式，覆盖所有筛选/明细类提问</span>
+  <span class="green">return</span> (
+    <span class="comment">// 1. 没有 + (客户|商机|订单|报价|渠道商|代理商) + 情况/的/列表/明细</span>
+    /没有.{0,8}(客户|商机|订单|报价|<span class="yellow">渠道商|代理商</span>).{0,6}(情况|的|<span class="yellow">列表|明细</span>)/u.test(normalizedText) ||
+    <span class="comment">// 2. 无 + (进展|维护|跟进|商机|订单|更新|联系)</span>
+    /无.{0,4}(进展|维护|跟进|商机|订单|<span class="yellow">更新|联系</span>)/u.test(normalizedText) ||
+    <span class="comment">// 3. 未 + (维护|跟进|进展|更新|联系)</span>
+    /未.{0,4}(维护|跟进|进展|<span class="yellow">更新|联系</span>)/u.test(normalizedText) ||
+    <span class="comment">// 4. 没有 + (维护进度|跟进记录|商机和订单|维护记录) — 直接匹配</span>
+    <span class="green">/没有.{0,6}(维护进度|跟进记录|商机和订单|维护记录)/u.test(normalizedText)</span>
+  );
+}
+      </div>
+      <p style="margin: 8px 0; font-size: 14px;"><strong>新增的第④层最终拦截</strong>（在 <code>compose()</code> 调用前）：</p>
+      <div class="code-block">
+<span class="blue">if</span> (shouldBridgeToDashboard) {
+  <span class="comment">// ★ 最终绝对拦截</span>
+  <span class="blue">const</span> normalizedForFinalGuard = effectiveQuestionText.replace(/\s+/gu, <span class="yellow">''</span>).trim();
+  <span class="blue">if</span> (<span class="blue">this</span>.isExclusionaryFilterQuery(normalizedForFinalGuard)) {
+    <span class="comment">// 强制走常规分析管道，不调用 compose()</span>
+    <span class="blue">const</span> regularResult = <span class="blue">await this</span>.executeRegularAnalysisPipeline({...});
+    <span class="comment">// ... 赋值 queryResponse, detail, templateCards, dispatchBlocks</span>
+  } <span class="blue">else</span> {
+    <span class="comment">// 正常看板桥接流程</span>
+    <span class="blue">const</span> dashboardResult = <span class="blue">await this</span>.dashboardReportComposer.compose(<span class="yellow">'auto'</span>, {}, effectiveQuestionText);
+    <span class="comment">// ...</span>
+  }
+}
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>🧪 6 场景路由决策验证</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>场景</th>
+          <th>用户提问</th>
+          <th>排除过滤</th>
+          <th>看板桥接</th>
+          <th>Profile</th>
+          <th>预期结果</th>
+          <th>测试</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>①</td>
+          <td>近3个月商机进展</td>
+          <td><span class="badge pass">false</span></td>
+          <td><span class="badge analyze">ANALYZE</span></td>
+          <td>channel-order-summary</td>
+          <td>常规分析</td>
+          <td><span class="badge pass">✅ PASS</span></td>
+        </tr>
+        <tr>
+          <td>②</td>
+          <td>最近一年商机趋势分析</td>
+          <td><span class="badge pass">false</span></td>
+          <td><span class="badge analyze">ANALYZE</span></td>
+          <td>channel-order-summary</td>
+          <td>常规分析</td>
+          <td><span class="badge pass">✅ PASS</span></td>
+        </tr>
+        <tr>
+          <td>③</td>
+          <td><strong>近3个月没有维护进度的客户情况</strong></td>
+          <td><span class="badge exclude">true</span></td>
+          <td><span class="badge analyze">ANALYZE</span></td>
+          <td>auto</td>
+          <td>常规分析（不走看板）</td>
+          <td><span class="badge pass">✅ PASS</span></td>
+        </tr>
+        <tr>
+          <td>③b</td>
+          <td><strong>最近3个月没有维护进度的客户情况</strong></td>
+          <td><span class="badge exclude">true</span></td>
+          <td><span class="badge analyze">ANALYZE</span></td>
+          <td>auto</td>
+          <td>常规分析（不走看板）</td>
+          <td><span class="badge pass">✅ PASS</span></td>
+        </tr>
+        <tr>
+          <td>④</td>
+          <td><strong>全国渠道商发展运营数据看板</strong></td>
+          <td><span class="badge pass">false</span></td>
+          <td><span class="badge bridge">BRIDGE</span></td>
+          <td>agent-development</td>
+          <td>看板 + 模板卡片</td>
+          <td><span class="badge pass">✅ PASS</span></td>
+        </tr>
+        <tr>
+          <td>⑤</td>
+          <td><strong>各区域渠道商发展运营数据情况看板</strong></td>
+          <td><span class="badge pass">false</span></td>
+          <td><span class="badge bridge">BRIDGE</span></td>
+          <td>region-overview</td>
+          <td>看板 + 模板卡片</td>
+          <td><span class="badge pass">✅ PASS</span></td>
+        </tr>
+        <tr>
+          <td>⑥</td>
+          <td><strong>最近3个月没有商机和订单的渠道商情况</strong></td>
+          <td><span class="badge exclude">true</span></td>
+          <td><span class="badge analyze">ANALYZE</span></td>
+          <td>auto</td>
+          <td>常规分析（不走看板）</td>
+          <td><span class="badge pass">✅ PASS</span></td>
+        </tr>
+        <tr>
+          <td>⑥b</td>
+          <td><strong>最近3个月没有商机和订单的渠道商情况</strong></td>
+          <td><span class="badge exclude">true</span></td>
+          <td><span class="badge analyze">ANALYZE</span></td>
+          <td>auto</td>
+          <td>常规分析（不走看板）</td>
+          <td><span class="badge pass">✅ PASS</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>🔧 模板卡片结构对比</h2>
+    <h3>修复前（字段名错误，API 拒绝）</h3>
+    <div class="code-block">
+{
+  <span class="red">"card_type"</span>: <span class="yellow">"text_notice"</span>,
+  <span class="red">"main_title"</span>: { <span class="red">"title"</span>: <span class="yellow">"全国代理商发展运营数据看板"</span>, <span class="red">"desc"</span>: <span class="yellow">"快照数据"</span> },
+  <span class="red">"emphasis_content"</span>: { <span class="red">"title"</span>: <span class="yellow">"看板分析完成"</span>, <span class="red">"desc"</span>: <span class="yellow">"超长摘要文字未截断..."</span> },
+  <span class="red">"horizontal_content_list"</span>: [
+    { <span class="red">"label"</span>: <span class="yellow">"渠道商总数"</span>, <span class="red">"value"</span>: <span class="yellow">"152"</span> },  <span class="comment">// ❌ label 不被企微识别</span>
+    { <span class="red">"label"</span>: <span class="yellow">"下单渠道商"</span>, <span class="red">"value"</span>: <span class="yellow">"89"</span> }
+  ],
+  <span class="red">"jump_list"</span>: [{ <span class="red">"type"</span>: 1, <span class="red">"title"</span>: <span class="yellow">"查看完整看板"</span>, <span class="red">"url"</span>: <span class="yellow">"..."</span> }],
+  <span class="red">"card_action"</span>: { <span class="red">"type"</span>: 1, <span class="red">"url"</span>: <span class="yellow">"..."</span> }
+}
+    </div>
+    <h3>修复后（字段名正确，字段长度合规）</h3>
+    <div class="code-block">
+{
+  <span class="green">"card_type"</span>: <span class="yellow">"text_notice"</span>,
+  <span class="green">"source"</span>: { <span class="green">"icon_url"</span>: <span class="yellow">"https://wework.qpic.cn/..."</span>, <span class="green">"desc"</span>: <span class="yellow">"CRM智能助手"</span>, <span class="green">"desc_color"</span>: 0 },
+  <span class="green">"main_title"</span>: { <span class="green">"title"</span>: <span class="yellow">"全国代理商发展运营数据看板"</span>, <span class="green">"desc"</span>: <span class="yellow">"快照数据"</span> },
+  <span class="green">"emphasis_content"</span>: { <span class="green">"title"</span>: <span class="yellow">"看板分析"</span>, <span class="green">"desc"</span>: <span class="yellow">"截断到30字以内的摘要…"</span> },
+  <span class="green">"horizontal_content_list"</span>: [
+    { <span class="green">"keyname"</span>: <span class="yellow">"渠道总数"</span>, <span class="green">"value"</span>: <span class="yellow">"152"</span> },  <span class="comment">// ✅ keyname + 5字截断</span>
+    { <span class="green">"keyname"</span>: <span class="yellow">"下单渠道"</span>, <span class="green">"value"</span>: <span class="yellow">"89"</span> }
+  ],
+  <span class="green">"jump_list"</span>: [{ <span class="green">"type"</span>: 1, <span class="green">"title"</span>: <span class="yellow">"查看完整看板"</span>, <span class="green">"url"</span>: <span class="yellow">"..."</span> }],
+  <span class="green">"card_action"</span>: { <span class="green">"type"</span>: 1, <span class="green">"url"</span>: <span class="yellow">"..."</span> },
+  <span class="green">"feedback_id"</span>: <span class="yellow">"dash_1719304200000"</span>
+}
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>📊 测试结果汇总</h2>
+    <h3>新增全链路诊断测试（27 项全通过）</h3>
+    <div class="code-block">
+<span class="green">PASS</span> test/modules/wecom/wecom-fullchain-diagnosis.spec.ts
+  WecomBot Full-Chain Diagnosis
+    场景路由决策验证
+      <span class="green">√</span> 场景 ①: "近3个月商机进展"
+      <span class="green">√</span> 场景 ②: "最近一年商机趋势分析"
+      <span class="green">√</span> 场景 ③: "近3个月没有维护进度的客户情况"
+      <span class="green">√</span> 场景 ③b: "最近3个月没有维护进度的客户情况"
+      <span class="green">√</span> 场景 ④: "全国渠道商发展运营数据看板"
+      <span class="green">√</span> 场景 ⑤: "各区域渠道商发展运营数据情况看板"
+      <span class="green">√</span> 场景 ⑥: "最近3个月没有商机和订单的渠道商情况"
+      <span class="green">√</span> 场景 ⑥b: "最近3个月没有商机和订单的渠道商情况"
+    排除过滤正则深度验证
+      <span class="green">√</span> 场景③: 必须被排除  <span class="green">√</span> 场景③b: 必须被排除
+      <span class="green">√</span> 场景⑥: 必须被排除  <span class="green">√</span> 场景④: 不应被排除
+      <span class="green">√</span> 场景⑤: 不应被排除  <span class="green">√</span> 变体: "无跟进记录的客户"
+      <span class="green">√</span> 变体: "未维护的商机"
+    看板桥接决策验证
+      <span class="green">√</span> 场景③ 不应触发看板桥接  <span class="green">√</span> 场景④ 应触发看板桥接
+      <span class="green">√</span> 场景⑤ 应触发看板桥接  <span class="green">√</span> 场景⑥ 不应触发看板桥接
+    模板卡片字段格式验证
+      <span class="green">√</span> horizontal_content_list 应使用 keyname
+      <span class="green">√</span> emphasis_content.title 应 <= 12 字符
+      <span class="green">√</span> emphasis_content.desc 应可截断到 <= 30 字符
+    Profile 检测验证
+      <span class="green">√</span> 场景④ → agent-development
+      <span class="green">√</span> 场景⑤ → region-overview
+
+<span class="green">Test Suites: 1 passed, 1 total</span>
+<span class="green">Tests:       27 passed, 27 total</span>
+    </div>
+
+    <h3>现有看板桥接模拟测试（25 项全通过）</h3>
+    <div class="code-block">
+<span class="green">PASS</span> test/modules/wecom/wecom-dashboard-bridge.simulation.spec.ts
+  企微看板桥接 - 信号检测
+    <span class="green">√</span> [PASS] 全国渠道商发展运营数据看板
+    <span class="green">√</span> [PASS] 各区域渠道商发展运营数据情况看板
+    <span class="green">√</span> [PASS] 管理员视角，近3个月商机进展
+    <span class="green">√</span> [PASS] 最近一年商机趋势分析
+    <span class="green">√</span> [PASS] 近3个月没有维护进度的客户情况  <span class="comment">← 场景③ 排除生效</span>
+    <span class="green">√</span> [PASS] 最近3个月没有商机和订单的渠道商情况  <span class="comment">← 场景⑥ 排除生效</span>
+    <span class="green">√</span> [PASS] 渠道商经营分析看板
+    <span class="green">√</span> [PASS] 代理商发展运营数据看板分析
+  isWecomDashboardAnalysisRequest 看板桥接信号
+    <span class="green">√</span> [BRIDGE] 全国渠道商发展运营数据看板
+    <span class="green">√</span> [BRIDGE] 各区域渠道商发展运营数据情况看板
+    <span class="green">√</span> [ANALYZE] 近3个月没有维护进度的客户情况  <span class="comment">← 场景③ 不走看板</span>
+    <span class="green">√</span> [ANALYZE] 最近3个月没有商机和订单的渠道商情况  <span class="comment">← 场景⑥ 不走看板</span>
+
+<span class="green">Test Suites: 1 passed, 1 total</span>
+<span class="green">Tests:       25 passed, 25 total</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>📝 修改文件清单</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>文件</th>
+          <th>修改内容</th>
+          <th>影响范围</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>wecom-bot.service.ts</code></td>
+          <td>
+            1. kpiItems 字段名 label → keyname<br>
+            2. 模板卡片增加 source、字段长度截断<br>
+            3. 新增 isExclusionaryFilterQuery() 统一排除函数<br>
+            4. hasExplicitWecomAnalysisOrBlockSignal 加入排除过滤<br>
+            5. isWecomDashboardAnalysisRequest 使用统一排除函数<br>
+            6. 安全网使用统一排除函数<br>
+            7. compose() 前新增第④层最终拦截
+          </td>
+          <td>路由层 + 输出层</td>
+        </tr>
+        <tr>
+          <td><code>wecom-dashboard-card-builder.service.ts</code></td>
+          <td>
+            1. buildDashboardCard() key → keyname<br>
+            2. buildTimeoutCard() key → keyname
+          </td>
+          <td>输出层</td>
+        </tr>
+        <tr>
+          <td><code>wecom-ai-conversation-orchestration.service.ts</code></td>
+          <td>
+            isDashboardAnalysisQuestion() 排除过滤加强（4 组模式）
+          </td>
+          <td>路由层</td>
+        </tr>
+        <tr>
+          <td><code>wecom-fullchain-diagnosis.spec.ts</code></td>
+          <td>新增 27 项全链路诊断测试</td>
+          <td>测试</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>⚠️ 部署注意事项</h2>
+    <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 16px; border-radius: 8px; margin: 12px 0;">
+      <p style="font-size: 14px; margin-bottom: 8px;"><strong>1. 必须重新编译并重启后端服务</strong></p>
+      <p style="font-size: 14px;">本次修改涉及 TypeScript 源码，需要执行 <code>npm run build</code> 并重启 NestJS 服务才能生效。如果之前测试仍出问题，极可能是服务未重新编译。</p>
+    </div>
+    <div style="background: #d1ecf1; border-left: 4px solid #17a2b8; padding: 16px; border-radius: 8px; margin: 12px 0;">
+      <p style="font-size: 14px; margin-bottom: 8px;"><strong>2. 验证模板卡片是否正常显示</strong></p>
+      <p style="font-size: 14px;">重启后，发送"全国渠道商发展运营数据看板"应同时看到：① 模板卡片（含 KPI 摘要 + 跳转链接） ② 流式文本报告（含 KPI/饼图/漏斗/趋势/表格数据）。如果只看到文本没有卡片，检查后端日志中 <code>deliverTemplateCard</code> 是否有错误。</p>
+    </div>
+    <div style="background: #d4edda; border-left: 4px solid #28a745; padding: 16px; border-radius: 8px; margin: 12px 0;">
+      <p style="font-size: 14px; margin-bottom: 8px;"><strong>3. 验证场景③排除过滤</strong></p>
+      <p style="font-size: 14px;">重启后，发送"近3个月没有维护进度的客户情况"应返回常规分析结果（客户列表/筛选结果），而非"全国代理商发展运营数据看板"。后端日志中应出现 <code>"最终拦截：问题匹配排除过滤"</code> 或 <code>"看板桥接检测"</code> 日志显示 <code>shouldBridgeToDashboard: false</code>。</p>
+    </div>
+  </div>
+
+  <div class="footer">
+    CRM-Agent 企微看板全链路诊断报告 | 2026-06-25 | 52/52 测试通过
+  </div>
+</div>
+</body>
+</html>

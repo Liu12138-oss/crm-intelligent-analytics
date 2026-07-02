@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CRM Stripe Demo · 分析结果页</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./assets/crm-stripe-demo.css" />
+  </head>
+  <body class="demo-body">
+    <div class="demo-shell">
+      <aside class="demo-sidebar">
+        <section class="brand-lockup">
+          <div class="brand-mark">C</div>
+          <div class="brand-copy">
+            <h1>CRM 智能分析系统</h1>
+            <p>分析结果详情 demo</p>
+          </div>
+        </section>
+        <nav class="nav-group">
+          <p class="nav-caption">主导航</p>
+          <a class="nav-link" href="./workbench.html" title="智能分析">
+            <span class="nav-link__icon">工</span>
+            <span class="nav-link__text">智能分析</span>
+          </a>
+          <a class="nav-link nav-link--active" href="./result.html" title="分析结果详情">
+            <span class="nav-link__icon">析</span>
+            <span class="nav-link__text">分析结果详情</span>
+          </a>
+          <a class="nav-link" href="./audit.html" title="治理审计中心">
+            <span class="nav-link__icon">审</span>
+            <span class="nav-link__text">治理审计中心</span>
+          </a>
+          <a class="nav-link" href="./contract-review.html" title="智能合同">
+            <span class="nav-link__icon">合</span>
+            <span class="nav-link__text">智能合同</span>
+          </a>
+          <a class="nav-link" href="./login.html" title="登录页">
+            <span class="nav-link__icon">登</span>
+            <span class="nav-link__text">登录页</span>
+          </a>
+        </nav>
+      </aside>
+
+      <main class="demo-main motion-surface">
+        <header class="demo-topbar">
+          <div class="topbar-group">
+            <button class="topbar-toggle" type="button" data-nav-toggle aria-pressed="false" title="收起导航">收起</button>
+            <span class="badge badge--brand">分析结果页</span>
+            <span class="chip">结果状态：已完成</span>
+            <span class="chip">当前权限：全国经营分析</span>
+            <span class="chip">数据更新时间：09:40</span>
+          </div>
+          <div class="topbar-group">
+            <a class="soft-button" href="./index.html">返回总览</a>
+            <button class="ghost-button" type="button" data-loading-label="导出中...">导出结果</button>
+            <button class="button" type="button">继续追问</button>
+          </div>
+        </header>
+
+        <div class="demo-content">
+          <section>
+            <span class="eyebrow">RESULT</span>
+            <h1 class="page-title page-title--compact">本季度各区域新增商机金额、赢单率和环比变化</h1>
+            <p class="page-subtitle page-subtitle--compact">
+              问题上下文、结论摘要、主视图、边界信息和追问入口都放在同一条主工作流中。
+            </p>
+          </section>
+
+          <section class="card hero-card">
+            <div class="panel-header">
+              <div>
+                <span class="badge badge--brand">结论摘要</span>
+                <h2 class="panel-title" style="margin-top: 14px">
+                  华东和华北是本季度新增商机金额的主要增长来源，但整体赢单率较上季度回落 1.4 个百分点。
+                </h2>
+                <p class="panel-subtitle">
+                  回落主要集中在中后段商机推进效率。华东增长质量最好，西南增长速度快但转化稳定性不足。
+                </p>
+              </div>
+              <div class="status-row">
+                <span class="badge badge--success">结果校验通过</span>
+                <span class="badge badge--neutral">导出受限 1000 行</span>
+              </div>
+            </div>
+            <div class="chip-row">
+              <span class="chip">时间范围：2026 Q2</span>
+              <span class="chip">筛选条件：全国大区</span>
+              <span class="chip">权限边界：销售总监全国视图</span>
+              <span class="chip">数据批次：今日 09:40</span>
+            </div>
+          </section>
+
+          <section class="content-frame">
+            <div class="main-stack">
+              <section class="metrics-grid">
+                <article class="card metric-card">
+                  <div class="metric-kicker">新增商机金额</div>
+                  <strong>¥ 28.4M</strong>
+                  <div class="metric-meta"><span class="badge badge--success">+12.8%</span> 较上季度</div>
+                </article>
+                <article class="card metric-card">
+                  <div class="metric-kicker">赢单率</div>
+                  <strong>31.6%</strong>
+                  <div class="metric-meta"><span class="badge badge--warning">-1.4pt</span> 较上季度</div>
+                </article>
+                <article class="card metric-card">
+                  <div class="metric-kicker">重点客户推进</div>
+                  <strong>14 家</strong>
+                  <div class="metric-meta"><span class="badge badge--brand">5 家高优先</span> 进入商务评审</div>
+                </article>
+                <article class="card metric-card">
+                  <div class="metric-kicker">需重点复盘区域</div>
+                  <strong>2 个</strong>
+                  <div class="metric-meta"><span class="badge badge--danger">华北 / 西南</span> 赢单率回落</div>
+                </article>
+              </section>
+
+              <article class="card table-card">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title">主视图：区域趋势与转化关系</h2>
+                    <p class="panel-subtitle">结果页中的图表要减少装饰，更强调趋势、对比和异常点。</p>
+                  </div>
+                  <span class="badge badge--neutral">主视图</span>
+                </div>
+                <div class="line-chart">
+                  <svg viewBox="0 0 680 260" fill="none" aria-label="区域趋势图">
+                    <rect x="0" y="0" width="680" height="260" rx="18" fill="url(#resultBg)" />
+                    <path d="M50 210H630" stroke="#DCE6F4" stroke-width="1.2" />
+                    <path d="M50 164H630" stroke="#E8EEF7" stroke-width="1.2" />
+                    <path d="M50 118H630" stroke="#E8EEF7" stroke-width="1.2" />
+                    <path d="M50 72H630" stroke="#E8EEF7" stroke-width="1.2" />
+                    <path d="M60 176C106 158 132 134 180 128C226 122 254 138 302 120C350 102 390 90 432 98C472 106 530 86 620 44" stroke="#635BFF" stroke-width="4" stroke-linecap="round" />
+                    <path d="M60 198C112 196 138 182 180 186C226 190 252 154 300 150C344 146 392 142 434 138C478 134 534 126 620 118" stroke="#0A5BD8" stroke-width="4" stroke-linecap="round" />
+                    <circle cx="620" cy="44" r="7" fill="#635BFF" />
+                    <circle cx="620" cy="118" r="7" fill="#0A5BD8" />
+                    <defs>
+                      <linearGradient id="resultBg" x1="0" y1="0" x2="680" y2="260">
+                        <stop stop-color="#FFFFFF" />
+                        <stop offset="1" stop-color="#F7FAFF" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                </div>
+
+                <div class="table-preview" style="margin-top: 18px">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>区域</th>
+                        <th>新增商机金额</th>
+                        <th>赢单率</th>
+                        <th>环比变化</th>
+                        <th>备注</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>华东</td>
+                        <td>¥ 9.8M</td>
+                        <td>35.2%</td>
+                        <td><span class="badge badge--success">+18.4%</span></td>
+                        <td>增长与转化同步改善</td>
+                      </tr>
+                      <tr>
+                        <td>华北</td>
+                        <td>¥ 7.2M</td>
+                        <td>28.1%</td>
+                        <td><span class="badge badge--warning">-4.2%</span></td>
+                        <td>中后段推进放缓</td>
+                      </tr>
+                      <tr>
+                        <td>西南</td>
+                        <td>¥ 4.9M</td>
+                        <td>26.4%</td>
+                        <td><span class="badge badge--warning">-2.7%</span></td>
+                        <td>增长快但稳定性不足</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </article>
+            </div>
+
+            <aside class="rail-stack">
+              <article class="card detail-card">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title">关键判断</h2>
+                    <p class="panel-subtitle">摘要不是一句口号，而是结构化判断。</p>
+                  </div>
+                </div>
+                <div class="detail-block">
+                  <strong>华东是最优增长区域</strong>
+                  <span class="muted">新增金额和赢单率同步改善，说明增长质量较高。</span>
+                </div>
+                <div class="detail-block">
+                  <strong>华北应优先复盘推进效率</strong>
+                  <span class="muted">金额维持高位，但赢单率回落明显，建议下钻到负责人维度。</span>
+                </div>
+                <div class="detail-block">
+                  <strong>西南适合继续跟进重点客户明细</strong>
+                  <span class="muted">增长速度快，但当前仍需验证转化稳定性。</span>
+                </div>
+              </article>
+
+              <article class="card detail-card">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title">口径与边界</h2>
+                    <p class="panel-subtitle">时间范围、权限范围和数据批次属于主信息结构，而不是脚注。</p>
+                  </div>
+                </div>
+                <div class="detail-block">
+                  <strong>口径</strong>
+                  <span class="muted">赢单率按已批准口径计算，不允许模型自由推断公式。</span>
+                </div>
+                <div class="detail-block">
+                  <strong>权限范围</strong>
+                  <span class="muted">当前结果仅展示销售总监全国经营分析视图内的数据。</span>
+                </div>
+                <div class="detail-block">
+                  <strong>下一步建议</strong>
+                  <span class="muted">可继续追问“按负责人看华北中后段商机明细”和“西南重点客户列表”。</span>
+                </div>
+              </article>
+
+              <article class="card detail-card">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title">继续追问</h2>
+                    <p class="panel-subtitle">保留在结果页内，而不是强行跳回工作台重新开始。</p>
+                  </div>
+                </div>
+                <textarea class="composer-textarea" style="min-height: 140px">把华北赢单率回落的原因拆到负责人维度，再列出重点客户明细。</textarea>
+                <div class="action-row">
+                  <button class="button" type="button" data-loading-label="提交中...">提交追问</button>
+                  <button class="ghost-button" type="button">按当前条件重跑</button>
+                </div>
+              </article>
+            </aside>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="./assets/crm-stripe-demo.js"></script>
+  </body>
+</html>

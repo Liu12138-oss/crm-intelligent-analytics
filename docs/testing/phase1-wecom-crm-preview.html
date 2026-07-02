@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>一阶段企微 CRM 问答预览</title>
+    <style>
+      :root {
+        --bg: #f5f7fb;
+        --panel: #ffffff;
+        --ink: #1f2937;
+        --muted: #64748b;
+        --line: #dbe3ee;
+        --brand: #0f766e;
+        --brand-soft: #e6fffb;
+        --danger: #b91c1c;
+        --danger-soft: #fee2e2;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--bg);
+        font-family:
+          "PingFang SC",
+          "Microsoft YaHei",
+          "Noto Sans CJK SC",
+          sans-serif;
+      }
+
+      main {
+        width: min(1120px, calc(100% - 40px));
+        margin: 32px auto;
+      }
+
+      header {
+        margin-bottom: 20px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 28px;
+        line-height: 1.25;
+      }
+
+      h2 {
+        margin-top: 24px;
+        margin-bottom: 12px;
+        font-size: 18px;
+      }
+
+      .subtitle {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+
+      .card,
+      .chat {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+      }
+
+      .card {
+        padding: 16px;
+      }
+
+      .label {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .value {
+        margin-top: 6px;
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .status-ok,
+      .status-danger {
+        display: inline-flex;
+        align-items: center;
+        height: 24px;
+        padding: 0 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .status-ok {
+        color: #047857;
+        background: var(--brand-soft);
+      }
+
+      .status-danger {
+        color: var(--danger);
+        background: var(--danger-soft);
+      }
+
+      .chat {
+        display: grid;
+        gap: 14px;
+        padding: 18px;
+        margin-bottom: 14px;
+      }
+
+      .bubble {
+        max-width: 860px;
+        padding: 14px 16px;
+        border-radius: 8px;
+        line-height: 1.65;
+        white-space: pre-wrap;
+      }
+
+      .bubble-user {
+        justify-self: end;
+        color: #ffffff;
+        background: var(--brand);
+      }
+
+      .bubble-bot {
+        justify-self: start;
+        color: var(--ink);
+        background: #f8fafc;
+        border: 1px solid var(--line);
+      }
+
+      .meta {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .guard {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      @media (max-width: 760px) {
+        main {
+          width: min(100% - 24px, 1120px);
+          margin: 20px auto;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .bubble {
+          max-width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>渠道 CRM 系统机器人一阶段问答预览</h1>
+        <p class="subtitle">测试时间：2026-06-29 20:29，通道：本地 mock 投递，CRM 数据来源：标准 OpenAPI 真实接口。</p>
+      </header>
+
+      <section class="grid" aria-label="配置自检摘要">
+        <article class="card">
+          <p class="label">CRM OpenAPI</p>
+          <p class="value"><span class="status-ok">自检通过</span></p>
+          <p class="subtitle">client：OAC-1780885713919；绑定用户：联软科技超级管理员；权限：all。</p>
+        </article>
+        <article class="card">
+          <p class="label">企业微信机器人</p>
+          <p class="value"><span class="status-ok">配置通过</span></p>
+          <p class="subtitle">Bot ID：aibp****4Vxv；入站验签、来源、投递通道均已配置。</p>
+        </article>
+        <article class="card">
+          <p class="label">边界校验</p>
+          <p class="value"><span class="status-danger">错误 Bot ID 已拒绝</span></p>
+          <p class="subtitle">错误机器人编号请求返回 403：企业微信机器人编号校验失败。</p>
+        </article>
+      </section>
+
+      <h2>问答效果</h2>
+
+      <section class="chat" aria-label="经营总览问答">
+        <div class="meta">问题 1：经营总览</div>
+        <div class="bubble bubble-user">本月经营总览情况</div>
+        <div class="bubble bubble-bot">## 本月经营总览
+口径：本月；数据来自 CRM 标准开放接口，只读查询，权限由对方接口裁剪。
+
+已按本月读取经营总览。
+
+结论：当前权限范围内共返回 1 个总览指标。
+### 详细结果
+&gt; 共 1 条，以下展示前 1 条。
+
+**1. dataSource**
+&gt; 数值：CRM_STANDARD_OPEN_API
+
+可继续追问：换成广州办、只看订单金额、改成负责人排名、展开前十。</div>
+      </section>
+
+      <section class="chat" aria-label="渠道贡献问答">
+        <div class="meta">问题 2：渠道贡献</div>
+        <div class="bubble bubble-user">本月渠道代理商贡献排名前5</div>
+        <div class="bubble bubble-bot">## 本月渠道商商机金额前 5 名
+口径：本月；数据来自 CRM 标准开放接口，只读查询，权限由对方接口裁剪。
+
+已返回前 0 个渠道商贡献结果。
+
+结论：当前筛选范围内没有返回排行数据。
+
+可继续追问：换成广州办、只看订单金额、改成负责人排名、展开前十。</div>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "msgid": "fixture_msg_official_001",
+  "chattype": "group",
+  "chatid": "fixture_group_sales",
+  "from": {
+    "userid": "wx_sales_director"
+  },
+  "msgtype": "text",
+  "text": {
+    "content": "本月各销售负责人新增商机金额排名"
+  }
+}

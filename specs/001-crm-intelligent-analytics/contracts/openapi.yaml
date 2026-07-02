@@ -1,0 +1,5535 @@
+openapi: 3.1.0
+info:
+  title: CRM智能分析系统一期接口
+  version: 1.2.0
+  description: >
+    面向一期企业微信 AI 问数、Web 智能分析工作台与智能合同审核模块的接口契约，
+    覆盖自然语言问数、企业微信消息接入、查询模板、最近查询、结果查询、
+    合同审核任务、审核产物下载、导出控制、治理配置、审计检索与销售日报编排。
+servers:
+  - url: https://crm-analysis.internal.example.com
+    description: 内网生产环境示例地址
+security:
+  - cookieAuth: []
+tags:
+  - name: Auth
+    description: 登录认证、当前会话与企业微信扫码登录
+  - name: Analysis
+    description: 分析问数与结果查询
+  - name: QueryAsset
+    description: 常用查询与最近查询
+  - name: Opportunity
+    description: 公司名称直查商机与受控机会查询
+  - name: CrmWrite
+    description: 受控 CRM 写入口子，用于后续机器人或内部调用
+  - name: WecomBot
+    description: 企业微信机器人消息接入与会话查询
+  - name: Session
+    description: 会话连接治理与保活
+  - name: Export
+    description: 结果导出控制
+  - name: ContractReview
+    description: 智能合同审核任务、结果详情与产物下载
+  - name: Governance
+    description: 治理配置与模板管理
+  - name: Audit
+    description: 审计检索
+  - name: DailyReport
+    description: 销售日报编排、确认、提醒与汇总
+paths:
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: 使用 CRM 账号密码登录并建立本地会话
+      operationId: loginByPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthPasswordLoginRequest'
+      responses:
+        '201':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionResponse'
+        '401':
+          description: 账号密码错误或未绑定有效 CRM 用户
+  /api/v1/auth/session:
+    get:
+      tags: [Auth]
+      summary: 查询当前登录会话
+      operationId: getCurrentAuthSession
+      responses:
+        '200':
+          description: 当前登录态
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionResponse'
+        '401':
+          description: 当前未登录或会话已失效
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: 退出当前登录会话
+      operationId: logoutCurrentSession
+      responses:
+        '200':
+          description: 已退出登录
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success:
+                    type: boolean
+  /api/v1/auth/wecom/initiate:
+    get:
+      tags: [Auth]
+      summary: 发起企业微信扫码登录
+      operationId: initiateWecomLogin
+      responses:
+        '200':
+          description: 返回扫码授权地址
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WecomLoginInitiateResponse'
+  /api/v1/auth/wecom/callback:
+    get:
+      tags: [Auth]
+      summary: 处理企业微信扫码登录回调
+      operationId: handleWecomLoginCallback
+      parameters:
+        - in: query
+          name: state
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: senderId
+          schema:
+            type: string
+        - in: query
+          name: code
+          schema:
+            type: string
+        - in: query
+          name: error
+          schema:
+            type: string
+      responses:
+        '302':
+          description: 已处理扫码结果并跳转到 Web 登录页或工作台
+  /api/v1/auth/wecom/exchange:
+    post:
+      tags: [Auth]
+      summary: 处理企业微信网页登录后的前端换票请求
+      operationId: exchangeWecomLoginCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WecomLoginExchangeRequest'
+      responses:
+        '201':
+          description: 换票成功，或返回需要补录绑定信息的提示
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/AuthSessionResponse'
+                  - $ref: '#/components/schemas/WecomLoginBindRequiredResponse'
+        '401':
+          description: 企业微信登录状态校验失败或认证接口调用失败
+  /api/v1/wecom/messages:
+    post:
+      tags: [WecomBot]
+      summary: 接收企业微信机器人消息
+      operationId: receiveWecomMessage
+      security:
+        - wecomSignatureAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WecomIncomingMessageRequest'
+      responses:
+        '202':
+          description: 消息已接收，系统开始处理或继续当前会话
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WecomIncomingMessageResponse'
+        '403':
+          description: 当前用户无权使用企业微信问数能力
+        '409':
+          description: 会话状态冲突或当前请求需要排队
+  /api/v1/wecom/sessions/{sessionId}:
+    get:
+      tags: [WecomBot, Session]
+      summary: 查询企业微信会话状态
+      operationId: getWecomSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: 当前会话详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuerySessionResponse'
+        '404':
+          description: 会话不存在
+  /api/v1/wecom/sessions/{sessionId}/heartbeat:
+    post:
+      tags: [Session]
+      summary: 上报企业微信会话心跳
+      operationId: reportWecomSessionHeartbeat
+      security:
+        - wecomSignatureAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionHeartbeatRequest'
+      responses:
+        '200':
+          description: 心跳已记录
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionHeartbeatResponse'
+        '404':
+          description: 会话不存在
+  /api/v1/analysis/capabilities:
+    get:
+      tags: [Analysis]
+      summary: 获取当前用户可用的分析能力
+      operationId: getAnalysisCapabilities
+      responses:
+        '200':
+          description: 当前用户的分析能力范围
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisCapabilitiesResponse'
+  /api/v2/opportunities/by_name:
+    get:
+      tags: [Opportunity]
+      summary: 按名称查询商机列表
+      operationId: listOpportunitiesByName
+      parameters:
+        - in: query
+          name: query
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5
+            default: 5
+        - in: query
+          name: custom_field_name
+          required: false
+          schema:
+            type: string
+            enum: [title]
+            default: title
+      responses:
+        '200':
+          description: 名称命中的商机查询结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpportunityLookupResponse'
+        '400':
+          description: 未提供公司名称
+        '401':
+          description: 当前未登录或会话已失效
+        '403':
+          description: 当前账号无权查看该范围商机
+  /api/v1/crm/customers:
+    post:
+      tags: [CrmWrite]
+      summary: 新增客户口子
+      operationId: createCrmCustomer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCrmCustomerRequest'
+      responses:
+        '201':
+          description: 客户创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateCrmCustomerResponse'
+        '400':
+          description: 必填字段缺失、CRM 默认值未配置或自定义字段映射缺失
+        '401':
+          description: 当前未登录或会话中缺少 CRM access token
+        '503':
+          description: CRM Open API 不可用或创建失败
+  /api/v1/crm/opportunities:
+    post:
+      tags: [CrmWrite]
+      summary: 新增商机口子
+      operationId: createCrmOpportunity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCrmOpportunityRequest'
+      responses:
+        '201':
+          description: 商机创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateCrmOpportunityResponse'
+        '400':
+          description: 必填字段缺失、关联产品为空或自定义字段映射缺失
+        '401':
+          description: 当前未登录或会话中缺少 CRM access token
+        '503':
+          description: CRM Open API 不可用或创建失败
+  /api/v1/analysis/templates:
+    get:
+      tags: [QueryAsset]
+      summary: 获取当前用户可见的常用查询
+      operationId: listVisibleQueryTemplates
+      parameters:
+        - in: query
+          name: scope
+          schema:
+            type: string
+            enum: [mine, others, all]
+        - in: query
+          name: keyword
+          schema:
+            type: string
+        - in: query
+          name: tag
+          schema:
+            type: string
+        - in: query
+          name: ownerUserId
+          schema:
+            type: string
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [usage_desc, display_order]
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 当前用户可见的常用查询列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryTemplateListResponse'
+  /api/v1/analysis/templates/facets:
+    get:
+      tags: [QueryAsset]
+      summary: 获取常用查询标签选项
+      operationId: listQueryTemplateFacets
+      responses:
+        '200':
+          description: 当前用户可见的标签
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryTemplateFacetResponse'
+  /api/v1/analysis/templates/{templateId}/copy-to-mine:
+    post:
+      tags: [QueryAsset]
+      summary: 将其它模板复制为我的个人模板副本
+      operationId: copyQueryTemplateToMine
+      parameters:
+        - $ref: '#/components/parameters/TemplateId'
+      responses:
+        '201':
+          description: 已创建个人模板副本
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryTemplateResponse'
+  /api/v1/analysis/queries/{queryId}/templates:
+    post:
+      tags: [QueryAsset]
+      summary: 将已成功返回的自由问数结果保存为查询模板
+      operationId: saveAnalysisQueryAsTemplate
+      parameters:
+        - in: path
+          name: queryId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveQueryAsTemplateRequest'
+      responses:
+        '201':
+          description: 已保存为查询模板
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryTemplateResponse'
+  /api/v1/analysis/templates/{templateId}/execute:
+    post:
+      tags: [QueryAsset]
+      summary: 直接执行固定 SQL 查询模板
+      operationId: executeQueryTemplate
+      parameters:
+        - $ref: '#/components/parameters/TemplateId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecuteQueryTemplateRequest'
+      responses:
+        '201':
+          description: 模板执行成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecuteQueryTemplateResponse'
+  /api/v1/analysis/histories:
+    get:
+      tags: [QueryAsset]
+      summary: 获取当前用户最近查询列表
+      operationId: listRecentQueries
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        '200':
+          description: 最近查询分页列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecentQueryListResponse'
+  /api/v1/analysis/histories/{historyId}/rerun:
+    post:
+      tags: [QueryAsset]
+      summary: 按当前权限重新运行最近查询
+      operationId: rerunRecentQuery
+      parameters:
+        - $ref: '#/components/parameters/HistoryId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RerunRecentQueryRequest'
+      responses:
+        '201':
+          description: 最近查询已重新执行
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisQueryResponse'
+        '403':
+          description: 当前用户无权重新执行该记录
+        '404':
+          description: 最近查询记录不存在
+  /api/v1/analysis/queries:
+    post:
+      tags: [Analysis]
+      summary: 提交自然语言分析请求
+      operationId: createAnalysisQuery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAnalysisQueryRequest'
+      responses:
+        '201':
+          description: 已创建分析请求或返回补问提示
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisQueryResponse'
+        '400':
+          description: 请求格式不合法或问题超出当前支持范围
+        '403':
+          description: 当前用户无权使用分析能力
+  /api/v1/analysis/queries/{queryId}:
+    get:
+      tags: [Analysis]
+      summary: 查询分析请求详情与结果
+      operationId: getAnalysisQuery
+      parameters:
+        - $ref: '#/components/parameters/QueryId'
+      responses:
+        '200':
+          description: 分析结果详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisQueryDetailResponse'
+        '404':
+          description: 请求不存在
+  /api/v1/analysis/queries/{queryId}/exports:
+    post:
+      tags: [Export]
+      summary: 导出指定分析结果
+      operationId: createAnalysisExport
+      parameters:
+        - $ref: '#/components/parameters/QueryId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExportRequest'
+      responses:
+        '201':
+          description: 导出任务已创建并完成
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportResponse'
+        '403':
+          description: 用户无导出权限或导出超限
+        '409':
+          description: 分析结果尚不可导出
+  /api/v1/contract-reviews/contracts/pending-approval:
+    get:
+      tags: [ContractReview]
+      summary: 获取当前用户可见的待 1 级审批合同列表
+      operationId: listPendingApprovalContracts
+      responses:
+        '200':
+          description: 待 1 级审批合同列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractReviewSourceContractListResponse'
+        '401':
+          description: 当前未登录或会话已失效
+        '403':
+          description: 当前用户无权访问合同审核工作台
+  /api/v1/contract-reviews/contracts/{contractId}:
+    get:
+      tags: [ContractReview]
+      summary: 获取指定待 1 级审批合同的 CRM 快照详情
+      operationId: getPendingApprovalContractDetail
+      parameters:
+        - $ref: '#/components/parameters/ContractId'
+      responses:
+        '200':
+          description: 合同快照详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractReviewSourceContractDetail'
+        '401':
+          description: 当前未登录或会话已失效
+        '403':
+          description: 当前用户无权查看该合同
+        '404':
+          description: 合同不存在或不在当前待审批范围内
+  /api/v1/contract-reviews/contracts/{contractId}/tasks:
+    post:
+      tags: [ContractReview]
+      summary: 按 CRM 合同 ID 创建审核任务
+      operationId: createContractReviewTaskFromSourceContract
+      parameters:
+        - $ref: '#/components/parameters/ContractId'
+      responses:
+        '201':
+          description: 审核任务已创建
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractReviewCreateTaskResponse'
+        '401':
+          description: 当前未登录或会话已失效
+        '403':
+          description: 当前用户无权发起审核或无权访问该合同
+        '404':
+          description: 合同不存在或不在当前待审批范围内
+  /api/v1/contract-reviews/tasks:
+    get:
+      tags: [ContractReview]
+      summary: 获取当前用户可见的最近合同审核任务
+      operationId: listContractReviewTasks
+      responses:
+        '200':
+          description: 最近合同审核任务列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractReviewTaskListResponse'
+        '401':
+          description: 当前未登录或会话已失效
+    post:
+      tags: [ContractReview]
+      summary: 上传本地合同并创建审核任务（兼容补录入口）
+      operationId: createContractReviewTask
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 待审核的 `.docx` 合同文件
+      responses:
+        '201':
+          description: 审核任务已创建
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractReviewCreateTaskResponse'
+        '400':
+          description: 文件类型、大小或结构校验失败
+        '401':
+          description: 当前未登录或会话已失效
+  /api/v1/contract-reviews/tasks/{taskId}:
+    get:
+      tags: [ContractReview]
+      summary: 获取指定合同审核任务详情
+      operationId: getContractReviewTask
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: 审核任务详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractReviewTaskDetailResponse'
+        '403':
+          description: 当前无权查看该审核任务
+        '404':
+          description: 审核任务不存在
+  /api/v1/contract-reviews/tasks/{taskId}/artifacts/{artifactId}/download:
+    get:
+      tags: [ContractReview]
+      summary: 下载指定合同审核产物
+      operationId: downloadContractReviewArtifact
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/ArtifactId'
+      responses:
+        '200':
+          description: 产物文件流
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: 当前产物尚未生成完成或生成失败
+        '403':
+          description: 当前无权下载该审核产物
+        '404':
+          description: 审核任务或产物不存在
+  /api/v1/governance/policies/current:
+    get:
+      tags: [Governance]
+      summary: 获取当前生效的治理策略
+      operationId: getCurrentPolicy
+      responses:
+        '200':
+          description: 当前治理策略
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessPolicyResponse'
+    put:
+      tags: [Governance]
+      summary: 更新当前治理策略
+      operationId: updateCurrentPolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAccessPolicyRequest'
+      responses:
+        '200':
+          description: 策略更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessPolicyResponse'
+        '400':
+          description: 策略内容不合法
+        '403':
+          description: 当前用户不是管理员
+  /api/v1/governance/permissions/overview:
+    get:
+      tags: [Governance]
+      summary: 获取权限中心顶部摘要
+      operationId: getAccessGovernanceOverview
+      responses:
+        '200':
+          description: 权限中心摘要
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessGovernanceOverviewResponse'
+        '403':
+          description: 当前用户无权访问权限中心
+  /api/v1/governance/application-super-admin-policy:
+    get:
+      tags: [Governance]
+      summary: 获取应用超级管理员授权策略
+      operationId: getApplicationSuperAdminPolicy
+      responses:
+        '200':
+          description: 应用超级管理员授权策略
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationSuperAdminPolicyResponse'
+        '403':
+          description: 当前用户无权访问权限中心
+    put:
+      tags: [Governance]
+      summary: 更新应用超级管理员授权策略
+      operationId: updateApplicationSuperAdminPolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationSuperAdminPolicyRequest'
+      responses:
+        '200':
+          description: 应用超级管理员授权策略更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationSuperAdminPolicyResponse'
+        '400':
+          description: 请求参数不合法
+        '403':
+          description: 当前用户无权访问权限中心
+  /api/v1/governance/analysis-scope-policy:
+    get:
+      tags: [Governance]
+      summary: 获取应用超级管理员授权策略（旧分析全量查询兼容接口）
+      operationId: getAnalysisScopePolicy
+      deprecated: true
+      responses:
+        '200':
+          description: 兼容返回应用超级管理员授权策略；历史全量查询名单会迁移为用户级授权主体
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationSuperAdminPolicyResponse'
+        '403':
+          description: 当前用户无权访问权限中心
+    put:
+      tags: [Governance]
+      summary: 更新应用超级管理员授权策略（旧分析全量查询兼容接口）
+      operationId: updateAnalysisScopePolicy
+      deprecated: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/ApplicationSuperAdminPolicyRequest'
+                - $ref: '#/components/schemas/AnalysisScopePolicyRequest'
+      responses:
+        '200':
+          description: 应用超级管理员授权策略更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationSuperAdminPolicyResponse'
+        '400':
+          description: 请求参数不合法
+        '403':
+          description: 当前用户无权访问权限中心
+  /api/v1/governance/role-permissions:
+    get:
+      tags: [Governance]
+      summary: 获取角色权限矩阵
+      operationId: listRolePermissions
+      parameters:
+        - in: query
+          name: keyword
+          schema:
+            type: string
+          description: 按角色名称关键词筛选
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE]
+          description: 按角色权限状态筛选
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: 角色权限矩阵
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RolePermissionListResponse'
+        '403':
+          description: 当前用户无权访问权限中心
+  /api/v1/governance/role-permissions/{roleId}:
+    put:
+      tags: [Governance]
+      summary: 更新指定 CRM 角色的权限矩阵
+      operationId: updateRolePermission
+      parameters:
+        - in: path
+          name: roleId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRolePermissionRequest'
+      responses:
+        '200':
+          description: 角色权限已更新
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RolePermissionResponse'
+        '403':
+          description: 当前用户无权访问权限中心
+  /api/v1/governance/channels/wecom-bot/pilot-policy:
+    get:
+      tags: [Governance]
+      summary: 获取企业微信机器人灰度策略
+      operationId: getWecomPilotPolicy
+      responses:
+        '200':
+          description: 当前企业微信灰度策略
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WecomPilotPolicyResponse'
+        '403':
+          description: 当前用户无权访问权限中心
+    put:
+      tags: [Governance]
+      summary: 更新企业微信机器人灰度策略
+      operationId: updateWecomPilotPolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWecomPilotPolicyRequest'
+      responses:
+        '200':
+          description: 企业微信灰度策略已更新
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WecomPilotPolicyResponse'
+        '403':
+          description: 当前用户无权访问权限中心
+  /api/v1/governance/access-preview:
+    post:
+      tags: [Governance]
+      summary: 预览指定用户当前命中的最终权限
+      operationId: previewAccess
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccessPreviewRequest'
+      responses:
+        '200':
+          description: 用户最终权限预览结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessPreviewResponse'
+        '403':
+          description: 当前用户无权访问权限中心
+  /api/v1/governance/identity-mappings:
+    get:
+      tags: [Governance]
+      summary: 查询企业微信身份映射诊断结果
+      operationId: listIdentityMappings
+      parameters:
+        - in: query
+          name: wecomUserId
+          schema:
+            type: string
+          description: 按企业微信用户 ID 过滤
+      responses:
+        '200':
+          description: 企业微信身份映射诊断列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityMappingListResponse'
+        '403':
+          description: 当前用户无权访问权限中心
+  /api/v1/governance/daily-report-delivery/departments:
+    get:
+      tags: [Governance]
+      summary: 获取日报部门启停与收件规则树
+      operationId: listDailyReportDeliveryDepartments
+      responses:
+        '200':
+          description: 日报部门策略树
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyReportDepartmentPolicyListResponse'
+        '403':
+          description: 当前用户无权访问权限中心
+  /api/v1/governance/daily-report-delivery/departments/{departmentId}:
+    put:
+      tags: [Governance]
+      summary: 更新指定部门的日报启停与收件覆盖规则
+      operationId: updateDailyReportDeliveryDepartmentPolicy
+      parameters:
+        - in: path
+          name: departmentId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDailyReportDepartmentPolicyRequest'
+      responses:
+        '200':
+          description: 日报部门策略已更新
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyReportDepartmentPolicyResponse'
+        '403':
+          description: 当前用户无权访问权限中心
+  /api/v1/governance/daily-report-delivery/preview:
+    post:
+      tags: [Governance]
+      summary: 预览指定业务日期的日报发送结果
+      operationId: previewDailyReportDelivery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyReportDeliveryPreviewRequest'
+      responses:
+        '200':
+          description: 日报发送预览结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyReportDeliveryPreviewResponse'
+        '403':
+          description: 当前用户无权访问权限中心
+  /api/v1/governance/daily-report-delivery/groups:
+    post:
+      tags: [Governance]
+      summary: 新增日报销售小组配置
+      operationId: createDailyReportSalesGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertDailyReportSalesGroupRequest'
+      responses:
+        '201':
+          description: 日报销售小组已新增
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyReportSalesGroupConfigResponse'
+        '403':
+          description: 当前用户无权访问权限中心
+  /api/v1/governance/daily-report-delivery/groups/{groupId}:
+    put:
+      tags: [Governance]
+      summary: 更新日报销售小组配置
+      operationId: updateDailyReportSalesGroup
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertDailyReportSalesGroupRequest'
+      responses:
+        '200':
+          description: 日报销售小组已更新
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyReportSalesGroupConfigResponse'
+        '403':
+          description: 当前用户无权访问权限中心
+    delete:
+      tags: [Governance]
+      summary: 删除日报销售小组配置
+      operationId: deleteDailyReportSalesGroup
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 日报销售小组已删除
+        '403':
+          description: 当前用户无权访问权限中心
+  /api/v1/governance/query-templates:
+    get:
+      tags: [Governance]
+      summary: 获取治理端查询模板列表
+      operationId: listGovernanceQueryTemplates
+      responses:
+        '200':
+          description: 模板列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryTemplateListResponse'
+    post:
+      tags: [Governance]
+      summary: 新增查询模板
+      operationId: createGovernanceQueryTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateQueryTemplateRequest'
+      responses:
+        '201':
+          description: 模板创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryTemplateResponse'
+        '400':
+          description: 模板内容不合法
+        '403':
+          description: 当前用户不是管理员
+  /api/v1/governance/query-templates/{templateId}:
+    put:
+      tags: [Governance]
+      summary: 更新指定查询模板
+      operationId: updateGovernanceQueryTemplate
+      parameters:
+        - $ref: '#/components/parameters/TemplateId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateQueryTemplateRequest'
+      responses:
+        '200':
+          description: 模板更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryTemplateResponse'
+        '400':
+          description: 模板内容不合法
+        '403':
+          description: 当前用户不是管理员
+        '404':
+          description: 模板不存在
+    delete:
+      tags: [Governance]
+      summary: 删除指定查询模板
+      operationId: deleteGovernanceQueryTemplate
+      parameters:
+        - $ref: '#/components/parameters/TemplateId'
+      responses:
+        '200':
+          description: 模板删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteQueryTemplateResponse'
+        '403':
+          description: 当前用户不是管理员
+        '404':
+          description: 模板不存在
+  /api/v1/governance/query-templates/{templateId}/validate:
+    post:
+      tags: [Governance]
+      summary: 校验指定查询模板 SQL
+      operationId: validateGovernanceQueryTemplate
+      parameters:
+        - $ref: '#/components/parameters/TemplateId'
+      responses:
+        '201':
+          description: 模板 SQL 校验结果
+  /api/v1/governance/query-templates/{templateId}/preview:
+    post:
+      tags: [Governance]
+      summary: 预览指定查询模板结果
+      operationId: previewGovernanceQueryTemplate
+      parameters:
+        - $ref: '#/components/parameters/TemplateId'
+      responses:
+        '201':
+          description: 模板预览结果
+  /api/v1/governance/semantic-knowledge:
+    get:
+      tags: [Governance]
+      summary: 获取问数语义资产草稿列表与最近发布摘要
+      operationId: listAnalysisSemanticKnowledgeAssets
+      responses:
+        '200':
+          description: 语义资产治理视图
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisSemanticKnowledgeListResponse'
+    post:
+      tags: [Governance]
+      summary: 新增问数语义资产
+      operationId: createAnalysisSemanticKnowledgeAsset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisSemanticKnowledgeAssetWriteRequest'
+      responses:
+        '201':
+          description: 语义资产创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisSemanticKnowledgeAssetResponse'
+        '400':
+          description: 语义资产内容不合法
+        '403':
+          description: 当前用户无权管理问数语义资产
+  /api/v1/governance/semantic-knowledge/{assetId}:
+    get:
+      tags: [Governance]
+      summary: 获取指定问数语义资产详情
+      operationId: getAnalysisSemanticKnowledgeAsset
+      parameters:
+        - in: path
+          name: assetId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 语义资产详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisSemanticKnowledgeAssetResponse'
+        '404':
+          description: 语义资产不存在
+    put:
+      tags: [Governance]
+      summary: 更新指定问数语义资产
+      operationId: updateAnalysisSemanticKnowledgeAsset
+      parameters:
+        - in: path
+          name: assetId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisSemanticKnowledgeAssetWriteRequest'
+      responses:
+        '200':
+          description: 语义资产更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisSemanticKnowledgeAssetResponse'
+        '400':
+          description: 语义资产内容不合法
+        '403':
+          description: 当前用户无权管理问数语义资产
+        '404':
+          description: 语义资产不存在
+  /api/v1/governance/semantic-knowledge/{assetId}/status:
+    post:
+      tags: [Governance]
+      summary: 更新指定问数语义资产启停状态
+      operationId: setAnalysisSemanticKnowledgeAssetStatus
+      parameters:
+        - in: path
+          name: assetId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisSemanticKnowledgeAssetStatusRequest'
+      responses:
+        '200':
+          description: 语义资产状态更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisSemanticKnowledgeAssetResponse'
+        '404':
+          description: 语义资产不存在
+  /api/v1/governance/semantic-knowledge/publish:
+    post:
+      tags: [Governance]
+      summary: 发布当前问数语义资产快照
+      operationId: publishAnalysisSemanticKnowledgeAssets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisSemanticKnowledgePublishRequest'
+      responses:
+        '201':
+          description: 语义资产发布成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisSemanticKnowledgePublishedSummary'
+  /api/v1/governance/semantic-knowledge/rollback:
+    post:
+      tags: [Governance]
+      summary: 回退到指定语义资产发布版本
+      operationId: rollbackAnalysisSemanticKnowledgeAssets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisSemanticKnowledgeRollbackRequest'
+      responses:
+        '200':
+          description: 语义资产回退成功
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [restoredVersion, assetCount, restoredAt]
+                properties:
+                  restoredVersion:
+                    type: string
+                  assetCount:
+                    type: integer
+                    minimum: 0
+                  restoredAt:
+                    type: string
+                    format: date-time
+  /api/v1/audit-events:
+    get:
+      tags: [Audit]
+      summary: 查询审计事件列表
+      operationId: listAuditEvents
+      parameters:
+        - in: query
+          name: actorId
+          schema:
+            type: string
+          description: 按行为人筛选
+        - in: query
+          name: eventType
+          schema:
+            $ref: '#/components/schemas/AuditEventType'
+          description: 按事件类型筛选
+        - in: query
+          name: startAt
+          schema:
+            type: string
+            format: date-time
+          description: 开始时间
+        - in: query
+          name: endAt
+          schema:
+            type: string
+            format: date-time
+          description: 结束时间
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 审计事件分页列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEventListResponse'
+  /api/v1/audit-events/sql/summary:
+    get:
+      tags: [Audit]
+      summary: 查询 SQL 审计摘要
+      operationId: getSqlAuditSummary
+      parameters:
+        - in: query
+          name: actorId
+          schema:
+            type: string
+        - in: query
+          name: moduleKey
+          schema:
+            type: string
+        - in: query
+          name: databaseRole
+          schema:
+            $ref: '#/components/schemas/SqlAuditDatabaseRole'
+        - in: query
+          name: stage
+          schema:
+            $ref: '#/components/schemas/SqlAuditStage'
+        - in: query
+          name: operationType
+          schema:
+            $ref: '#/components/schemas/SqlAuditOperationType'
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/SqlAuditStatus'
+        - in: query
+          name: tableName
+          schema:
+            type: string
+        - in: query
+          name: requestId
+          schema:
+            type: string
+        - in: query
+          name: sessionId
+          schema:
+            type: string
+        - in: query
+          name: startAt
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: endAt
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: SQL 审计摘要
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SqlAuditSummaryResponse'
+        '403':
+          description: 当前用户无权查看 SQL 审计
+  /api/v1/audit-events/sql:
+    get:
+      tags: [Audit]
+      summary: 查询 SQL 审计列表
+      operationId: listSqlAudits
+      parameters:
+        - in: query
+          name: actorId
+          schema:
+            type: string
+        - in: query
+          name: moduleKey
+          schema:
+            type: string
+        - in: query
+          name: databaseRole
+          schema:
+            $ref: '#/components/schemas/SqlAuditDatabaseRole'
+        - in: query
+          name: stage
+          schema:
+            $ref: '#/components/schemas/SqlAuditStage'
+        - in: query
+          name: operationType
+          schema:
+            $ref: '#/components/schemas/SqlAuditOperationType'
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/SqlAuditStatus'
+        - in: query
+          name: tableName
+          schema:
+            type: string
+        - in: query
+          name: requestId
+          schema:
+            type: string
+        - in: query
+          name: sessionId
+          schema:
+            type: string
+        - in: query
+          name: startAt
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: endAt
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: SQL 审计分页列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SqlAuditListResponse'
+        '403':
+          description: 当前用户无权查看 SQL 审计
+  /api/v1/audit-events/sql/{sqlAuditId}:
+    get:
+      tags: [Audit]
+      summary: 查询单条 SQL 审计详情
+      operationId: getSqlAuditDetail
+      parameters:
+        - in: path
+          name: sqlAuditId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: SQL 审计详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SqlAuditDetailResponse'
+        '403':
+          description: 当前用户无权查看 SQL 审计
+        '404':
+          description: SQL 审计记录不存在
+  /api/v1/audit-events/sql/{sqlAuditId}/reveal:
+    post:
+      tags: [Audit]
+      summary: 受控查看完整 SQL 与参数
+      operationId: revealSqlAuditDetail
+      parameters:
+        - in: path
+          name: sqlAuditId
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: 已返回完整 SQL 与参数，并写入二次审计事件
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SqlAuditRevealResponse'
+        '403':
+          description: 当前用户无权查看 SQL 敏感明细
+        '404':
+          description: SQL 审计记录不存在
+  /api/v1/daily-reports/fragments:
+    post:
+      tags: [DailyReport]
+      summary: 记录或补录销售日报片段
+      operationId: recordDailyReportFragment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyReportFragmentCreateRequest'
+      responses:
+        '201':
+          description: 日报片段已写入并返回当前日报快照；22 点自动汇总与次日汇总仍以 CRM 源数据口径为准
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyReportRecord'
+        '400':
+          description: 来源接口失败、片段内容为空或片段类型与来源不匹配
+  /api/v1/daily-reports:
+    get:
+      tags: [DailyReport]
+      summary: 查询日报列表
+      operationId: listDailyReports
+      parameters:
+        - in: query
+          name: businessDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/DailyReportStatus'
+        - in: query
+          name: requesterId
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 日报列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DailyReportRecord'
+  /api/v1/daily-reports/{reportId}:
+    get:
+      tags: [DailyReport]
+      summary: 查询单条日报
+      operationId: getDailyReport
+      parameters:
+        - $ref: '#/components/parameters/DailyReportId'
+      responses:
+        '200':
+          description: 日报详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyReportRecord'
+        '404':
+          description: 日报不存在
+  /api/v1/daily-reports/{reportId}/confirm:
+    post:
+      tags: [DailyReport]
+      summary: 销售确认日报并正式发送主管
+      operationId: confirmDailyReport
+      parameters:
+        - $ref: '#/components/parameters/DailyReportId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyReportConfirmRequest'
+      responses:
+        '201':
+          description: 日报已确认并正式发送主管；若日报中存在明确协助事项，可并行触发协助升级通知
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyReportRecord'
+        '400':
+          description: 日报尚未完成收口或请求参数无效
+        '404':
+          description: 日报不存在
+  /api/v1/daily-reports/audit:
+    get:
+      tags: [DailyReport]
+      summary: 查询日报审计快照
+      operationId: listDailyReportAuditSnapshots
+      parameters:
+        - in: query
+          name: businessDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/DailyReportStatus'
+      responses:
+        '200':
+          description: 日报审计快照列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DailyReportAuditSnapshotItem'
+  /api/v1/daily-reports/summary-batches:
+    get:
+      tags: [DailyReport]
+      summary: 查询负责人日报汇总批次
+      operationId: listDailyReportSummaryBatches
+      responses:
+        '200':
+          description: 汇总批次列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DailyReportSummaryBatchRecord'
+  /api/v1/daily-reports/cron/reminders:
+    post:
+      tags: [DailyReport]
+      summary: 执行 22:00 CRM 日报源数据检查与个人确认/催报任务
+      operationId: runDailyReportReminderSweep
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyReportCronRequest'
+      responses:
+        '200':
+          description: 22 点任务已执行；有源数据时返回自动生成的个人日报，无源数据时仅发送本人催报提醒
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DailyReportRecord'
+  /api/v1/daily-reports/cron/close:
+    post:
+      tags: [DailyReport]
+      summary: 执行日报封账任务
+      operationId: runDailyReportClosureSweep
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyReportCronRequest'
+      responses:
+        '200':
+          description: 封账任务已执行
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DailyReportRecord'
+  /api/v1/daily-reports/cron/summaries:
+    post:
+      tags: [DailyReport]
+      summary: 执行次日 08:00 负责人日报汇总任务
+      operationId: runDailyReportSummarySweep
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyReportSummaryCronRequest'
+      responses:
+        '200':
+          description: 团队汇总任务已执行，并按负责人返回日报汇总批次
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyReportSummaryBatchRecord'
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: crm_auth_session
+    wecomSignatureAuth:
+      type: apiKey
+      in: header
+      name: X-Wecom-Signature
+  parameters:
+    QueryId:
+      in: path
+      name: queryId
+      required: true
+      schema:
+        type: string
+      description: 分析请求 ID
+    SessionId:
+      in: path
+      name: sessionId
+      required: true
+      schema:
+        type: string
+      description: 查询会话 ID
+    HistoryId:
+      in: path
+      name: historyId
+      required: true
+      schema:
+        type: string
+      description: 最近查询记录 ID
+    TemplateId:
+      in: path
+      name: templateId
+      required: true
+      schema:
+        type: string
+      description: 查询模板 ID
+    ContractId:
+      in: path
+      name: contractId
+      required: true
+      schema:
+        type: string
+      description: CRM 源合同 ID
+    TaskId:
+      in: path
+      name: taskId
+      required: true
+      schema:
+        type: string
+      description: 合同审核任务 ID
+    ArtifactId:
+      in: path
+      name: artifactId
+      required: true
+      schema:
+        type: string
+      description: 合同审核产物 ID
+    DailyReportId:
+      in: path
+      name: reportId
+      required: true
+      schema:
+        type: string
+      description: 销售日报 ID
+  schemas:
+    AuthPasswordLoginRequest:
+      type: object
+      required: [login, password]
+      properties:
+        login:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+        corpId:
+          type: string
+    AuthSessionResponse:
+      type: object
+      required: [authenticated, sessionId, source, expiresAt, user]
+      properties:
+        authenticated:
+          type: boolean
+        sessionId:
+          type: string
+        source:
+          type: string
+          enum: [password-login, wecom-scan]
+        expiresAt:
+          type: string
+          format: date-time
+        user:
+          type: object
+          required: [id, name, roleNames, channels, organizationIds, departmentIds]
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            roleNames:
+              type: array
+              items:
+                type: string
+            channels:
+              type: array
+              items:
+                type: string
+            organizationIds:
+              type: array
+              items:
+                type: string
+            departmentIds:
+              type: array
+              items:
+                type: string
+    WecomLoginInitiateResponse:
+      type: object
+      required: [enabled, state, authorizeUrl]
+      properties:
+        enabled:
+          type: boolean
+        state:
+          type: string
+        authorizeUrl:
+          type: string
+        widget:
+          type: object
+          properties:
+            appId:
+              type: string
+            agentId:
+              type: string
+            redirectUri:
+              type: string
+            state:
+              type: string
+            scope:
+              type: string
+        reason:
+          type: string
+    WecomLoginExchangeRequest:
+      type: object
+      required: [state]
+      properties:
+        code:
+          type: string
+        authCode:
+          type: string
+        state:
+          type: string
+    WecomLoginBindRequiredResponse:
+      type: object
+      required: [bindRequired, bindToken, prompt]
+      properties:
+        bindRequired:
+          type: boolean
+          enum: [true]
+        bindToken:
+          type: string
+        wecomUserName:
+          type: string
+        prompt:
+          type: string
+    WecomIncomingMessageRequest:
+      type: object
+      description: >
+        兼容当前本地联调简化报文与企业微信官方风格文本消息。
+        一期只支持文本问数，不支持图片、文件或语音消息直接进入正式分析链路。
+      properties:
+        externalConversationId:
+          type: string
+          description: 简化联调报文中的外部会话标识
+        senderId:
+          type: string
+          description: 简化联调报文中的发送者标识
+        messageId:
+          type: string
+          description: 简化联调报文中的消息唯一标识
+        messageText:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: 简化联调报文中的文本内容
+        msgid:
+          type: string
+          description: 企业微信官方文本消息的唯一标识
+        chattype:
+          type: string
+          enum: [single, group]
+        chatid:
+          type: string
+        msgtype:
+          type: string
+          enum: [text, image, mixed, voice, file]
+        from:
+          type: object
+          properties:
+            userid:
+              type: string
+        text:
+          type: object
+          properties:
+ 
+
+              type: string
+        followUpToSessionId:
+          type: string
+        sentAt:
+          type: string
+          format: date-time
+    WecomIncomingMessageResponse:
+      type: object
+      required: [receiptId, status, acceptedAt]
+      properties:
+        receiptId:
+          type: string
+        sessionId:
+          type: string
+        queryId:
+          type: string
+        status:
+          type: string
+          description: 企业微信消息当前处理结果；跟进写回相关状态仅在进入受控跟进流程后返回，主题型跟进入口在模板收集中通常返回 `DAILY_REPORT_PROMPTED`，CRM 创建相关状态仅在受控新增客户/商机流程中返回。
+          enum: [RETURNED, CLARIFICATION_REQUIRED, QUEUED, BLOCKED, EXPLAINED, DEGRADED, OPPORTUNITY_LOOKUP_RETURNED, ENTITY_LOOKUP_LIST_RETURNED, ENTITY_LOOKUP_DETAIL_RETURNED, FOLLOW_UP_WRITEBACK_PENDING_CONFIRMATION, FOLLOW_UP_WRITEBACK_AWAITING_CONTENT_CONFIRMATION, FOLLOW_UP_WRITEBACK_SUCCEEDED, FOLLOW_UP_WRITEBACK_CANCELLED, FOLLOW_UP_WRITEBACK_FAILED, FOLLOW_UP_SHARE_PENDING_CONFIRMATION, FOLLOW_UP_SHARE_SUCCEEDED, FOLLOW_UP_SHARE_CANCELLED, WECOM_CRM_CREATE_COLLECTING, WECOM_CRM_CREATE_AWAITING_CONFIRMATION, WECOM_CRM_CREATE_SUCCEEDED, WECOM_CRM_CREATE_CANCELLED, WECOM_CRM_CREATE_FAILED]
+        acceptedAt:
+          type: string
+          format: date-time
+        deduplicated:
+          type: boolean
+        queueNotice:
+          type: string
+        clarificationPrompt:
+          type: string
+        deliveryStatus:
+          type: string
+          enum: [PENDING, SENT, RETRYING, FAILED, SKIPPED]
+        deliveredBlockCount:
+          type: integer
+          minimum: 0
+        followUpWriteback:
+          description: 仅在进入受控跟进写回确认阶段时返回；主题型模板收集阶段、普通问数或拒绝场景不返回该字段。进入该阶段前，服务端已经同时完成 `wecom.followup.writeback` 动作权限校验，以及负责人 / 协作人 / 递归上级链对象级授权校验。
+          $ref: '#/components/schemas/WecomFollowUpWritebackPayload'
+        crmCreate:
+          description: 仅在企业微信受控新增客户或受控新增商机流程中返回；普通问数、拒绝或跟进写回场景不返回该字段。
+          $ref: '#/components/schemas/WecomCrmCreatePayload'
+    WecomFollowUpWritebackPayload:
+      type: object
+      required: [id, objectType, objectId, objectTitle, draftContent, status]
+      properties:
+        id:
+          type: string
+        objectType:
+          type: string
+          enum: [Customer, Opportunity]
+        objectId:
+          type: string
+        objectTitle:
+          type: string
+        customerName:
+          type: string
+        draftContent:
+          type: string
+        status:
+          $ref: '#/components/schemas/WecomFollowUpWritebackStatus'
+        failureReason:
+          type: string
+        externalRevisitLogId:
+          type: string
+        writtenAt:
+          type: string
+          format: date-time
+    WecomFollowUpWritebackStatus:
+      type: string
+      enum: [DRAFTED, AWAITING_CONTENT_CONFIRMATION, FAILED, COMPLETED, CANCELLED]
+    WecomCrmCreatePayload:
+      type: object
+      required: [entityType, status, title]
+      properties:
+        entityType:
+          type: string
+          enum: [Customer, Opportunity]
+        status:
+          type: string
+          enum: [COLLECTING, AWAITING_CONFIRMATION, FAILED, COMPLETED]
+        title:
+          type: string
+        resultId:
+          type: string
+        failureReason:
+          type: string
+    QuerySessionResponse:
+      type: object
+      required: [sessionId, channel, status, requesterId, lastMessageAt]
+      properties:
+        sessionId:
+          type: string
+        channel:
+          $ref: '#/components/schemas/ChannelType'
+        status:
+          $ref: '#/components/schemas/QuerySessionStatus'
+        requesterId:
+          type: string
+        activeQueryId:
+          type: string
+        lastMessageAt:
+          type: string
+          format: date-time
+        lastHeartbeatAt:
+          type: string
+          format: date-time
+        pendingSequence:
+          type: integer
+          minimum: 0
+        disconnectReason:
+          type: string
+    SessionHeartbeatRequest:
+      type: object
+      required: [reportedAt]
+      properties:
+        reportedAt:
+          type: string
+          format: date-time
+        connectionState:
+          type: string
+          enum: [ACTIVE, IDLE]
+    SessionHeartbeatResponse:
+      type: object
+      required: [sessionId, status, receivedAt]
+      properties:
+        sessionId:
+          type: string
+        status:
+          $ref: '#/components/schemas/QuerySessionStatus'
+        receivedAt:
+          type: string
+          format: date-time
+    CreateAnalysisQueryRequest:
+      type: object
+      required: [querySource, channel]
+      properties:
+        querySource:
+          $ref: '#/components/schemas/QuerySourceType'
+        channel:
+          $ref: '#/components/schemas/ChannelType'
+        questionText:
+          type: string
+          minLength: 1
+          maxLength: 500
+        templateId:
+          type: string
+        historyId:
+          type: string
+        followUpQueryId:
+          type: string
+        clarificationAnswer:
+          type: object
+          additionalProperties:
+            type: string
+        sessionId:
+          type: string
+    AnalysisQueryResponse:
+      type: object
+      required: [queryId, status, createdAt]
+      properties:
+        queryId:
+          type: string
+        status:
+          $ref: '#/components/schemas/AnalysisRequestStatus'
+        clarificationPrompt:
+          type: string
+        missingConditions:
+          type: array
+          items:
+            type: string
+        sessionId:
+          type: string
+        queueNotice:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    AnalysisQueryDetailResponse:
+      type: object
+      required: [queryId, status, createdAt]
+      properties:
+        queryId:
+          type: string
+        status:
+          $ref: '#/components/schemas/AnalysisRequestStatus'
+        title:
+          type: string
+        summary:
+          type: string
+        executionMode:
+          $ref: '#/components/schemas/AnalysisExecutionMode'
+        executionSource:
+          $ref: '#/components/schemas/AnalysisExecutionSource'
+        preferredSource:
+          $ref: '#/components/schemas/AnalysisExecutionSource'
+        matchedAdapter:
+          type: string
+        gapReason:
+          type: string
+        scopeSummary:
+          type: string
+        clarificationPrompt:
+          type: string
+        missingConditions:
+          type: array
+          items:
+            type: string
+        appliedFilters:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppliedFilter'
+        metricCards:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricCard'
+        primaryView:
+          $ref: '#/components/schemas/ResultView'
+        secondaryViews:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResultView'
+        tableRows:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        rowCount:
+          type: integer
+          minimum: 0
+        dataFreshnessAt:
+          type: string
+          format: date-time
+        consistencyToken:
+          type: string
+        explanation:
+          type: string
+        groundedExplanation:
+          type: string
+        groundedMarkdown:
+          type: string
+        wecomMarkdown:
+          type: string
+        markdownOutline:
+          type: array
+          items:
+            type: string
+        emptyReason:
+          type: string
+        report:
+          $ref: '#/components/schemas/AnalysisReportPayload'
+        availableActions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailableAction'
+        streamBlocks:
+          type: array
+          items:
+            $ref: '#/components/schemas/StreamBlock'
+        executionSnapshot:
+          $ref: '#/components/schemas/AnalysisExecutionSnapshot'
+        executionTraceSummary:
+          $ref: '#/components/schemas/AnalysisExecutionTraceSummary'
+        resultBundleSnapshot:
+          $ref: '#/components/schemas/AnalysisResultBundleSnapshot'
+        insightSnapshot:
+          $ref: '#/components/schemas/AnalysisInsightSnapshot'
+        deliverySnapshot:
+          $ref: '#/components/schemas/AnalysisDeliverySnapshot'
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+    AnalysisSourceNote:
+      type: object
+      required: [key, label, description]
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+    AnalysisExecutionTraceKnowledgeHit:
+      type: object
+      required: [assetId, assetType, source, name]
+      properties:
+        assetId:
+          type: string
+        assetType:
+          type: string
+        source:
+          type: string
+          enum: [PUBLISHED_ASSET, STATIC_FALLBACK, GOVERNED_TEMPLATE]
+        name:
+          type: string
+        detail:
+          type: string
+        version:
+          type: string
+    AnalysisExecutionTraceTaskSummary:
+      type: object
+      required: [taskId, taskTitle, resultKind, executionSource]
+      properties:
+        taskId:
+          type: string
+        taskTitle:
+          type: string
+        resultKind:
+          $ref: '#/components/schemas/QueryPlanResultKind'
+        executionSource:
+          $ref: '#/components/schemas/AnalysisExecutionSource'
+        preferredSource:
+          $ref: '#/components/schemas/AnalysisExecutionSource'
+        matchedAdapter:
+          type: string
+        gapReason:
+          type: string
+    AnalysisExecutionTraceSummary:
+      type: object
+      required: [normalizedQuestion, knowledgeHits, taskSummaries, datasetReferences, createdAt]
+      properties:
+        normalizedQuestion:
+          type: string
+        consistencyToken:
+          type: string
+        fallbackReason:
+          type: string
+        blockedReason:
+          type: string
+        knowledgeHits:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalysisExecutionTraceKnowledgeHit'
+        taskSummaries:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalysisExecutionTraceTaskSummary'
+        datasetReferences:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalysisDatasetReference'
+        createdAt:
+          type: string
+          format: date-time
+    AnalysisReportSection:
+      type: object
+      required: [sectionType, title]
+      properties:
+        sectionType:
+          type: string
+          enum: [summary, metric-strip, distribution, trend, forecast, anomaly, risk, recommendation, evidence, focus-list, detail-table, actions]
+        title:
+          type: string
+        datasetId:
+          type: string
+        description:
+          type: string
+        summary:
+          type: string
+        metricCards:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricCard'
+        series:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        rows:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        items:
+          type: array
+          items:
+            type: string
+        temporalScope:
+          $ref: '#/components/schemas/ResultTemporalScope'
+        sourceNotes:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalysisSourceNote'
+        footnotes:
+          type: array
+          items:
+            type: string
+    AnalysisTrendInsight:
+      type: object
+      required: [status, drivers, summary]
+      properties:
+        status:
+          type: string
+          enum: [READY, UNAVAILABLE]
+        direction:
+          type: string
+          enum: [UP, DOWN, FLAT, VOLATILE]
+        changeValue:
+          type: number
+        changeRate:
+          type: number
+        peakLabel:
+          type: string
+        troughLabel:
+          type: string
+        volatilityLevel:
+          type: string
+          enum: [HIGH, MEDIUM, LOW]
+        drivers:
+          type: array
+          items:
+            type: string
+        summary:
+          type: string
+    AnalysisForecastInsight:
+      type: object
+      required: [status, horizonLabel, confidenceLevel, drivers, caveats, summary]
+      properties:
+        status:
+          type: string
+          enum: [READY, UNAVAILABLE, LOW_CONFIDENCE]
+        horizonLabel:
+          type: string
+        predictedValue:
+          type: number
+        predictedRangeLow:
+          type: number
+        predictedRangeHigh:
+          type: number
+        confidenceLevel:
+          type: string
+          enum: [HIGH, MEDIUM, LOW]
+        drivers:
+          type: array
+          items:
+            type: string
+        caveats:
+          type: array
+          items:
+            type: string
+        summary:
+          type: string
+    AnalysisInsightItem:
+      type: object
+      required: [title, detail, severity]
+      properties:
+        type:
+          type: string
+        riskType:
+          type: string
+          enum: [BUSINESS_RISK, RESULT_RISK]
+        title:
+          type: string
+        detail:
+          type: string
+        severity:
+          type: string
+          enum: [HIGH, MEDIUM, LOW]
+        datasetId:
+          type: string
+    AnalysisRecommendationItem:
+      type: object
+      required: [priority, title, action, reason, evidenceKeys]
+      properties:
+        priority:
+          type: string
+          enum: [HIGH, MEDIUM, LOW]
+        title:
+          type: string
+        action:
+          type: string
+        reason:
+          type: string
+        evidenceKeys:
+          type: array
+          items:
+            type: string
+    AnalysisReportPayload:
+      type: object
+      required: [variant, reportTitle, executiveSummary, keyFindings, metricCards, chartBlocks, tableBlocks, sections, datasetReferences, scopeSummary, appliedFilters, availableActions]
+      properties:
+        variant:
+          type: string
+          enum: [ranking, trend, distribution, summary]
+        reportTitle:
+          type: string
+        executiveSummary:
+          type: string
+        analysisConfidence:
+          type: string
+          enum: [HIGH, MEDIUM, LOW]
+        predictionMode:
+          type: string
+          enum: [BALANCED_RANGE_FORECAST]
+        predictionHorizon:
+          type: string
+        temporalScope:
+          $ref: '#/components/schemas/ResultTemporalScope'
+        trendInsight:
+          $ref: '#/components/schemas/AnalysisTrendInsight'
+        forecastInsight:
+          $ref: '#/components/schemas/AnalysisForecastInsight'
+        anomalyInsights:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalysisInsightItem'
+        riskInsights:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalysisInsightItem'
+        recommendations:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalysisRecommendationItem'
+        confidenceSummary:
+          type: string
+        keyFindings:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalysisKeyFinding'
+        metricCards:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricCard'
+        chartBlocks:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalysisChartBlock'
+        tableBlocks:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalysisTableBlock'
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalysisReportSection'
+        datasetReferences:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalysisDatasetReference'
+        scopeSummary:
+          type: string
+        appliedFilters:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppliedFilter'
+        sourceNotes:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalysisSourceNote'
+        footnotes:
+          type: array
+          items:
+            type: string
+        executionTraceSummary:
+          $ref: '#/components/schemas/AnalysisExecutionTraceSummary'
+        explanation:
+          type: string
+        evidenceSummary:
+          type: string
+        groundedExplanation:
+          type: string
+        groundedMarkdown:
+          type: string
+        workbenchMarkdown:
+          type: string
+        detailMarkdown:
+          type: string
+        wecomMarkdown:
+          type: string
+        markdownOutline:
+          type: array
+          items:
+            type: string
+        emptyState:
+          type: string
+        availableActions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailableAction'
+    QueryTemplateListResponse:
+      type: object
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/QueryTemplateResponse'
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+        tags:
+          type: array
+          items:
+            type: string
+    QueryTemplateFacetResponse:
+      type: object
+      required: [tags]
+      properties:
+        tags:
+          type: array
+          items:
+            type: string
+    DeleteQueryTemplateResponse:
+      type: object
+      required: [success, templateId]
+      properties:
+        success:
+          type: boolean
+        templateId:
+          type: string
+    AnalysisSemanticKnowledgeListResponse:
+      type: object
+      required: [draftItems, publishedSummary]
+      properties:
+        draftItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalysisSemanticKnowledgeAssetResponse'
+        publishedSummary:
+          $ref: '#/components/schemas/AnalysisSemanticKnowledgePublishedSummary'
+    AnalysisSemanticKnowledgeAssetResponse:
+      type: object
+      required: [id, type, name, status]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [ALIAS, TEMPORAL_FIELD_HINT, ORGANIZATION_NORMALIZATION, VALIDATED_EXAMPLE, NEGATIVE_EXAMPLE]
+        name:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+        matchKeywords:
+          type: array
+          items:
+            type: string
+        canonicalLabel:
+          type: string
+        synonyms:
+          type: array
+          items:
+            type: string
+        questionText:
+          type: string
+        sqlHint:
+          type: string
+        hint:
+          type: string
+        blockReason:
+          type: string
+        latestPublishedVersion:
+          type: string
+        updatedBy:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+    AnalysisSemanticKnowledgeAssetWriteRequest:
+      type: object
+      required: [type, name, status, matchKeywords]
+      properties:
+        type:
+          type: string
+          enum: [ALIAS, TEMPORAL_FIELD_HINT, ORGANIZATION_NORMALIZATION, VALIDATED_EXAMPLE, NEGATIVE_EXAMPLE]
+        name:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+        matchKeywords:
+          type: array
+          items:
+            type: string
+        canonicalLabel:
+          type: string
+        synonyms:
+          type: array
+          items:
+            type: string
+        questionText:
+          type: string
+        sqlHint:
+          type: string
+        hint:
+          type: string
+        blockReason:
+          type: string
+    AnalysisSemanticKnowledgeAssetStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+    AnalysisSemanticKnowledgePublishRequest:
+      type: object
+      required: [changeSummary]
+      properties:
+        changeSummary:
+          type: string
+    AnalysisSemanticKnowledgeRollbackRequest:
+      type: object
+      required: [version, reason]
+      properties:
+        version:
+          type: string
+        reason:
+          type: string
+    AnalysisSemanticKnowledgePublishedSummary:
+      type: object
+      required: [assetCount]
+      properties:
+        version:
+          type: string
+        assetCount:
+          type: integer
+          minimum: 0
+        publishedBy:
+          type: string
+        publishedAt:
+          type: string
+          format: date-time
+        changeSummary:
+          type: string
+    QueryTemplateValidationSnapshot:
+      type: object
+      required: [status, message]
+      properties:
+        status:
+          type: string
+          enum: [PASSED, FAILED]
+        message:
+          type: string
+        scopeAnalysis:
+          $ref: '#/components/schemas/QueryTemplateScopeValidationSnapshot'
+    QueryTemplateScopeValidationSnapshot:
+      type: object
+      required: [scopeMode, detectedScopeFields, friendlyMessage]
+      properties:
+        scopeMode:
+          type: string
+          enum: [AUTO_SCOPE, DECLARED_SCOPE]
+        detectedScopeFields:
+          type: array
+          items:
+            type: string
+            enum: [organization_id, department_id, user_id]
+        friendlyMessage:
+          type: string
+        unsupportedReason:
+          type: string
+    QueryTemplateResponse:
+      type: object
+      required: [templateId, name, description, defaultFilters, visibleRoleIds, displayOrder, clickCount7d, hitRatePercent, optimizationStatus, status, updatedAt]
+      properties:
+        templateId:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        defaultQuestionText:
+          type: string
+        defaultFilters:
+          type: object
+          additionalProperties: true
+        defaultViewType:
+          $ref: '#/components/schemas/ResultViewType'
+        queryMode:
+          type: string
+          enum: [FIXED_SQL]
+        sqlText:
+          type: string
+        sqlVersion:
+          type: string
+        sourceType:
+          type: string
+          enum: [GOVERNANCE_CREATED, FREE_QUERY_SAVED, COPIED_FROM_TEMPLATE, LEGACY_MIGRATED]
+        sourceQueryId:
+          type: string
+        sourceTemplateId:
+          type: string
+        sourceSnapshot:
+          type: object
+          additionalProperties: true
+        scopeMode:
+          type: string
+          enum: [AUTO_SCOPE, DECLARED_SCOPE]
+        parameterSchema:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        renderConfig:
+          type: object
+          additionalProperties: true
+        recommendationReason:
+          type: string
+        validationSnapshot:
+          $ref: '#/components/schemas/QueryTemplateValidationSnapshot'
+        lastValidatedAt:
+          type: string
+          format: date-time
+        visibleRoleIds:
+          type: array
+          items:
+            type: string
+        ownerUserId:
+          type: string
+        visibilityType:
+          type: string
+          enum: [PRIVATE, SHARED]
+        displayOrder:
+          type: integer
+          minimum: 0
+        clickCount7d:
+          type: integer
+          minimum: 0
+        usageCountTotal:
+          type: integer
+          minimum: 0
+        lastUsedAt:
+          type: string
+          format: date-time
+        hitRatePercent:
+          type: number
+          minimum: 0
+          maximum: 100
+        optimizationStatus:
+          $ref: '#/components/schemas/OptimizationStatus'
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+        updatedAt:
+          type: string
+          format: date-time
+    RecentQueryListResponse:
+      type: object
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecentQueryResponse'
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+    RecentQueryResponse:
+      type: object
+      required: [historyId, questionText, lastUsedChannel, status, lastUsedAt]
+      properties:
+        historyId:
+          type: string
+        sourceType:
+          type: string
+          enum: [AI_QUERY, TEMPLATE_QUERY, RERUN_HISTORY]
+        templateId:
+          type: string
+        templateVersion:
+          type: string
+        questionText:
+          type: string
+        lastUsedChannel:
+          $ref: '#/components/schemas/ChannelType'
+        parameterSnapshot:
+          type: object
+          additionalProperties: true
+        renderSnapshot:
+          type: object
+          additionalProperties: true
+        resultSummary:
+          type: string
+        status:
+          type: string
+          enum: [SUCCEEDED, BLOCKED, FAILED]
+        lastUsedAt:
+          type: string
+          format: date-time
+    RerunRecentQueryRequest:
+      type: object
+      properties:
+        overrideQuestionText:
+          type: string
+          maxLength: 500
+        overrideFilters:
+          type: object
+          additionalProperties: true
+        channel:
+          $ref: '#/components/schemas/ChannelType'
+    ExecuteQueryTemplateRequest:
+      type: object
+      properties:
+        parameters:
+          type: object
+          additionalProperties: true
+        includeAiReport:
+          type: boolean
+        scopeRewriteConfirmed:
+          type: boolean
+    SaveQueryAsTemplateRequest:
+      type: object
+      required: [name, description]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        visibilityType:
+          type: string
+          enum: [PRIVATE, SHARED]
+        renderConfig:
+          type: object
+          additionalProperties: true
+    ExecuteQueryTemplateResponse:
+      type: object
+      required: [templateId, queryMode, sqlVersion, resultBundle, insightBundle, executedAt]
+      properties:
+        templateId:
+          type: string
+        queryMode:
+          type: string
+          enum: [FIXED_SQL]
+        sqlVersion:
+          type: string
+        scopeExecution:
+          type: object
+          required: [analysisScopeMode, analysisScopeSummary, templateScopeMode]
+          properties:
+            analysisScopeMode:
+              type: string
+              enum: [FULL_ANALYSIS_SCOPE, DEPARTMENT_ANALYSIS_SCOPE]
+            analysisScopeSummary:
+              type: string
+            templateScopeMode:
+              type: string
+              enum: [AUTO_SCOPE, DECLARED_SCOPE]
+        resultBundle:
+          type: object
+          additionalProperties: true
+        insightBundle:
+          type: object
+          additionalProperties: true
+        executedAt:
+          type: string
+          format: date-time
+    CreateQueryTemplateRequest:
+      type: object
+      required: [name, description, defaultQuestionText, defaultFilters, visibleRoleIds, displayOrder, status]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        defaultQuestionText:
+          type: string
+        defaultFilters:
+          type: object
+          additionalProperties: true
+        defaultViewType:
+          $ref: '#/components/schemas/ResultViewType'
+        sqlText:
+          type: string
+        sqlVersion:
+          type: string
+        parameterSchema:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        renderConfig:
+          type: object
+          additionalProperties: true
+        visibleRoleIds:
+          type: array
+          items:
+            type: string
+        ownerUserId:
+          type: string
+        visibilityType:
+          type: string
+          enum: [PRIVATE, SHARED]
+        displayOrder:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+    UpdateQueryTemplateRequest:
+      type: object
+      required: [name, description, defaultQuestionText, defaultFilters, visibleRoleIds, displayOrder, status]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        defaultQuestionText:
+          type: string
+        defaultFilters:
+          type: object
+          additionalProperties: true
+        defaultViewType:
+          $ref: '#/components/schemas/ResultViewType'
+        sqlText:
+          type: string
+        sqlVersion:
+          type: string
+        parameterSchema:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        renderConfig:
+          type: object
+          additionalProperties: true
+        visibleRoleIds:
+          type: array
+          items:
+            type: string
+        ownerUserId:
+          type: string
+        visibilityType:
+          type: string
+          enum: [PRIVATE, SHARED]
+        usageCountTotal:
+          type: integer
+          minimum: 0
+        lastUsedAt:
+          type: string
+          format: date-time
+        displayOrder:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+    CreateExportRequest:
+      type: object
+      properties:
+        format:
+          type: string
+          enum: [xlsx, csv]
+          default: xlsx
+    ExportResponse:
+      type: object
+      required: [exportId, status, rowCount, createdAt]
+      properties:
+        exportId:
+          type: string
+        status:
+          $ref: '#/components/schemas/ExportStatus'
+        rowCount:
+          type: integer
+          minimum: 0
+        blockedReason:
+          type: string
+        downloadUrl:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        exportedAt:
+          type: string
+          format: date-time
+    ContractReviewCreateTaskResponse:
+      type: object
+      required: [taskId, status, createdAt]
+      properties:
+        taskId:
+          type: string
+        status:
+          $ref: '#/components/schemas/ContractReviewTaskStatus'
+        createdAt:
+          type: string
+          format: date-time
+    ContractReviewSourceContractListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContractReviewSourceContractSummary'
+    ContractReviewSourceContractSummary:
+      type: object
+      required:
+        - contractId
+        - contractName
+        - ownerName
+        - totalAmount
+        - approveStatus
+        - pendingStep
+      properties:
+        contractId:
+          type: string
+        contractCode:
+          type: string
+        contractName:
+          type: string
+        customerName:
+          type: string
+        ownerName:
+          type: string
+        totalAmount:
+          type: number
+        submitApplyingAt:
+          type: string
+          format: date-time
+        approveStatus:
+          type: string
+        pendingStep:
+          type: integer
+          minimum: 1
+    ContractReviewSourceApprovalRecord:
+      type: object
+      required: [step, status]
+      properties:
+        step:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+        approverId:
+          type: string
+        approverName:
+          type: string
+        approveAt:
+          type: string
+          format: date-time
+        comment:
+          type: string
+    ContractReviewSourceContractDetail:
+      type: object
+      required:
+        - contractId
+        - contractName
+        - ownerId
+        - ownerName
+        - organizationId
+        - totalAmount
+        - specialTermBlocks
+        - approvalHistory
+        - approveStatus
+        - pendingStep
+        - sourceSummary
+      properties:
+        contractId:
+          type: string
+        contractCode:
+          type: string
+        contractName:
+          type: string
+        customerName:
+          type: string
+        opportunityTitle:
+          type: string
+        ownerId:
+          type: string
+        ownerName:
+          type: string
+        organizationId:
+          type: string
+        departmentId:
+          type: string
+        departmentName:
+          type: string
+        totalAmount:
+          type: number
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        signDate:
+          type: string
+          format: date-time
+        customerSigner:
+          type: string
+        ourSigner:
+          type: string
+        specialTerms:
+          type: string
+          description: 合同特殊条款原始拼接文本，仅用于受控详情查看与审核快照编译
+        specialTermBlocks:
+          type: array
+          items:
+            type: string
+        approvalComment:
+          type: string
+        approvalHistory:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContractReviewSourceApprovalRecord'
+        approveStatus:
+          type: string
+        pendingStep:
+          type: integer
+          minimum: 1
+        submitApplyingAt:
+          type: string
+          format: date-time
+        sourceSummary:
+          type: string
+    ContractReviewTaskListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContractReviewTaskSummary'
+    ContractReviewTaskSummary:
+      type: object
+      required:
+        - taskId
+        - contractName
+        - status
+        - overallDecision
+        - reviewBasis
+        - latestResultSummary
+        - vetoCount
+        - highRiskCount
+        - mediumRiskCount
+        - lowRiskCount
+        - createdAt
+      properties:
+        taskId:
+          type: string
+        contractName:
+          type: string
+        sourceType:
+          $ref: '#/components/schemas/ContractReviewTaskSourceType'
+        status:
+          $ref: '#/components/schemas/ContractReviewTaskStatus'
+        overallDecision:
+          $ref: '#/components/schemas/ContractReviewDecision'
+        reviewBasis:
+          $ref: '#/components/schemas/ContractReviewReviewBasis'
+        latestResultSummary:
+          type: string
+          description: 当 `reviewBasis.executionMode=DETERMINISTIC_ONLY` 时，摘要必须区分“规则快审”与“降级快审”语义
+        vetoCount:
+          type: integer
+          minimum: 0
+          description: 一票否决问题数量
+        highRiskCount:
+          type: integer
+          minimum: 0
+          description: 非一票否决的高风险问题数量
+        mediumRiskCount:
+          type: integer
+          minimum: 0
+        lowRiskCount:
+          type: integer
+          minimum: 0
+        supplementalReviewStatus:
+          $ref: '#/components/schemas/ContractReviewSupplementalReviewStatus'
+        supplementalReviewMessage:
+          type: string
+          description: AI 补充审核的当前说明；仅在存在补充审核时返回
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+    ContractReviewTaskDetailResponse:
+      type: object
+      required:
+        - taskId
+        - contractName
+        - status
+        - latestStageMessage
+        - overallDecision
+        - summary
+        - latestResultSummary
+        - vetoCount
+        - highRiskCount
+        - mediumRiskCount
+        - lowRiskCount
+        - totalIssueCount
+        - createdAt
+        - updatedAt
+        - reviewBasis
+        - ruleSet
+        - issues
+        - artifacts
+      properties:
+        taskId:
+          type: string
+        contractName:
+          type: string
+        sourceType:
+          $ref: '#/components/schemas/ContractReviewTaskSourceType'
+        status:
+          $ref: '#/components/schemas/ContractReviewTaskStatus'
+        latestStageMessage:
+          type: string
+        overallDecision:
+          $ref: '#/components/schemas/ContractReviewDecision'
+        summary:
+          type: string
+        latestResultSummary:
+          type: string
+        vetoCount:
+          type: integer
+          minimum: 0
+          description: 一票否决问题数量
+        highRiskCount:
+          type: integer
+          minimum: 0
+          description: 非一票否决的高风险问题数量
+        mediumRiskCount:
+          type: integer
+          minimum: 0
+        lowRiskCount:
+          type: integer
+          minimum: 0
+        totalIssueCount:
+          type: integer
+          minimum: 0
+        supplementalReviewStatus:
+          $ref: '#/components/schemas/ContractReviewSupplementalReviewStatus'
+        supplementalReviewMessage:
+          type: string
+          description: AI 补充审核的当前说明；仅在存在补充审核时返回
+        supplementalCompletedAt:
+          type: string
+          format: date-time
+          description: AI 补充审核完成时间；仅在补充审核完成后返回
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        reviewBasis:
+          $ref: '#/components/schemas/ContractReviewReviewBasis'
+        ruleSet:
+          $ref: '#/components/schemas/ContractReviewRuleSetSnapshot'
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContractReviewIssue'
+        artifacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContractReviewArtifact'
+    ContractReviewRuleSetSnapshot:
+      type: object
+      required: [code, version, title, summary]
+      properties:
+        code:
+          type: string
+        version:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+    ContractReviewIssue:
+      type: object
+      required:
+        - issueId
+        - title
+        - riskLevel
+        - isVeto
+        - description
+        - suggestion
+        - quote
+        - ruleCode
+        - ruleTitle
+        - sourceClause
+      properties:
+        issueId:
+          type: string
+        title:
+          type: string
+        riskLevel:
+          $ref: '#/components/schemas/RiskLevel'
+        isVeto:
+          type: boolean
+        description:
+          type: string
+        suggestion:
+          type: string
+        quote:
+          type: string
+          description: 仅在授权详情上下文中返回必要的原文片段与定位摘要
+        ruleCode:
+          type: string
+        ruleTitle:
+          type: string
+        sourceClause:
+          type: string
+    ContractReviewArtifact:
+      type: object
+      required: [artifactId, artifactType, fileName, status, reviewBasis]
+      properties:
+        artifactId:
+          type: string
+        artifactType:
+          $ref: '#/components/schemas/ContractReviewArtifactType'
+        fileName:
+          type: string
+        status:
+          $ref: '#/components/schemas/ContractReviewArtifactStatus'
+        failureReason:
+          type: string
+        reviewBasis:
+          $ref: '#/components/schemas/ContractReviewReviewBasis'
+    ContractReviewReviewBasis:
+      type: object
+      description: >
+        合同审核结果的追溯依据。`AI_HYBRID` 表示已执行 AI + 确定性校验混合审核；
+        `DETERMINISTIC_ONLY` 表示当前结果仍停留在规则快审或降级快审；若存在 `degradationReason`，表示 AI 不可用或失败导致未进入完整混合审核；
+        `BLOCKED` 表示任务被阻断，尚未形成正式审核结果。
+      required:
+        - packCode
+        - packVersion
+        - packChecksum
+        - packChecksumSummary
+        - modelProfile
+        - executionMode
+      properties:
+        packCode:
+          type: string
+          description: 当前命中的 skill pack 编码
+        packVersion:
+          type: string
+          description: 当前审核标准版本号
+        packChecksum:
+          type: string
+          description: 当前 skill pack 完整校验值
+        packChecksumSummary:
+          type: string
+          description: 便于页面与日志展示的校验摘要
+        modelProfile:
+          type: string
+          description: 当前审核使用的模型档位或模型配置名
+        executionMode:
+          $ref: '#/components/schemas/ContractReviewExecutionMode'
+        degradationReason:
+          type: string
+          description: 降级快审或阻断原因；当执行模式为 `DETERMINISTIC_ONLY` 且实际发生 AI 降级，或执行模式为 `BLOCKED` 时建议返回
+        promptFingerprints:
+          $ref: '#/components/schemas/ContractReviewPromptFingerprints'
+    ContractReviewPromptFingerprints:
+      type: object
+      description: 当前审核快照内三类提示词的指纹摘要，用于审计追溯
+      required: [planner, reviewer, summarizer]
+      properties:
+        planner:
+          type: string
+        reviewer:
+          type: string
+        summarizer:
+          type: string
+    AccessPolicyResponse:
+      type: object
+      required:
+        - policyId
+        - enabledRoleIds
+        - exportRoleIds
+        - enabledChannels
+        - allowedDomains
+        - allowedTables
+        - exportRowLimit
+        - exportDailyLimit
+        - maxOnlineSessions
+        - maxConcurrentQueries
+        - heartbeatIntervalSeconds
+        - idleTimeoutSeconds
+        - historyRetentionDays
+        - status
+        - updatedAt
+      properties:
+        policyId:
+          type: string
+        enabledRoleIds:
+          type: array
+          items:
+            type: string
+        exportRoleIds:
+          type: array
+          items:
+            type: string
+        enabledChannels:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChannelType'
+        allowedDomains:
+          type: array
+          items:
+            type: string
+        allowedTables:
+          type: array
+          items:
+            type: string
+        allowedFields:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        maskedFields:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        exportRowLimit:
+          type: integer
+        exportDailyLimit:
+          type: integer
+        maxOnlineSessions:
+          type: integer
+        maxConcurrentQueries:
+          type: integer
+        heartbeatIntervalSeconds:
+          type: integer
+        idleTimeoutSeconds:
+          type: integer
+        historyRetentionDays:
+          type: integer
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, SUPERSEDED]
+        updatedAt:
+          type: string
+          format: date-time
+    AccessGovernanceOverviewResponse:
+      type: object
+      required:
+        - analysisEnabledRoleCount
+        - wecomPilotMode
+        - wecomPilotWhitelistUserCount
+        - exportEnabledRoleCount
+        - identityMappingIssueCount
+      properties:
+        analysisEnabledRoleCount:
+          type: integer
+          minimum: 0
+        wecomPilotMode:
+          $ref: '#/components/schemas/WecomPilotMode'
+        wecomPilotWhitelistUserCount:
+          type: integer
+          minimum: 0
+        exportEnabledRoleCount:
+          type: integer
+          minimum: 0
+        identityMappingIssueCount:
+          type: integer
+          minimum: 0
+    RolePermissionListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RolePermissionResponse'
+    RolePermissionResponse:
+      type: object
+      required:
+        - roleId
+        - roleNameSnapshot
+        - status
+        - visibleMenus
+        - actionKeys
+        - webConsoleEnabled
+        - wecomBotEligible
+        - exportAllowed
+        - templateManageAllowed
+        - contractReviewUploadAllowed
+        - contractReviewCrossViewAllowed
+        - contractReviewCrossDownloadAllowed
+        - updatedBy
+        - updatedAt
+      properties:
+        roleId:
+          type: string
+        roleNameSnapshot:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+        visibleMenus:
+          type: array
+          items:
+            type: string
+        actionKeys:
+          type: array
+          items:
+            type: string
+        webConsoleEnabled:
+          type: boolean
+        wecomBotEligible:
+          type: boolean
+        exportAllowed:
+          type: boolean
+        templateManageAllowed:
+          type: boolean
+        contractReviewUploadAllowed:
+          type: boolean
+        contractReviewCrossViewAllowed:
+          type: boolean
+        contractReviewCrossDownloadAllowed:
+          type: boolean
+        updatedBy:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        changeReason:
+          type: string
+        simplifiedPermissionProfile:
+          $ref: '#/components/schemas/SimplifiedPermissionProfile'
+    UpdateRolePermissionRequest:
+      type: object
+      required:
+        - roleNameSnapshot
+        - status
+      properties:
+        roleNameSnapshot:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+        visibleMenus:
+          type: array
+          items:
+            type: string
+        actionKeys:
+          type: array
+          items:
+            type: string
+        webConsoleEnabled:
+          type: boolean
+        wecomBotEligible:
+          type: boolean
+        exportAllowed:
+          type: boolean
+        templateManageAllowed:
+          type: boolean
+        contractReviewUploadAllowed:
+          type: boolean
+        contractReviewCrossViewAllowed:
+          type: boolean
+        contractReviewCrossDownloadAllowed:
+          type: boolean
+        simplifiedPermissionProfile:
+          $ref: '#/components/schemas/SimplifiedPermissionProfile'
+        changeReason:
+          type: string
+      description: 优先提交 simplifiedPermissionProfile；旧字段仍用于兼容回滚到旧权限抽屉的载荷。
+    SimplifiedPermissionProfile:
+      type: object
+      required: [menus, risks]
+      properties:
+        menus:
+          type: object
+          properties:
+            analysis:
+              type: boolean
+            managementReport:
+              type: boolean
+            contractReview:
+              type: boolean
+            wecomBot:
+              type: boolean
+            permissionCenter:
+              type: boolean
+            templateGovernance:
+              type: boolean
+            connectionPolicy:
+              type: boolean
+            aiModelGovernance:
+              type: boolean
+            auditCenter:
+              type: boolean
+        risks:
+          type: object
+          properties:
+            analysisExport:
+              type: boolean
+            managementReportExport:
+              type: boolean
+            contractCrossView:
+              type: boolean
+            contractCrossDownload:
+              type: boolean
+        legacyWarnings:
+          type: array
+          items:
+            type: string
+            enum: [WEB_CONSOLE_WITHOUT_MENU]
+    WecomPilotMode:
+      type: string
+      enum: [DISABLED, PILOT_ONLY, FULL]
+    WecomPilotPolicyResponse:
+      type: object
+      required:
+        - channel
+        - mode
+        - allowUserIds
+        - allowRoleIds
+        - allowDepartmentIds
+        - denyUserIds
+        - updatedBy
+        - updatedAt
+      properties:
+        channel:
+          type: string
+          enum: [wecom-bot]
+        mode:
+          $ref: '#/components/schemas/WecomPilotMode'
+        allowUserIds:
+          type: array
+          items:
+            type: string
+        allowRoleIds:
+          type: array
+          items:
+            type: string
+        allowDepartmentIds:
+          type: array
+          items:
+            type: string
+        denyUserIds:
+          type: array
+          items:
+            type: string
+        note:
+          type: string
+        updatedBy:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+    UpdateWecomPilotPolicyRequest:
+      type: object
+      required: [mode, allowUserIds, allowRoleIds, allowDepartmentIds, denyUserIds]
+      properties:
+        mode:
+          $ref: '#/components/schemas/WecomPilotMode'
+        allowUserIds:
+          type: array
+          items:
+            type: string
+        allowRoleIds:
+          type: array
+          items:
+            type: string
+        allowDepartmentIds:
+          type: array
+          items:
+            type: string
+        denyUserIds:
+          type: array
+          items:
+            type: string
+        note:
+          type: string
+    AccessPreviewRequest:
+      type: object
+      properties:
+        crmUserId:
+          type: string
+        wecomUserId:
+          type: string
+    ContractPermissionSnapshot:
+      type: object
+      required: [uploadAllowed, crossViewAllowed, crossDownloadAllowed]
+      properties:
+        uploadAllowed:
+          type: boolean
+        crossViewAllowed:
+          type: boolean
+        crossDownloadAllowed:
+          type: boolean
+    WecomBotAccessState:
+      type: string
+      enum:
+        [
+          ALLOWED,
+          CHANNEL_DISABLED,
+          ROLE_NOT_ENABLED,
+          PILOT_REQUIRED,
+          EXPLICITLY_DENIED,
+          UNMAPPED_CRM_IDENTITY,
+          RESOURCE_FORBIDDEN
+        ]
+    AccessPreviewResponse:
+      type: object
+      required:
+        - mappingStatus
+        - analysisScopeMode
+        - analysisScopeSummary
+        - roleNames
+        - visibleMenus
+        - actionKeys
+        - scopeSummary
+        - wecomBotAccessState
+        - contractPermissions
+      properties:
+        crmUserId:
+          type: string
+        crmUserName:
+          type: string
+        wecomUserId:
+          type: string
+        mappingStatus:
+          type: string
+          enum: [MAPPED, UNMAPPED, CONFLICTED]
+        analysisScopeMode:
+          type: string
+          enum: [FULL_ANALYSIS_SCOPE, DEPARTMENT_ANALYSIS_SCOPE]
+        analysisScopeSummary:
+          type: string
+        roleNames:
+          type: array
+          items:
+            type: string
+        visibleMenus:
+          type: array
+          items:
+            type: string
+        actionKeys:
+          type: array
+          items:
+            type: string
+        scopeSummary:
+          type: string
+        wecomBotAccessState:
+          $ref: '#/components/schemas/WecomBotAccessState'
+        wecomBotAccessReason:
+          type: string
+        contractPermissions:
+          $ref: '#/components/schemas/ContractPermissionSnapshot'
+        simplifiedPermissionProfile:
+          $ref: '#/components/schemas/SimplifiedPermissionProfile'
+    IdentityMappingListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/IdentityMappingDiagnosticResponse'
+    IdentityMappingDiagnosticResponse:
+      type: object
+      required:
+        - wecomUserId
+        - mappingStatus
+        - crmRoleNames
+        - crmDepartmentIds
+        - analysisEnabled
+        - wecomBotAccessState
+      properties:
+        wecomUserId:
+          type: string
+        wecomName:
+          type: string
+        mappingStatus:
+          type: string
+          enum: [MAPPED, UNMAPPED, CONFLICTED]
+        crmUserId:
+          type: string
+        crmUserName:
+          type: string
+        crmRoleNames:
+          type: array
+          items:
+            type: string
+        crmDepartmentIds:
+          type: array
+          items:
+            type: string
+        analysisEnabled:
+          type: boolean
+        wecomBotAccessState:
+          $ref: '#/components/schemas/WecomBotAccessState'
+        failedReason:
+          type: string
+        lastDirectorySyncAt:
+          type: string
+          format: date-time
+    DailyReportDepartmentPolicyResponse:
+      type: object
+      required:
+        - departmentId
+        - departmentName
+        - status
+        - departmentType
+        - applyToChildren
+        - updatedBy
+        - updatedAt
+        - reason
+      properties:
+        departmentId:
+          type: string
+        departmentName:
+          type: string
+        parentDepartmentId:
+          type: string
+        status:
+          type: string
+          enum: [ENABLED, DISABLED, INHERIT]
+        departmentType:
+          type: string
+          enum: [REGION, SALES, NON_SALES, UNCLASSIFIED]
+        applyToChildren:
+          type: boolean
+        updatedBy:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+        resolvedRecipientName:
+          type: string
+        resolvedRecipientCrmUserId:
+          type: string
+        resolvedRecipientWecomUserId:
+          type: string
+        resolvedRecipientSource:
+          type: string
+          enum: [AUTO, REGION_OVERRIDE, SALES_GROUP_OVERRIDE]
+    DailyReportDepartmentPolicyListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyReportDepartmentPolicyResponse'
+    UpdateDailyReportDepartmentPolicyRequest:
+      type: object
+      required: [status, departmentType, applyToChildren, reason]
+      properties:
+        status:
+          type: string
+          enum: [ENABLED, DISABLED, INHERIT]
+        departmentType:
+          type: string
+          enum: [REGION, SALES, NON_SALES, UNCLASSIFIED]
+        applyToChildren:
+          type: boolean
+        overrideRecipientCrmUserId:
+          type: string
+        reason:
+          type: string
+    DailyReportDeliveryPreviewRequest:
+      type: object
+      required: [businessDate]
+      properties:
+        businessDate:
+          type: string
+          format: date
+    DailyReportPreviewMemberResponse:
+      type: object
+      required: [crmUserId, mappingStatus, mappingStatusLabel]
+      properties:
+        crmUserId:
+          type: string
+        memberName:
+          type: string
+        wecomUserId:
+          type: string
+        mappingStatus:
+          type: string
+          enum: [MAPPED, MISSING_CRM_USER, MISSING_WECOM_MAPPING]
+        mappingStatusLabel:
+          type: string
+    DailyReportSalesGroupConfigResponse:
+      type: object
+      required: [groupId, groupName, source, status, memberCrmUserIds, memberOverrideEnabled, updatedBy, updatedAt, reason]
+      properties:
+        groupId:
+          type: string
+        groupName:
+          type: string
+        source:
+          type: string
+          enum: [AUTO, MANUAL]
+        linkedDepartmentId:
+          type: string
+        regionDepartmentId:
+          type: string
+        regionDepartmentName:
+          type: string
+        status:
+          type: string
+          enum: [ENABLED, DISABLED]
+        recipientCrmUserId:
+          type: string
+          description: 兼容旧版单组长配置；新保存应优先使用 recipientCrmUserIds。
+        recipientCrmUserIds:
+          type: array
+          items:
+            type: string
+          description: 日报团队组长 CRM 用户 ID 列表，支持一个团队发送给多个组长。
+        memberCrmUserIds:
+          type: array
+          items:
+            type: string
+        memberOverrideEnabled:
+          type: boolean
+        updatedBy:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+    UpsertDailyReportSalesGroupRequest:
+      type: object
+      required: [groupName, status, memberCrmUserIds, memberOverrideEnabled, reason]
+      properties:
+        groupName:
+          type: string
+        linkedDepartmentId:
+          type: string
+        regionDepartmentId:
+          type: string
+        regionDepartmentName:
+          type: string
+        status:
+          type: string
+          enum: [ENABLED, DISABLED]
+        recipientCrmUserId:
+          type: string
+          description: 兼容旧版单组长配置；新保存应优先使用 recipientCrmUserIds。
+        recipientCrmUserIds:
+          type: array
+          items:
+            type: string
+          description: 日报团队组长 CRM 用户 ID 列表，支持一个团队发送给多个组长。
+        memberCrmUserIds:
+          type: array
+          items:
+            type: string
+        memberOverrideEnabled:
+          type: boolean
+        reason:
+          type: string
+    DailyReportDeliveryPreviewGroupResponse:
+      type: object
+      required:
+        - groupDepartmentId
+        - groupDepartmentName
+        - effectivePolicy
+        - ruleSource
+        - ruleSourceLabel
+        - deliveryStatus
+        - deliveryStatusLabel
+        - memberRequesterIds
+        - members
+        - memberCount
+      properties:
+        groupDepartmentId:
+          type: string
+        groupDepartmentName:
+          type: string
+        regionDepartmentId:
+          type: string
+        regionDepartmentName:
+          type: string
+        effectivePolicy:
+          type: string
+          enum: [ENABLED, DISABLED, INHERIT]
+        recipientCrmUserId:
+          type: string
+          description: 兼容旧版主组长字段；多人场景取可发送组长中的第一人。
+        recipientCrmUserIds:
+          type: array
+          items:
+            type: string
+          description: 日报团队可发送组长 CRM 用户 ID 列表。
+        recipientName:
+          type: string
+          description: 兼容旧版主组长姓名；多人场景取可发送组长中的第一人。
+        recipientNames:
+          type: array
+          items:
+            type: string
+          description: 日报团队组长姓名列表。
+        recipientWecomUserId:
+          type: string
+        recipientWecomUserIds:
+          type: array
+          items:
+            type: string
+        recipients:
+          type: array
+          description: 对齐后的日报团队组长列表，前端应优先使用该字段展示和回显多人组长。
+          items:
+            type: object
+            properties:
+              crmUserId:
+                type: string
+              name:
+                type: string
+              wecomUserId:
+                type: string
+        ruleSource:
+          type: string
+          enum: [AUTO, REGION_OVERRIDE, SALES_GROUP_OVERRIDE, MANUAL_GROUP_CONFIG]
+        ruleSourceLabel:
+          type: string
+        deliveryStatus:
+          type: string
+          enum: [READY, BLOCKED]
+        deliveryStatusLabel:
+          type: string
+        deliveryReason:
+          type: string
+        memberRequesterIds:
+          type: array
+          items:
+            type: string
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyReportPreviewMemberResponse'
+        memberCount:
+          type: integer
+    DailyReportDeliveryPreviewResponse:
+      type: object
+      required: [businessDate, groups]
+      properties:
+        businessDate:
+          type: string
+          format: date
+        groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyReportDeliveryPreviewGroupResponse'
+    UpdateAccessPolicyRequest:
+      type: object
+      required:
+        - enabledRoleIds
+        - exportRoleIds
+        - enabledChannels
+        - allowedDomains
+        - allowedTables
+        - allowedFields
+        - exportRowLimit
+        - exportDailyLimit
+        - maxOnlineSessions
+        - maxConcurrentQueries
+        - heartbeatIntervalSeconds
+        - idleTimeoutSeconds
+        - historyRetentionDays
+      properties:
+        enabledRoleIds:
+          type: array
+          items:
+            type: string
+        exportRoleIds:
+          type: array
+          items:
+            type: string
+        enabledChannels:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChannelType'
+        allowedDomains:
+          type: array
+          items:
+            type: string
+        allowedTables:
+          type: array
+          items:
+            type: string
+        allowedFields:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        maskedFields:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        exportRowLimit:
+          type: integer
+          minimum: 1
+          maximum: 1000
+        exportDailyLimit:
+          type: integer
+          minimum: 1
+          maximum: 3
+        maxOnlineSessions:
+          type: integer
+          minimum: 1
+        maxConcurrentQueries:
+          type: integer
+          minimum: 1
+        heartbeatIntervalSeconds:
+          type: integer
+          minimum: 1
+        idleTimeoutSeconds:
+          type: integer
+          minimum: 1
+        historyRetentionDays:
+          type: integer
+          minimum: 1
+    AuditEventListResponse:
+      type: object
+      required: [summary, items, page, pageSize, total]
+      properties:
+        summary:
+          $ref: '#/components/schemas/AuditEventSummary'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+    SqlAuditSummaryResponse:
+      type: object
+      required: [totalCount, writeCount, failedCount, blockedCount, highRiskCount, averageDurationMs, canRevealSensitive]
+      properties:
+        totalCount:
+          type: integer
+          minimum: 0
+        writeCount:
+          type: integer
+          minimum: 0
+        failedCount:
+          type: integer
+          minimum: 0
+        blockedCount:
+          type: integer
+          minimum: 0
+        highRiskCount:
+          type: integer
+          minimum: 0
+        averageDurationMs:
+          type: integer
+          minimum: 0
+        canRevealSensitive:
+          type: boolean
+    SqlAuditListResponse:
+      type: object
+      required: [summary, items, page, pageSize, total]
+      properties:
+        summary:
+          $ref: '#/components/schemas/SqlAuditSummaryResponse'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SqlAuditListItem'
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+    SqlAuditListItem:
+      type: object
+      required: [auditId, actorId, moduleKey, programName, databaseRole, operationType, stage, status, riskLevel, tables, sqlFingerprint, sqlSummary, paramSummary, canRevealSensitive, createdAt]
+      properties:
+        auditId:
+          type: string
+        actorId:
+          type: string
+        actorName:
+          type: string
+        channel:
+          $ref: '#/components/schemas/ChannelType'
+        requestId:
+          type: string
+        sessionId:
+          type: string
+        moduleKey:
+          type: string
+        programName:
+          type: string
+        databaseRole:
+          $ref: '#/components/schemas/SqlAuditDatabaseRole'
+        operationType:
+          $ref: '#/components/schemas/SqlAuditOperationType'
+        stage:
+          $ref: '#/components/schemas/SqlAuditStage'
+        status:
+          $ref: '#/components/schemas/SqlAuditStatus'
+        riskLevel:
+          $ref: '#/components/schemas/RiskLevel'
+        tables:
+          type: array
+          items:
+            type: string
+        sqlFingerprint:
+          type: string
+        sqlSummary:
+          type: string
+        paramSummary:
+          type: string
+        rowCount:
+          type: integer
+          minimum: 0
+        affectedRows:
+          type: integer
+          minimum: 0
+        durationMs:
+          type: integer
+          minimum: 0
+        executionMode:
+          $ref: '#/components/schemas/AnalysisExecutionMode'
+        executionSource:
+          $ref: '#/components/schemas/AnalysisExecutionSource'
+        matchedAdapter:
+          type: string
+        fallbackReason:
+          type: string
+        blockedReason:
+          type: string
+        errorSummary:
+          type: string
+        canRevealSensitive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    SqlAuditDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/SqlAuditListItem'
+        - type: object
+          properties:
+            timeoutMs:
+              type: integer
+              minimum: 0
+    SqlAuditRevealResponse:
+      type: object
+      required: [auditId, sqlText, params, revealedAt]
+      properties:
+        auditId:
+          type: string
+        sqlText:
+          type: string
+        params:
+          type: array
+          items:
+            oneOf:
+              - type: string
+              - type: number
+              - type: boolean
+              - type: object
+                additionalProperties: true
+              - type: array
+                items:
+                  type: string
+        errorMessage:
+          type: string
+        revealedAt:
+          type: string
+          format: date-time
+    AnalysisCapabilitiesResponse:
+      type: object
+      required: [serviceStatus, scopeSummary, analysisScopeMode, analysisScopeSummary, roleNames, channels, domains, metrics, dimensions, exportAllowed, exportRowLimit, exportDailyLimit, remainingDailyExports, dataFreshnessAt, visibleMenus, actionKeys, wecomBotAccessState, contractPermissions]
+      properties:
+        serviceStatus:
+          $ref: '#/components/schemas/AnalysisServiceStatus'
+        scopeSummary:
+          type: string
+        analysisScopeMode:
+          type: string
+          enum: [FULL_ANALYSIS_SCOPE, DEPARTMENT_ANALYSIS_SCOPE]
+        analysisScopeSummary:
+          type: string
+        roleNames:
+          type: array
+          items:
+            type: string
+        channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChannelType'
+        domains:
+          type: array
+          items:
+            type: string
+        metrics:
+          type: array
+          items:
+            type: string
+        dimensions:
+          type: array
+          items:
+            type: string
+        exportAllowed:
+          type: boolean
+        exportRowLimit:
+          type: integer
+        exportDailyLimit:
+          type: integer
+        remainingDailyExports:
+          type: integer
+          minimum: 0
+        dataFreshnessAt:
+          type: string
+          format: date-time
+        historyEnabled:
+          type: boolean
+        templateCount:
+          type: integer
+          minimum: 0
+        visibleMenus:
+          type: array
+          items:
+            type: string
+        actionKeys:
+          type: array
+          items:
+            type: string
+        wecomBotAccessState:
+          $ref: '#/components/schemas/WecomBotAccessState'
+        wecomBotAccessReason:
+          type: string
+        contractPermissions:
+          $ref: '#/components/schemas/ContractPermissionSnapshot'
+    ApplicationSuperAdminSubject:
+      type: object
+      required: [subjectType, subjectId, status]
+      properties:
+        subjectType:
+          type: string
+          enum: [USER, ROLE]
+          description: 授权主体类型，USER 表示 CRM 用户，ROLE 表示 CRM 角色
+        subjectId:
+          type: string
+          description: CRM 用户 ID 或 CRM 角色 ID
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+          description: 授权状态
+    ApplicationSuperAdminPolicyRequest:
+      type: object
+      required: [subjects, changeReason]
+      properties:
+        subjects:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApplicationSuperAdminSubject'
+        changeReason:
+          type: string
+          maxLength: 200
+          description: 中文变更原因，保存授权时必填
+    ApplicationSuperAdminPolicyResponse:
+      type: object
+      required: [policyId, subjects, fullAccessUserIds, fullAccessRoleIds, updatedBy, updatedAt]
+      properties:
+        policyId:
+          type: string
+        subjects:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApplicationSuperAdminSubject'
+        fullAccessUserIds:
+          type: array
+          description: 兼容旧前端的有效用户主体列表
+          items:
+            type: string
+        fullAccessRoleIds:
+          type: array
+          description: 有效角色主体列表
+          items:
+            type: string
+        updatedBy:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        changeReason:
+          type: string
+    AnalysisScopePolicyRequest:
+      type: object
+      description: 旧分析全量查询授权请求，仅作为应用超级管理员授权兼容格式保留
+      required: [fullAccessUserIds, changeReason]
+      properties:
+        fullAccessUserIds:
+          type: array
+          items:
+            type: string
+        changeReason:
+          type: string
+          maxLength: 200
+    AnalysisScopePolicyResponse:
+      type: object
+      description: 旧分析全量查询授权响应，仅作为兼容格式保留；新接口返回 ApplicationSuperAdminPolicyResponse
+      required: [policyId, fullAccessUserIds, updatedBy, updatedAt]
+      properties:
+        policyId:
+          type: string
+        fullAccessUserIds:
+          type: array
+          items:
+            type: string
+        updatedBy:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        changeReason:
+          type: string
+    CreateCrmCustomerRequest:
+      type: object
+      required: [name, phone, itDecisionLocation, unifiedSocialCreditCode]
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        itDecisionLocation:
+          type: string
+        unifiedSocialCreditCode:
+          type: string
+        ownerUserId:
+          type: string
+        wantDepartmentId:
+          type: string
+        category:
+          type: string
+        source:
+          type: string
+        note:
+          type: string
+        parentCustomerId:
+          type: string
+        industry:
+          type: string
+        customFields:
+          type: object
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: number
+              - type: boolean
+    CreateCrmCustomerResponse:
+      type: object
+      required: [customerId, customerName, ownerId, ownerName, createdAt, message]
+      properties:
+        customerId:
+          type: string
+        customerName:
+          type: string
+        ownerId:
+          type: string
+        ownerName:
+          type: string
+        departmentId:
+          type: string
+        departmentName:
+          type: string
+        phone:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        message:
+          type: string
+    CreateCrmOpportunityProductAsset:
+      type: object
+      required: [productId]
+      properties:
+        productId:
+          type: string
+        recommendedUnitPrice:
+          type: number
+        quantity:
+          type: number
+        remark:
+          type: string
+    CreateCrmOpportunityRequest:
+      type: object
+      required: [title, customerId, leadCode, productAssets, expectAmount, expectSignDate, renewalContractCode, agentFullName, projectStatusSummary, preSalesName]
+      properties:
+        title:
+          type: string
+        customerId:
+          type: string
+        customerName:
+          type: string
+        leadCode:
+          type: string
+        productAssets:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CreateCrmOpportunityProductAsset'
+        expectAmount:
+          type: number
+        expectSignDate:
+          type: string
+        renewalContractCode:
+          type: string
+        agentFullName:
+          type: string
+        projectStatusSummary:
+          type: string
+        preSalesName:
+          type: string
+        ownerUserId:
+          type: string
+        wantDepartmentId:
+          type: string
+        stage:
+          type: string
+        source:
+          type: string
+        kind:
+          type: string
+        note:
+          type: string
+        customerRequirement:
+          type: string
+        getTime:
+          type: string
+        contactIds:
+          type: array
+          items:
+            type: string
+        customFields:
+          type: object
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: number
+              - type: boolean
+    CreateCrmOpportunityResponse:
+      type: object
+      required: [opportunityId, title, customerId, ownerId, ownerName, expectAmount, createdAt, message]
+      properties:
+        opportunityId:
+          type: string
+        title:
+          type: string
+        customerId:
+          type: string
+        customerName:
+          type: string
+        ownerId:
+          type: string
+        ownerName:
+          type: string
+        departmentId:
+          type: string
+        departmentName:
+          type: string
+        expectAmount:
+          type: number
+        expectSignDate:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        message:
+          type: string
+    OpportunityLookupResponse:
+      type: object
+      required: [companyName, totalCount, limit, records, summary]
+      properties:
+        companyName:
+          type: string
+        totalCount:
+          type: integer
+        limit:
+          type: integer
+        matchedCompanyNames:
+          type: array
+          items:
+            type: string
+        summary:
+          type: string
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpportunityLookupRecord'
+    OpportunityLookupRecord:
+      type: object
+      required: [id, title, ownerId, ownerName, organizationId, departmentId, expectAmount, stage, createdAt]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        customerId:
+          type: string
+        customerName:
+          type: string
+        ownerId:
+          type: string
+        ownerName:
+          type: string
+        organizationId:
+          type: string
+        departmentId:
+          type: string
+        expectAmount:
+          type: number
+        stage:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    AuditEventSummary:
+      type: object
+      required: [todayQueryCount, wecomQueryRatioPercent, todayBlockedCount, todaySensitiveInterceptCount, todayExportCount, todayExportBlockedCount, pendingHighRiskReviewCount]
+      properties:
+        todayQueryCount:
+          type: integer
+          minimum: 0
+        wecomQueryRatioPercent:
+          type: number
+          minimum: 0
+          maximum: 100
+        todayBlockedCount:
+          type: integer
+          minimum: 0
+        todaySensitiveInterceptCount:
+          type: integer
+          minimum: 0
+        todayExportCount:
+          type: integer
+          minimum: 0
+        todayExportBlockedCount:
+          type: integer
+          minimum: 0
+        pendingHighRiskReviewCount:
+          type: integer
+          minimum: 0
+        todayAiEntryCount:
+          type: integer
+          minimum: 0
+        todayAiFallbackCount:
+          type: integer
+          minimum: 0
+        todayAiFallbackRatePercent:
+          type: integer
+          minimum: 0
+        todayWecomEntryCount:
+          type: integer
+          minimum: 0
+        entrySceneBreakdown:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        entryLanguageBreakdown:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        entryTargetWorkflowBreakdown:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        entryFallbackReasonBreakdown:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        entryDailyTrend:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        entrySceneDailyTrend:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        entryFallbackReasonDailyTrend:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        analysisExecutionSourceBreakdown:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        analysisKnowledgeHitBreakdown:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        aiGovernanceSuggestions:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        aiGovernanceAlerts:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    AuditEvent:
+      type: object
+      required: [eventId, eventType, actorId, outcome, scopeSummary, riskLevel, reviewStatus, createdAt]
+      properties:
+        eventId:
+          type: string
+        eventType:
+          $ref: '#/components/schemas/AuditEventType'
+        actorId:
+          type: string
+        actorName:
+          type: string
+        permissionKey:
+          type: string
+        resourceType:
+          type: string
+        resourceId:
+          type: string
+        channel:
+          $ref: '#/components/schemas/ChannelType'
+        queryId:
+          type: string
+        templateId:
+          type: string
+        historyId:
+          type: string
+        originalQuestion:
+          type: string
+        scopeSummary:
+          type: string
+        resultCount:
+          type: integer
+          minimum: 0
+        riskLevel:
+          $ref: '#/components/schemas/RiskLevel'
+        reviewStatus:
+          $ref: '#/components/schemas/AuditReviewStatus'
+        outcome:
+          type: string
+        failureReason:
+          type: string
+        sessionId:
+          type: string
+        entryScene:
+          type: string
+        entryLanguage:
+          type: string
+        entryTargetWorkflow:
+          type: string
+        entryUsedFallback:
+          type: boolean
+        entryFallbackReason:
+          type: string
+        workflowFinalProgram:
+          type: string
+        workflowTargetWorkflow:
+          type: string
+        executionTraceSummary:
+          $ref: '#/components/schemas/AnalysisExecutionTraceSummary'
+        sessionSnapshot:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+    DailyReportFragmentCreateRequest:
+      type: object
+      required: [fragmentType, content]
+      properties:
+        fragmentType:
+          $ref: '#/components/schemas/DailyReportFragmentType'
+        content:
+          type: string
+          minLength: 1
+        businessDate:
+          type: string
+          format: date
+        supervisorId:
+          type: string
+          description: 首次生成日报时必填，后续补片段可沿用已有主管
+        supervisorName:
+          type: string
+        sourceLabel:
+          type: string
+        sourceInterface:
+          $ref: '#/components/schemas/DailyReportSourceInterface'
+        sourceObjectId:
+          type: string
+          description: 来源对象 ID，接入上游接口时建议填写
+        sourceOperatorId:
+          type: string
+        sourceOperatorName:
+          type: string
+        sourceCode:
+          type: integer
+          description: 上游返回码，只有 0 才允许写入日报
+        capturedAt:
+          type: string
+          format: date-time
+    DailyReportConfirmRequest:
+      type: object
+      properties:
+        confirmedAt:
+          type: string
+          format: date-time
+    DailyReportCronRequest:
+      type: object
+      required: [businessDate]
+      properties:
+        businessDate:
+          type: string
+          format: date
+        sentAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: string
+          format: date-time
+    DailyReportSummaryCronRequest:
+      type: object
+      required: [businessDate]
+      properties:
+        businessDate:
+          type: string
+          format: date
+        recipientIds:
+          type: array
+          items:
+            type: string
+        generatedAt:
+          type: string
+          format: date-time
+    DailyReportFragmentType:
+      type: string
+      enum: [TODAY_FOLLOW_UP, CUSTOMER_OR_OPPORTUNITY_CHANGE, HELP_REQUIRED, INFORMATION_SHARE, TOMORROW_PLAN]
+    DailyReportStatus:
+      type: string
+      enum: [DRAFT, PENDING_CONFIRMATION, CONFIRMED, LATE_CONFIRMED, CLOSED, SUMMARIZED]
+    DailyReportSourceInterface:
+      type: string
+      enum: [/api/v2/opportunities, /api/v2/revisit_logs, manual]
+    DailyReportFragment:
+      type: object
+      required: [id, fragmentType, content, capturedAt]
+      properties:
+        id:
+          type: string
+        fragmentType:
+          $ref: '#/components/schemas/DailyReportFragmentType'
+        content:
+          type: string
+        sourceLabel:
+          type: string
+        sourceInterface:
+          $ref: '#/components/schemas/DailyReportSourceInterface'
+        sourceObjectId:
+          type: string
+        sourceOperatorId:
+          type: string
+        sourceOperatorName:
+          type: string
+        sourceCode:
+          type: integer
+        capturedAt:
+          type: string
+          format: date-time
+    DailyReportConfirmation:
+      type: object
+      required: [confirmedAt, confirmedBy]
+      properties:
+        confirmedAt:
+          type: string
+          format: date-time
+        confirmedBy:
+          type: string
+    DailyReportReminder:
+      type: object
+      required: [id, reminderType, recipientId, sentAt, dedupeKey, messageText]
+      properties:
+        id:
+          type: string
+        reminderType:
+          type: string
+          enum: [REMINDER_22_00]
+        recipientId:
+          type: string
+        sentAt:
+          type: string
+          format: date-time
+        dedupeKey:
+          type: string
+        messageText:
+          type: string
+    DailyReportClosure:
+      type: object
+      required: [id, closedAt, closedBy, closureReason]
+      properties:
+        id:
+          type: string
+        closedAt:
+          type: string
+          format: date-time
+        closedBy:
+          type: string
+        closureReason:
+          type: string
+    DailyReportDelivery:
+      type: object
+      required: [id, targetUserId, status, contentPreview]
+      properties:
+        id:
+          type: string
+        targetUserId:
+          type: string
+        targetUserName:
+          type: string
+        status:
+          type: string
+          enum: [SENT, FAILED, SKIPPED]
+        contentPreview:
+          type: string
+        deliveredAt:
+          type: string
+          format: date-time
+        failureReason:
+          type: string
+    DailyReportSummaryBatchRecord:
+      type: object
+      required: [id, businessDate, generatedAt, confirmedCount, lateCount, missingCount, recipientIds, deliveryStatus, summaryText]
+      properties:
+        id:
+          type: string
+        businessDate:
+          type: string
+          format: date
+        generatedAt:
+          type: string
+          format: date-time
+        confirmedCount:
+          type: integer
+          minimum: 0
+        lateCount:
+          type: integer
+          minimum: 0
+        missingCount:
+          type: integer
+          minimum: 0
+        recipientIds:
+          type: array
+          items:
+            type: string
+        deliveryStatus:
+          type: string
+          enum: [SENT, FAILED]
+        summaryText:
+          type: string
+        deliveredAt:
+          type: string
+          format: date-time
+        failureReason:
+          type: string
+    DailyReportRecord:
+      type: object
+      required: [id, requesterId, requesterName, supervisorId, businessDate, status, draftTitle, draftSummary, sectionTypes, fragments, reminders, deliveries, lateConfirmed, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        requesterId:
+          type: string
+        requesterName:
+          type: string
+        supervisorId:
+          type: string
+        supervisorName:
+          type: string
+        businessDate:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/DailyReportStatus'
+        draftTitle:
+          type: string
+        draftSummary:
+          type: string
+        sectionTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyReportFragmentType'
+        fragments:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyReportFragment'
+        confirmation:
+          $ref: '#/components/schemas/DailyReportConfirmation'
+        reminders:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyReportReminder'
+        closure:
+          $ref: '#/components/schemas/DailyReportClosure'
+        deliveries:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyReportDelivery'
+        summaryBatchId:
+          type: string
+        lateConfirmed:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    DailyReportAuditSnapshotItem:
+      type: object
+      required: [reportId, requesterId, requesterName, supervisorId, businessDate, status, draftTitle, draftSummary, sectionTypes, fragments, reminders, deliveries, lateConfirmed, createdAt, updatedAt]
+      properties:
+        reportId:
+          type: string
+        requesterId:
+          type: string
+        requesterName:
+          type: string
+        supervisorId:
+          type: string
+        businessDate:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/DailyReportStatus'
+        draftTitle:
+          type: string
+        draftSummary:
+          type: string
+        sectionTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyReportFragmentType'
+        fragments:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyReportFragment'
+        confirmation:
+          $ref: '#/components/schemas/DailyReportConfirmation'
+        reminders:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyReportReminder'
+        closure:
+          $ref: '#/components/schemas/DailyReportClosure'
+        deliveries:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyReportDelivery'
+        summaryBatchId:
+          type: string
+        lateConfirmed:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    AppliedFilter:
+      type: object
+      required: [label, value]
+      properties:
+        label:
+          type: string
+        value:
+          type: string
+    StreamBlock:
+      type: object
+      required: [sequence, blockType, content]
+      properties:
+        sequence:
+          type: integer
+          minimum: 0
+        blockType:
+          type: string
+          enum: [PROCESSING_NOTICE, CLARIFICATION, SUMMARY, TABLE_SEGMENT, EXPLANATION, ERROR, COMPLETE]
+        content:
+          type: string
+    MetricCard:
+      type: object
+      required: [name, value]
+      properties:
+        name:
+          type: string
+        value:
+          oneOf:
+            - type: string
+            - type: number
+    ResultView:
+      type: object
+      required: [viewType, title]
+      properties:
+        viewType:
+          $ref: '#/components/schemas/ResultViewType'
+        title:
+          type: string
+        description:
+          type: string
+        series:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        rows:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    ResultTemporalScope:
+      type: object
+      required: [rawText, normalizedLabel, granularity, timezone, source]
+      properties:
+        rawText:
+          type: string
+        normalizedLabel:
+          type: string
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        granularity:
+          type: string
+        timezone:
+          type: string
+        source:
+          type: string
+          enum: [AI_TEMPORAL_SLOT, USER_EXPLICIT, FALLBACK_CLARIFICATION]
+    AnalysisKeyFinding:
+      type: object
+      required: [title, detail, tone, datasetId]
+      properties:
+        title:
+          type: string
+        detail:
+          type: string
+        tone:
+          type: string
+          enum: [positive, neutral, risk]
+        datasetId:
+          type: string
+    AnalysisChartBlock:
+      type: object
+      required: [blockId, title, viewType, series, datasetId]
+      properties:
+        blockId:
+          type: string
+        title:
+          type: string
+        viewType:
+          $ref: '#/components/schemas/ResultViewType'
+        series:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        datasetId:
+          type: string
+        temporalScope:
+          $ref: '#/components/schemas/ResultTemporalScope'
+    AnalysisTableBlock:
+      type: object
+      required: [blockId, title, rows, datasetId]
+      properties:
+        blockId:
+          type: string
+        title:
+          type: string
+        rows:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        datasetId:
+          type: string
+        temporalScope:
+          $ref: '#/components/schemas/ResultTemporalScope'
+    AnalysisExecutionMode:
+      type: string
+      enum: [PLAN_EXECUTION, GUARDED_DIRECT_QUERY]
+    AnalysisExecutionSource:
+      type: string
+      enum: [CRM_OFFICIAL_API, GUARDED_READONLY_SQL, INTERNAL_READONLY_API]
+    QueryPlanResultKind:
+      type: string
+      enum: [owner-ranking, time-trend, stage-distribution, category-distribution, department-contribution, risk-overview]
+    AnalysisExecutionSnapshot:
+      type: object
+      required: [executionMode, executionSource, preferredSource, scopeSnapshot, taskSnapshots, createdAt]
+      properties:
+        executionMode:
+          $ref: '#/components/schemas/AnalysisExecutionMode'
+        executionSource:
+          $ref: '#/components/schemas/AnalysisExecutionSource'
+        preferredSource:
+          $ref: '#/components/schemas/AnalysisExecutionSource'
+        matchedAdapter:
+          type: string
+        gapReason:
+          type: string
+        fallbackReason:
+          type: string
+        blockedReason:
+          type: string
+        scopeSnapshot:
+          type: object
+          additionalProperties: true
+        taskSnapshots:
+          type: array
+          items:
+            type: object
+            required: [taskId, taskTitle, executionSource, rowLimit, timeoutMs, tables]
+            properties:
+              taskId:
+                type: string
+              taskTitle:
+                type: string
+              temporalSlot:
+                type: object
+                additionalProperties: true
+              executionSource:
+                $ref: '#/components/schemas/AnalysisExecutionSource'
+              matchedAdapter:
+                type: string
+              gapReason:
+                type: string
+              rowLimit:
+                type: integer
+              timeoutMs:
+                type: integer
+              tables:
+                type: array
+                items:
+                  type: string
+              toolId:
+                type: string
+              allowedStatements:
+                type: array
+                items:
+                  type: string
+              outputShape:
+                type: string
+        createdAt:
+          type: string
+          format: date-time
+    AnalysisResultBundleSnapshot:
+      type: object
+      required: [requestId, consistencyToken, rowCount, metricCount, tableBlockCount, chartBlockCount]
+      properties:
+        requestId:
+          type: string
+        consistencyToken:
+          type: string
+        rowCount:
+          type: integer
+          minimum: 0
+        metricCount:
+          type: integer
+          minimum: 0
+        tableBlockCount:
+          type: integer
+          minimum: 0
+        chartBlockCount:
+          type: integer
+          minimum: 0
+    AnalysisInsightSnapshot:
+      type: object
+      required: [grounded, reusedResultBundle, generatedAt, explanationLength, nextQuestionCount]
+      properties:
+        grounded:
+          type: boolean
+        reusedResultBundle:
+          type: boolean
+        generatedAt:
+          type: string
+          format: date-time
+        explanationLength:
+          type: integer
+          minimum: 0
+        nextQuestionCount:
+          type: integer
+          minimum: 0
+        failureReason:
+          type: string
+        packCode:
+          type: string
+        packVersion:
+          type: string
+        providerCode:
+          type: string
+        model:
+          type: string
+    AnalysisDeliverySnapshot:
+      type: object
+      required: [channel, deliveredFromSingleBundle, streamBlockCount, generatedAt]
+      properties:
+        channel:
+          $ref: '#/components/schemas/ChannelType'
+        deliveredFromSingleBundle:
+          type: boolean
+        streamBlockCount:
+          type: integer
+          minimum: 0
+        generatedAt:
+          type: string
+          format: date-time
+    AvailableAction:
+      type: object
+      required: [actionType, enabled]
+      properties:
+        actionType:
+          type: string
+          enum: [FOLLOW_UP, EXPORT, SAVE_TO_RECENT, RERUN]
+        enabled:
+          type: boolean
+        reason:
+          type: string
+    QuerySourceType:
+      type: string
+      enum: [FREE_TEXT, COMMON_TEMPLATE, RECENT_RERUN]
+    ChannelType:
+      type: string
+      enum: [wecom-bot, web-console]
+    ResultViewType:
+      type: string
+      enum: [METRIC_CARDS, LINE_CHART, BAR_CHART, PIE_CHART, RANKING_TABLE, DETAIL_TABLE]
+    OptimizationStatus:
+      type: string
+      enum: [HEALTHY, NEEDS_OPTIMIZATION, DISABLED]
+    AnalysisServiceStatus:
+      type: string
+      enum: [ONLINE, DEGRADED, OFFLINE]
+    AnalysisRequestStatus:
+      type: string
+      enum: [RECEIVED, PARSED, CLARIFICATION_REQUIRED, VALIDATED, EXECUTED, RENDERED, RETURNED, BLOCKED, TIMEOUT, FAILED, QUEUED]
+    QuerySessionStatus:
+      type: string
+      enum: [NEW, ACTIVE, CLARIFYING, EXECUTING, ANSWERING, IDLE, DEGRADED, EXPIRED, CLOSED]
+    ExportStatus:
+      type: string
+      enum: [REQUESTED, COMPLETED, BLOCKED]
+    ContractReviewTaskStatus:
+      type: string
+      enum: [UPLOADED, PARSING, REVIEWING, GENERATING_REPORT, COMPLETED, FAILED, BLOCKED]
+      description: 任务执行状态；若需判断结果来源、规则快审/降级快审或 AI 补充审核状态，应结合 `reviewBasis.executionMode` 与补充审核状态字段
+    ContractReviewDecision:
+      type: string
+      enum: [APPROVE, REVISE, REJECT]
+    ContractReviewTaskSourceType:
+      type: string
+      enum: [UPLOAD, CRM_PENDING_APPROVAL]
+    ContractReviewArtifactType:
+      type: string
+      enum: [REPORT, ANNOTATED_DOCX, STRUCTURED_RESULT]
+    ContractReviewArtifactStatus:
+      type: string
+      enum: [AVAILABLE, PENDING, FAILED]
+    ContractReviewExecutionMode:
+      type: string
+      enum: [AI_HYBRID, DETERMINISTIC_ONLY, BLOCKED]
+    ContractReviewSupplementalReviewStatus:
+      type: string
+      enum: [PENDING, RUNNING, COMPLETED, FAILED]
+    RiskLevel:
+      type: string
+      enum: [LOW, MEDIUM, HIGH]
+    SqlAuditStage:
+      type: string
+      enum: [PREPARED, PREFLIGHT, EXECUTED, FAILED, BLOCKED]
+    SqlAuditStatus:
+      type: string
+      enum: [SUCCEEDED, FAILED, BLOCKED]
+    SqlAuditDatabaseRole:
+      type: string
+      enum: [CRM_READONLY, CRM_WRITEBACK]
+    SqlAuditOperationType:
+      type: string
+      enum: [SELECT, INSERT, UPDATE, DELETE, EXPLAIN, UNKNOWN]
+    AuditReviewStatus:
+      type: string
+      enum: [PENDING, CONFIRMED, IGNORED]
+    AuditEventType:
+      type: string
+      enum:
+        - QUERY_SUCCEEDED
+        - QUERY_BLOCKED
+        - CLARIFICATION_REQUESTED
+        - TEMPLATE_EXECUTED
+        - HISTORY_RERUN
+        - EXPORT_SUCCEEDED
+        - EXPORT_BLOCKED
+        - AUTH_LOGIN_SUCCEEDED
+        - AUTH_LOGIN_FAILED
+        - WECOM_AUTH_SUCCEEDED
+        - WECOM_AUTH_FAILED
+        - WECOM_MESSAGE_ACCEPTED
+        - WECOM_MESSAGE_DEDUPED
+        - WECOM_MESSAGE_REJECTED
+        - WECOM_SESSION_STATE_CHANGED
+        - WECOM_DELIVERY_SUCCEEDED
+        - PROACTIVE_NOTIFICATION_REQUESTED
+        - PROACTIVE_NOTIFICATION_DEDUPED
+        - PROACTIVE_NOTIFICATION_SENT
+        - PROACTIVE_NOTIFICATION_FAILED
+        - PROACTIVE_NOTIFICATION_BLOCKED
+        - AI_CONTEXT_READ
+        - AI_ANALYSIS_REQUESTED
+        - AI_RESULT_EXPLAINED
+        - DAILY_REPORT_DRAFT_SAVED
+        - DAILY_REPORT_CONFIRMED
+        - DAILY_REPORT_DELIVERY_SENT
+        - DAILY_REPORT_ASSISTANCE_SENT
+        - DAILY_REPORT_ASSISTANCE_BLOCKED
+        - DAILY_REPORT_ASSISTANCE_FAILED
+        - DAILY_REPORT_REMINDER_SENT
+        - DAILY_REPORT_CLOSED
+        - DAILY_REPORT_SUMMARIZED
+        - MAINTENANCE_DEGRADED
+        - MAINTENANCE_RECOVERED
+        - WECOM_DIRECTORY_SYNC_TRIGGERED
+        - WECOM_DIRECTORY_SYNC_FINISHED
+        - WECOM_IDENTITY_RESOLVED
+        - FOLLOW_UP_WRITEBACK_DRAFTED
+        - FOLLOW_UP_WRITEBACK_INTENT_CONFIRMED
+        - FOLLOW_UP_WRITEBACK_CONTENT_CONFIRMED
+        - FOLLOW_UP_WRITEBACK_CANCELLED
+        - FOLLOW_UP_WRITEBACK_SUCCEEDED
+        - FOLLOW_UP_WRITEBACK_FAILED
+        - FOLLOW_UP_WRITEBACK_DUPLICATE_BLOCKED
+        - FOLLOW_UP_SHARE_PENDING_CONFIRMATION
+        - FOLLOW_UP_SHARE_SUCCEEDED
+        - FOLLOW_UP_SHARE_CANCELLED
+        - FOLLOW_UP_SHARE_FAILED
+        - WECOM_CRM_CREATE_DRAFTED
+        - WECOM_CRM_CREATE_CONFIRMED
+        - WECOM_CRM_CREATE_CANCELLED
+        - WECOM_CRM_CREATE_SUCCEEDED
+        - WECOM_CRM_CREATE_FAILED
+        - WECOM_CRM_CREATE_DUPLICATE_BLOCKED
+        - SECURITY_INTERCEPTED
+        - CONNECTION_INTERRUPTED
+        - STREAM_DELIVERY_FAILED
+        - CONTRACT_REVIEW_FILE_UPLOADED
+        - CONTRACT_REVIEW_TASK_CREATED
+        - CONTRACT_REVIEW_TASK_COMPLETED
+        - CONTRACT_REVIEW_TASK_FAILED
+        - CONTRACT_REVIEW_TASK_BLOCKED
+        - CONTRACT_REVIEW_ARTIFACT_DOWNLOADED
+        - APPLICATION_SUPER_ADMIN_POLICY_UPDATED
+        - SQL_AUDIT_RAW_VIEWED

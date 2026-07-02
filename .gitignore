@@ -1,0 +1,40 @@
+
+数据库账号密码.txt
+
+# 本地敏感配置，禁止纳入版本控制
+配置/
+智能合同审核系统相关资料/
+
+# Node.js / TypeScript 构建产物
+node_modules/
+dist/
+build/
+coverage/
+output/
+playwright-report/
+test-results/
+frontend/.vite-dev.pid
+.playwright-mcp/
+.superpowers/
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 环境变量与日志
+.env
+.env.*
+!.env.example
+*.log
+.runtime/
+backend/.runtime/
+backend/analysis-snapshot/
+backend/analysis-mirror/
+
+# 编辑器与系统文件
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.idea/
+.vscode/

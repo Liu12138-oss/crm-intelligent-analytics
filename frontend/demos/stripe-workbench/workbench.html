@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CRM Stripe Demo · 工作台首页</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./assets/crm-stripe-demo.css" />
+  </head>
+  <body class="demo-body">
+    <div class="demo-shell">
+      <aside class="demo-sidebar">
+        <section class="brand-lockup">
+          <div class="brand-mark">C</div>
+          <div class="brand-copy">
+            <h1>CRM 智能分析系统</h1>
+            <p>Stripe 化工作台 demo</p>
+          </div>
+        </section>
+
+        <nav class="nav-group">
+          <p class="nav-caption">主导航</p>
+          <a class="nav-link nav-link--active" href="./workbench.html" title="智能分析">
+            <span class="nav-link__icon">工</span>
+            <span class="nav-link__text">智能分析</span>
+          </a>
+          <a class="nav-link" href="./result.html" title="分析结果详情">
+            <span class="nav-link__icon">析</span>
+            <span class="nav-link__text">分析结果详情</span>
+          </a>
+          <a class="nav-link" href="./audit.html" title="治理审计中心">
+            <span class="nav-link__icon">审</span>
+            <span class="nav-link__text">治理审计中心</span>
+          </a>
+          <a class="nav-link" href="./contract-review.html" title="智能合同">
+            <span class="nav-link__icon">合</span>
+            <span class="nav-link__text">智能合同</span>
+          </a>
+          <a class="nav-link" href="./login.html" title="登录页">
+            <span class="nav-link__icon">登</span>
+            <span class="nav-link__text">登录页</span>
+          </a>
+        </nav>
+      </aside>
+
+      <main class="demo-main motion-surface">
+        <header class="demo-topbar">
+          <div class="topbar-group">
+            <button class="topbar-toggle" type="button" data-nav-toggle aria-pressed="false" title="收起导航">收起</button>
+            <span class="badge badge--brand">Web 智能分析工作台</span>
+            <span class="chip">角色：销售总监</span>
+            <span class="chip">权限：全国经营分析</span>
+            <span class="chip">数据更新时间：今天 09:40</span>
+          </div>
+          <div class="topbar-group">
+            <a class="soft-button" href="./index.html">返回总览</a>
+            <div class="topbar-user">
+              <div class="avatar">林</div>
+              <div>
+                <div style="font-weight: 700">林国伟</div>
+                <div class="muted" style="font-size: 12px">AI 服务正常 · 今日导出剩余 2 次</div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div class="demo-content">
+          <section class="content-frame">
+            <div class="main-stack">
+              <article class="card hero-card hero-card--tight">
+                <div class="hero-head">
+                  <div>
+                    <div class="chip-row" style="margin-bottom: 8px">
+                      <span class="badge badge--brand">AI 问数</span>
+                      <span class="chip">全国经营分析</span>
+                      <span class="chip">数据新鲜度 T+0 09:40</span>
+                    </div>
+                    <h2>直接输入问题，系统优先返回结论和下一步</h2>
+                  </div>
+                  <span class="badge badge--success">AI 服务在线</span>
+                </div>
+                <div class="composer">
+                  <textarea class="composer-textarea composer-textarea--compact">本季度各区域新增商机金额、赢单率和环比变化，帮我先看结论，再看华东下钻。</textarea>
+                  <div class="chip-row">
+                    <span class="chip">支持主题：商机 / 合同 / 客户 / 组织 / 趋势</span>
+                    <span class="chip">敏感字段与越权明细会被阻断</span>
+                  </div>
+                  <div class="action-row">
+                    <button class="button" type="button" data-loading-label="分析中...">开始分析</button>
+                    <button class="ghost-button" type="button">打开常用查询</button>
+                    <button class="soft-button" type="button">查看最近进行中的任务</button>
+                  </div>
+                </div>
+              </article>
+
+              <section class="metrics-grid metrics-grid--compact">
+                <article class="card metric-card metric-card--inline">
+                  <div class="metric-card__copy">
+                    <div class="metric-kicker">季度新增商机金额</div>
+                    <div class="metric-meta">较上季度增长，华东贡献最大</div>
+                  </div>
+                  <div class="metric-card__side">
+                    <strong>¥ 28.4M</strong>
+                    <span class="badge badge--success">+12.8%</span>
+                  </div>
+                </article>
+                <article class="card metric-card metric-card--inline">
+                  <div class="metric-card__copy">
+                    <div class="metric-kicker">季度赢单率</div>
+                    <div class="metric-meta">华北中后段商机承压</div>
+                  </div>
+                  <div class="metric-card__side">
+                    <strong>31.6%</strong>
+                    <span class="badge badge--warning">-1.4pt</span>
+                  </div>
+                </article>
+                <article class="card metric-card metric-card--inline">
+                  <div class="metric-card__copy">
+                    <div class="metric-kicker">重点客户推进中</div>
+                    <div class="metric-meta">三家已进入商务评审阶段</div>
+                  </div>
+                  <div class="metric-card__side">
+                    <strong>14</strong>
+                    <span class="badge badge--brand">聚焦 5 家</span>
+                  </div>
+                </article>
+                <article class="card metric-card metric-card--inline">
+                  <div class="metric-card__copy">
+                    <div class="metric-kicker">待复核风险事项</div>
+                    <div class="metric-meta">导出限制与合同降级快审并存</div>
+                  </div>
+                  <div class="metric-card__side">
+                    <strong>7</strong>
+                    <span class="badge badge--danger">2 高风险</span>
+                  </div>
+                </article>
+              </section>
+
+              <article class="card table-card">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title">经营概览趋势</h2>
+                    <p class="panel-subtitle">首页要有信息价值，即使用户不输入问题也能快速判断今天的经营态势。</p>
+                  </div>
+                  <span class="badge badge--neutral">近 90 天</span>
+                </div>
+                <div class="line-chart">
+                  <svg viewBox="0 0 640 240" fill="none" aria-label="季度趋势图">
+                    <rect x="0" y="0" width="640" height="240" rx="18" fill="url(#trendBg)" />
+                    <path d="M42 186H598" stroke="#DCE6F4" stroke-width="1.2" />
+                    <path d="M42 142H598" stroke="#E7EEF8" stroke-width="1.2" />
+                    <path d="M42 98H598" stroke="#E7EEF8" stroke-width="1.2" />
+                    <path d="M42 54H598" stroke="#E7EEF8" stroke-width="1.2" />
+                    <path d="M52 170C98 152 126 136 168 142C206 148 246 92 286 88C330 83 356 124 406 116C452 108 494 62 588 44" stroke="#635BFF" stroke-width="4" stroke-linecap="round" />
+                    <path d="M52 184C92 182 118 180 166 176C208 173 246 148 284 152C334 158 364 140 406 142C454 144 496 122 588 118" stroke="#8BC5FF" stroke-width="4" stroke-linecap="round" />
+                    <circle cx="588" cy="44" r="8" fill="#635BFF" />
+                    <circle cx="588" cy="118" r="8" fill="#8BC5FF" />
+                    <defs>
+                      <linearGradient id="trendBg" x1="0" y1="0" x2="640" y2="240">
+                        <stop stop-color="#FFFFFF" />
+                        <stop offset="1" stop-color="#F7FAFF" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                </div>
+              </article>
+            </div>
+
+            <aside class="rail-stack">
+              <article class="card mini-card mini-card--compact">
+                <div class="panel-header">
+                  <div>
+                    <h3>今日治理提醒</h3>
+                  </div>
+                  <span class="badge badge--warning">待处理 3 项</span>
+                </div>
+                <div class="list list--compact">
+                  <div class="list-item list-item--compact">
+                    <div class="list-copy">
+                      <strong>华东昨日导出超限 1 次</strong>
+                      <span class="muted">建议优先引导常用查询替代导出。</span>
+                    </div>
+                    <span class="badge badge--warning">导出</span>
+                  </div>
+                  <div class="list-item list-item--compact">
+                    <div class="list-copy">
+                      <strong>2 条合同停留在降级快审</strong>
+                      <span class="muted">建议人工确认是否继续推进。</span>
+                    </div>
+                    <span class="badge badge--danger">合同</span>
+                  </div>
+                </div>
+              </article>
+
+              <article class="card mini-card mini-card--compact">
+                <div class="panel-header">
+                  <div>
+                    <h3>最近进行中的任务</h3>
+                  </div>
+                </div>
+                <div class="list list--compact">
+                  <div class="query-item query-item--compact">
+                    <div class="list-copy">
+                      <strong>华东商机金额下钻</strong>
+                      <span class="muted">等待继续追问产品线维度。</span>
+                    </div>
+                    <span class="badge badge--brand">进行中</span>
+                  </div>
+                  <div class="query-item query-item--compact">
+                    <div class="list-copy">
+                      <strong>季度赢单率解释</strong>
+                      <span class="muted">可继续请求负责人明细排行。</span>
+                    </div>
+                    <span class="badge badge--neutral">已返回</span>
+                  </div>
+                </div>
+              </article>
+            </aside>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="./assets/crm-stripe-demo.js"></script>
+  </body>
+</html>

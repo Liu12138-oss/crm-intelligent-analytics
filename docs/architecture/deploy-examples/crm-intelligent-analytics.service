@@ -1,0 +1,35 @@
+[Unit]
+Description=CRM Intelligent Analytics Backend
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=crmapp
+Group=crmapp
+WorkingDirectory=/srv/crm-intelligent-analytics/current/backend
+Environment=NODE_ENV=production
+EnvironmentFile=/srv/crm-intelligent-analytics/shared/backend.env
+
+# 说明：
+# 1. 当前产物入口固定为 backend/dist/src/main.js。
+# 2. 建议先通过 `which node` 确认正式 Node.js 路径，再替换 ExecStart。
+# 3. 当前实现会向上查找仓库根目录，因此 WorkingDirectory 设为 backend/ 不影响
+#    共享 .runtime 与仓库其他资源的解析。
+ExecStart=/usr/bin/node /srv/crm-intelligent-analytics/current/backend/dist/src/main.js
+
+Restart=always
+RestartSec=5
+TimeoutStartSec=60
+TimeoutStopSec=30
+KillSignal=SIGTERM
+
+# 统一写入 systemd journal，避免日志散落到代码目录。
+StandardOutput=journal
+StandardError=journal
+
+# 适度抬高文件句柄，避免并发连接和上传场景过早触顶。
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

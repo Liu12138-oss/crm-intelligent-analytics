@@ -1,0 +1,733 @@
+{
+  "generatedAt": "2026-06-10T03:01:15.424Z",
+  "note": "只读导出，用于 AI-agent P3-P5 语义回归、漏斗链路、CRM 对账和字典中文化；不含密钥、Token、密码。",
+  "funnelChains": [
+    {
+      "customer": "测试客户",
+      "region": "山东区",
+      "partnerId": "P001",
+      "partnerName": "山东诚卓信息技术有限公司",
+      "matchRule": "direct_id_chain",
+      "registration": {
+        "id": "REG-1779870955652",
+        "customer": "测试客户",
+        "status": "approved",
+        "partnerId": "P001",
+        "partnerName": "山东诚卓信息技术有限公司",
+        "assignedStaffId": "",
+        "assignedStaffName": "",
+        "createdAt": "2026-05-27T08:35:55.652Z",
+        "approvedAt": "2026-05-27T08:36:13.390Z"
+      },
+      "opportunity": {
+        "id": "OPP-1779870988696",
+        "name": "DLP",
+        "customer": "测试客户",
+        "stage": "contacted",
+        "amount": 29999,
+        "partnerId": "P001",
+        "partnerName": "山东诚卓信息技术有限公司",
+        "assignedStaffId": "PA001",
+        "assignedStaffName": "梁翠",
+        "createdAt": "2026-05-27T08:36:28.696Z",
+        "updatedAt": ""
+      },
+      "quote": {
+        "id": "QT-1779871010532",
+        "customer": "测试客户",
+        "oppId": "OPP-1779870988696",
+        "status": "converted",
+        "total": 10875,
+        "amount": "",
+        "partnerId": "P001",
+        "partnerName": "山东诚卓信息技术有限公司",
+        "assignedStaffId": "PA001",
+        "assignedStaffName": "梁翠",
+        "createdAt": "2026-05-27T08:36:50.532Z",
+        "updatedAt": "2026-05-27T08:36:59.172Z"
+      },
+      "order": {
+        "id": "ORD-1779871019160",
+        "customer": "测试客户",
+        "quoteId": "QT-1779871010532",
+        "oppId": "OPP-1779870988696",
+        "status": "processing",
+        "total": 10875,
+        "amount": "",
+        "partnerId": "P001",
+        "partnerName": "山东诚卓信息技术有限公司",
+        "assignedStaffId": "PA001",
+        "assignedStaffName": "梁翠",
+        "createdAt": "2026-05-27T08:36:59.160Z",
+        "updatedAt": "2026-05-27T08:38:11.946Z"
+      }
+    },
+    {
+      "customer": "山东碧海机械科技有限公司",
+      "region": "山东区",
+      "partnerId": "P025",
+      "partnerName": "临沂普悦天诚信息科技有限公司",
+      "matchRule": "direct_id_chain",
+      "registration": {
+        "id": "REG-2026-950281",
+        "customer": "山东碧海机械科技有限公司",
+        "status": "approved",
+        "partnerId": "P025",
+        "partnerName": "临沂普悦天诚信息科技有限公司",
+        "assignedStaffId": "S025-001",
+        "assignedStaffName": "舒珩",
+        "createdAt": "2026-05-27T01:55:50.714Z",
+        "approvedAt": "2026-05-27T01:55:50.714Z"
+      },
+      "opportunity": {
+        "id": "OPP-1779847047385",
+        "name": "碧海机械防泄漏",
+        "customer": "山东碧海机械科技有限公司",
+        "stage": "contacted",
+        "amount": 50000,
+        "partnerId": "P025",
+        "partnerName": "临沂普悦天诚信息科技有限公司",
+        "assignedStaffId": "S025-001",
+        "assignedStaffName": "舒珩",
+        "createdAt": "2026-05-27T01:57:27.385Z",
+        "updatedAt": ""
+      },
+      "quote": {
+        "id": "QT-1779870200797",
+        "customer": "山东碧海机械科技有限公司",
+        "oppId": "OPP-1779847047385",
+        "status": "converted",
+        "total": 34575,
+        "amount": "",
+        "partnerId": "P025",
+        "partnerName": "临沂普悦天诚信息科技有限公司",
+        "assignedStaffId": "A001",
+        "assignedStaffName": "舒珩",
+        "createdAt": "2026-05-27T08:23:20.798Z",
+        "updatedAt": "2026-05-28T05:51:34.717Z"
+      },
+      "order": {
+        "id": "ORD-1779947494707",
+        "customer": "山东碧海机械科技有限公司",
+        "quoteId": "QT-1779870200797",
+        "oppId": "OPP-1779847047385",
+        "status": "pending",
+        "total": 34575,
+        "amount": "",
+        "partnerId": "P025",
+        "partnerName": "临沂普悦天诚信息科技有限公司",
+        "assignedStaffId": "A001",
+        "assignedStaffName": "舒珩",
+        "createdAt": "2026-05-28T05:51:34.707Z",
+        "updatedAt": ""
+      }
+    }
+  ],
+  "reconciliation": {
+    "generatedAt": "2026-06-10T03:01:15.425Z",
+    "dataSource": "backend/crm.db entities snapshot",
+    "totals": {
+      "users": 61,
+      "partners": 174,
+      "registrations": 150,
+      "opportunities": 44,
+      "quotes": 17,
+      "orders": 2,
+      "opportunityAmount": 264999,
+      "quoteAmount": 1661132.5,
+      "orderAmount": 45450
+    },
+    "byRegion": {
+      "registrations": [
+        {
+          "key": "山东区",
+          "count": 150
+        }
+      ],
+      "opportunities": [
+        {
+          "key": "山东区",
+          "count": 44
+        }
+      ],
+      "quotes": [
+        {
+          "key": "山东区",
+          "count": 17
+        }
+      ],
+      "orders": [
+        {
+          "key": "山东区",
+          "count": 2
+        }
+      ],
+      "orderAmount": [
+        {
+          "key": "山东区",
+          "totalAmount": 45450
+        }
+      ]
+    },
+    "byPartner": {
+      "registrations": [
+        {
+          "key": "P001",
+          "count": 81
+        },
+        {
+          "key": "P004",
+          "count": 35
+        },
+        {
+          "key": "P005",
+          "count": 25
+        },
+        {
+          "key": "P002",
+          "count": 8
+        },
+        {
+          "key": "P025",
+          "count": 1
+        }
+      ],
+      "opportunities": [
+        {
+          "key": "P001",
+          "count": 15
+        },
+        {
+          "key": "P004",
+          "count": 19
+        },
+        {
+          "key": "P002",
+          "count": 8
+        },
+        {
+          "key": "P005",
+          "count": 1
+        },
+        {
+          "key": "P025",
+          "count": 1
+        }
+      ],
+      "quotes": [
+        {
+          "key": "P025",
+          "count": 1
+        },
+        {
+          "key": "P001",
+          "count": 16
+        }
+      ],
+      "orders": [
+        {
+          "key": "P001",
+          "count": 1
+        },
+        {
+          "key": "P025",
+          "count": 1
+        }
+      ],
+      "orderAmount": [
+        {
+          "key": "P001",
+          "totalAmount": 10875
+        },
+        {
+          "key": "P025",
+          "totalAmount": 34575
+        }
+      ]
+    },
+    "statusDistribution": {
+      "registrations": [
+        {
+          "key": "approved",
+          "count": 150
+        }
+      ],
+      "opportunities": [
+        {
+          "key": "1%已联系上客户",
+          "count": 6
+        },
+        {
+          "key": "10%见面并明确需求",
+          "count": 4
+        },
+        {
+          "key": "20%明确与预算及采购时间",
+          "count": 1
+        },
+        {
+          "key": "10%见到客户并且感兴趣",
+          "count": 12
+        },
+        {
+          "key": "1%联系上客户",
+          "count": 3
+        },
+        {
+          "key": "30%客户进行测试",
+          "count": 1
+        },
+        {
+          "key": "20%有预算",
+          "count": 3
+        },
+        {
+          "key": "contacted",
+          "count": 8
+        },
+        {
+          "key": "30%进行测试",
+          "count": 2
+        },
+        {
+          "key": "10%客户见面并有兴趣",
+          "count": 3
+        },
+        {
+          "key": "negotiation",
+          "count": 1
+        }
+      ],
+      "quotes": [
+        {
+          "key": "converted",
+          "count": 2
+        },
+        {
+          "key": "draft",
+          "count": 15
+        }
+      ],
+      "orders": [
+        {
+          "key": "processing",
+          "count": 1
+        },
+        {
+          "key": "pending",
+          "count": 1
+        }
+      ],
+      "partners": [
+        {
+          "key": "active",
+          "count": 174
+        }
+      ],
+      "users": [
+        {
+          "key": "active",
+          "count": 60
+        },
+        {
+          "key": "pending",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "dictionaries": {
+    "roles": [
+      {
+        "value": "superadmin",
+        "label": "超级管理员",
+        "sort": 1,
+        "enabled": true
+      },
+      {
+        "value": "admin",
+        "label": "区域管理员",
+        "sort": 2,
+        "enabled": true
+      },
+      {
+        "value": "partner_admin",
+        "label": "渠道管理员",
+        "sort": 3,
+        "enabled": true
+      },
+      {
+        "value": "staff",
+        "label": "员工",
+        "sort": 4,
+        "enabled": true
+      }
+    ],
+    "registrationStatuses": [
+      {
+        "value": "pending",
+        "label": "待审批",
+        "sort": 1,
+        "enabled": true
+      },
+      {
+        "value": "approved",
+        "label": "已通过",
+        "sort": 2,
+        "enabled": true
+      },
+      {
+        "value": "rejected",
+        "label": "已驳回",
+        "sort": 3,
+        "enabled": true
+      }
+    ],
+    "opportunityStages": [
+      {
+        "value": "contacted",
+        "label": "已接触",
+        "sort": 1,
+        "enabled": true
+      },
+      {
+        "value": "qualified",
+        "label": "已确认",
+        "sort": 2,
+        "enabled": true
+      },
+      {
+        "value": "proposal",
+        "label": "方案/报价中",
+        "sort": 3,
+        "enabled": true
+      },
+      {
+        "value": "negotiation",
+        "label": "商务谈判",
+        "sort": 4,
+        "enabled": true
+      },
+      {
+        "value": "won",
+        "label": "已成交",
+        "sort": 5,
+        "enabled": true
+      },
+      {
+        "value": "lost",
+        "label": "已失单",
+        "sort": 6,
+        "enabled": true
+      },
+      {
+        "value": "1%已联系上客户",
+        "label": "1%已联系上客户",
+        "sort": 7,
+        "enabled": true
+      },
+      {
+        "value": "10%见面并明确需求",
+        "label": "10%见面并明确需求",
+        "sort": 8,
+        "enabled": true
+      },
+      {
+        "value": "20%明确与预算及采购时间",
+        "label": "20%明确与预算及采购时间",
+        "sort": 9,
+        "enabled": true
+      },
+      {
+        "value": "10%见到客户并且感兴趣",
+        "label": "10%见到客户并且感兴趣",
+        "sort": 10,
+        "enabled": true
+      },
+      {
+        "value": "1%联系上客户",
+        "label": "1%联系上客户",
+        "sort": 11,
+        "enabled": true
+      },
+      {
+        "value": "30%客户进行测试",
+        "label": "30%客户进行测试",
+        "sort": 12,
+        "enabled": true
+      },
+      {
+        "value": "20%有预算",
+        "label": "20%有预算",
+        "sort": 13,
+        "enabled": true
+      },
+      {
+        "value": "30%进行测试",
+        "label": "30%进行测试",
+        "sort": 14,
+        "enabled": true
+      },
+      {
+        "value": "10%客户见面并有兴趣",
+        "label": "10%客户见面并有兴趣",
+        "sort": 15,
+        "enabled": true
+      }
+    ],
+    "quoteStatuses": [
+      {
+        "value": "draft",
+        "label": "草稿",
+        "sort": 1,
+        "enabled": true
+      },
+      {
+        "value": "submitted",
+        "label": "已提交",
+        "sort": 2,
+        "enabled": true
+      },
+      {
+        "value": "approved",
+        "label": "已通过",
+        "sort": 3,
+        "enabled": true
+      },
+      {
+        "value": "rejected",
+        "label": "已驳回",
+        "sort": 4,
+        "enabled": true
+      },
+      {
+        "value": "converted",
+        "label": "已转订单",
+        "sort": 5,
+        "enabled": true
+      }
+    ],
+    "orderStatuses": [
+      {
+        "value": "pending",
+        "label": "待处理",
+        "sort": 1,
+        "enabled": true
+      },
+      {
+        "value": "confirmed",
+        "label": "已确认",
+        "sort": 2,
+        "enabled": true
+      },
+      {
+        "value": "rejected",
+        "label": "已驳回",
+        "sort": 3,
+        "enabled": true
+      },
+      {
+        "value": "completed",
+        "label": "已完成",
+        "sort": 4,
+        "enabled": true
+      },
+      {
+        "value": "processing",
+        "label": "处理中",
+        "sort": 5,
+        "enabled": true
+      }
+    ],
+    "partnerLevels": [
+      {
+        "value": "none",
+        "label": "未设置",
+        "sort": 1,
+        "enabled": true
+      },
+      {
+        "value": "primary",
+        "label": "一级渠道",
+        "sort": 2,
+        "enabled": true
+      },
+      {
+        "value": "secondary",
+        "label": "二级渠道",
+        "sort": 3,
+        "enabled": true
+      }
+    ],
+    "partnerStatuses": [
+      {
+        "value": "active",
+        "label": "已激活",
+        "sort": 1,
+        "enabled": true
+      },
+      {
+        "value": "pending",
+        "label": "待审批",
+        "sort": 2,
+        "enabled": true
+      },
+      {
+        "value": "disabled",
+        "label": "禁用",
+        "sort": 3,
+        "enabled": true
+      }
+    ],
+    "userStatuses": [
+      {
+        "value": "active",
+        "label": "正常可用",
+        "sort": 1,
+        "enabled": true
+      },
+      {
+        "value": "pending",
+        "label": "待审批",
+        "sort": 2,
+        "enabled": true
+      },
+      {
+        "value": "disabled",
+        "label": "禁用",
+        "sort": 3,
+        "enabled": true
+      },
+      {
+        "value": "inactive",
+        "label": "未激活/停用",
+        "sort": 4,
+        "enabled": true
+      }
+    ],
+    "regions": [
+      {
+        "value": "安徽区",
+        "label": "安徽区",
+        "sort": 1,
+        "enabled": true
+      },
+      {
+        "value": "江苏区",
+        "label": "江苏区",
+        "sort": 2,
+        "enabled": true
+      },
+      {
+        "value": "上海区（非金）",
+        "label": "上海区（非金）",
+        "sort": 3,
+        "enabled": true
+      },
+      {
+        "value": "浙赣区",
+        "label": "浙赣区",
+        "sort": 4,
+        "enabled": true
+      },
+      {
+        "value": "深圳区",
+        "label": "深圳区",
+        "sort": 5,
+        "enabled": true
+      },
+      {
+        "value": "广州区",
+        "label": "广州区",
+        "sort": 6,
+        "enabled": true
+      },
+      {
+        "value": "湖南区",
+        "label": "湖南区",
+        "sort": 7,
+        "enabled": true
+      },
+      {
+        "value": "西区",
+        "label": "西区",
+        "sort": 8,
+        "enabled": true
+      },
+      {
+        "value": "北区（政府企业）",
+        "label": "北区（政府企业）",
+        "sort": 9,
+        "enabled": true
+      },
+      {
+        "value": "河南区",
+        "label": "河南区",
+        "sort": 10,
+        "enabled": true
+      },
+      {
+        "value": "东北区",
+        "label": "东北区",
+        "sort": 11,
+        "enabled": true
+      },
+      {
+        "value": "山东区",
+        "label": "山东区",
+        "sort": 12,
+        "enabled": true
+      },
+      {
+        "value": "晋冀区",
+        "label": "晋冀区",
+        "sort": 13,
+        "enabled": true
+      },
+      {
+        "value": "北区（政企企业）",
+        "label": "北区（政企企业）",
+        "sort": 14,
+        "enabled": true
+      },
+      {
+        "value": "湖北区",
+        "label": "湖北区",
+        "sort": 15,
+        "enabled": true
+      }
+    ],
+    "bigRegions": [
+      {
+        "value": "大东区",
+        "label": "大东区",
+        "sort": 1,
+        "enabled": true
+      },
+      {
+        "value": "大南区",
+        "label": "大南区",
+        "sort": 2,
+        "enabled": true
+      },
+      {
+        "value": "西区",
+        "label": "西区",
+        "sort": 3,
+        "enabled": true
+      },
+      {
+        "value": "大北区",
+        "label": "大北区",
+        "sort": 4,
+        "enabled": true
+      },
+      {
+        "value": "大西区",
+        "label": "大西区",
+        "sort": 5,
+        "enabled": true
+      }
+    ]
+  }
+}

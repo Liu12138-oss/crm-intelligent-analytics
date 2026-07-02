@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="960" viewBox="0 0 1400 960">
+  <defs>
+    <linearGradient id="背景" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#F5F8F6"/><stop offset="100%" stop-color="#DCEBE5"/></linearGradient>
+    <linearGradient id="头部" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="#173B35"/><stop offset="100%" stop-color="#0E766A"/></linearGradient>
+    <filter id="阴影" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#173B35" flood-opacity="0.14"/></filter>
+    <style>.标题{font-family:"PingFang SC","Microsoft YaHei",sans-serif;fill:#173B35;font-weight:800}.副标题{font-family:"PingFang SC","Microsoft YaHei",sans-serif;fill:#58706A}.白字{font-family:"PingFang SC","Microsoft YaHei",sans-serif;fill:#FFFFFF}.正文{font-family:"PingFang SC","Microsoft YaHei",sans-serif;fill:#294943;font-size:18px}.弱字{font-family:"PingFang SC","Microsoft YaHei",sans-serif;fill:#6B837D;font-size:16px}.小字{font-family:"PingFang SC","Microsoft YaHei",sans-serif;fill:#173B35;font-size:15px;font-weight:700}.指标小字{font-family:"PingFang SC","Microsoft YaHei",sans-serif;fill:#6B837D;font-size:14px}.指标值{font-family:"PingFang SC","Microsoft YaHei",sans-serif;fill:#0E766A;font-size:19px;font-weight:800}.代码{font-family:"SFMono-Regular","Menlo",monospace;fill:#35534C;font-size:15px}.风险{font-family:"PingFang SC","Microsoft YaHei",sans-serif;fill:#B45309;font-size:16px;font-weight:700}</style>
+  </defs>
+  <rect width="1400" height="960" rx="36" fill="url(#背景)"/>
+  <text x="56" y="70" class="标题" font-size="34">12｜分销层级健康长连接展示图</text>
+  <text x="56" y="104" class="副标题" font-size="18">每个大类固定采用 Markdown 经营结论 + 企微模板卡片 + 图片卡片的三段式展示。</text>
+  <g transform="translate(52 138)">
+    <rect width="720" height="750" rx="34" fill="#FFFFFF" stroke="#D8E2DE" filter="url(#阴影)"/>
+    <rect x="30" y="28" width="660" height="70" rx="24" fill="url(#头部)"/>
+    <text x="58" y="72" class="白字" font-size="25" font-weight="800">分销层级健康卡</text>
+    <text x="548" y="70" class="白字" font-size="14">长连接三段式</text>
+    <rect x="126" y="126" width="540" height="64" rx="22" fill="#D9F6EC"/>
+    <text x="642" y="164" text-anchor="end" class="正文" font-size="18" font-weight="700">一级二级渠道协同和归属是否正常？</text>
+    <circle cx="78" cy="158" r="27" fill="#0E766A"/><text x="78" y="167" text-anchor="middle" class="白字" font-size="22" font-weight="800">问</text>
+    <circle cx="78" cy="244" r="27" fill="#173B35"/><text x="78" y="253" text-anchor="middle" class="白字" font-size="22" font-weight="800">答</text>
+    <rect x="112" y="214" width="554" height="194" rx="24" fill="#FBFDFC" stroke="#DDE7E3"/>
+    <rect x="126" y="232" width="144" height="30" rx="15" fill="#E3F6EF"/><text x="198" y="253" text-anchor="middle" class="小字">Markdown 主答复</text>
+    <text x="126" y="286" class="弱字">口径：按一级渠道、二级渠道、客户归属和业务链路检查</text>
+    <text x="126" y="326" class="正文">异常归属会影响结算和协同，需要优先确认上级渠道。</text>
+    <text x="126" y="386" class="风险">建议追问：看明细 / 按区域下钻 / 生成报告</text>
+    <rect x="126" y="426" width="126" height="64" rx="16" fill="#F1FAF6" stroke="#CDE9DE"/>
+<text x="189" y="451" text-anchor="middle" class="指标小字">一级</text>
+<text x="189" y="477" text-anchor="middle" class="指标值">18 家</text>
+<rect x="270" y="426" width="126" height="64" rx="16" fill="#F1FAF6" stroke="#CDE9DE"/>
+<text x="333" y="451" text-anchor="middle" class="指标小字">二级</text>
+<text x="333" y="477" text-anchor="middle" class="指标值">64 家</text>
+<rect x="414" y="426" width="126" height="64" rx="16" fill="#F1FAF6" stroke="#CDE9DE"/>
+<text x="477" y="451" text-anchor="middle" class="指标小字">异常</text>
+<text x="477" y="477" text-anchor="middle" class="指标值">5 条</text>
+<rect x="558" y="426" width="126" height="64" rx="16" fill="#FFF7ED" stroke="#F3D9B8"/>
+<text x="621" y="451" text-anchor="middle" class="指标小字">待确认</text>
+<text x="621" y="477" text-anchor="middle" class="指标值">3 条</text>
+    <g transform="translate(112 520)"><rect width="250" height="152" rx="22" fill="#FFFFFF" stroke="#DDE7E3"/><rect x="18" y="18" width="214" height="38" rx="19" fill="#173B35"/><text x="125" y="43" text-anchor="middle" class="白字" font-size="16" font-weight="700">template_card 摘要</text><text x="24" y="84" class="正文">主标题：分销层级健康</text><text x="24" y="114" class="正文">强调：一级 18 家</text><text x="24" y="142" class="弱字">入口：完整看板 / 继续追问</text></g>
+    <g transform="translate(384 520)"><rect width="282" height="152" rx="22" fill="#FFFFFF" stroke="#DDE7E3"/><rect x="18" y="18" width="246" height="38" rx="19" fill="#0E766A"/><text x="141" y="43" text-anchor="middle" class="白字" font-size="16" font-weight="700">image 图片卡片</text><text x="374" y="622" class="弱字">层级关系图 + 链路漏斗 + 异常归</text>
+<text x="374" y="646" class="弱字">属清单</text><rect x="24" y="98" width="68" height="20" rx="10" fill="#0E766A"/><rect x="24" y="126" width="126" height="20" rx="10" fill="#73C8BA"/><rect x="162" y="98" width="86" height="20" rx="10" fill="#F8E7C9"/><rect x="162" y="126" width="58" height="20" rx="10" fill="#F6D6C8"/></g>
+    <rect x="112" y="700" width="554" height="28" rx="14" fill="#EEF3F1"/><text x="389" y="720" text-anchor="middle" class="代码">markdown → template_card → image；HTML 只作为完整报告入口</text>
+  </g>
+  <g transform="translate(812 138)">
+    <rect width="536" height="780" rx="34" fill="#FFFFFF" stroke="#D8E2DE" filter="url(#阴影)"/>
+    <text x="34" y="52" class="标题" font-size="25">展示模板和框架</text>
+    <rect x="34" y="82" width="468" height="96" rx="22" fill="#F8FBFA" stroke="#DDE7E3"/><text x="58" y="116" class="小字">第一段：Markdown 经营结论</text><text x="58" y="146" class="弱字">问题复述、数据口径、核心结论、关键指标、风险建议、建议追问。</text>
+    <rect x="34" y="194" width="468" height="96" rx="22" fill="#F8FBFA" stroke="#DDE7E3"/><text x="58" y="228" class="小字">第二段：企微模板卡片</text><text x="58" y="258" class="弱字">主标题、主强调指标、3 到 6 个辅助指标、完整报告入口。</text>
+    <text x="34" y="340" class="标题" font-size="25">分析维度</text><rect x="34" y="360" width="170" height="38" rx="16" fill="#F0FAF6" stroke="#CDE9DE"/>
+<text x="119" y="385" text-anchor="middle" class="小字">一级渠道</text>
+<rect x="218" y="360" width="170" height="38" rx="16" fill="#F0FAF6" stroke="#CDE9DE"/>
+<text x="303" y="385" text-anchor="middle" class="小字">二级渠道</text>
+<rect x="34" y="412" width="170" height="38" rx="16" fill="#F0FAF6" stroke="#CDE9DE"/>
+<text x="119" y="437" text-anchor="middle" class="小字">归属关系</text>
+<rect x="218" y="412" width="170" height="38" rx="16" fill="#F0FAF6" stroke="#CDE9DE"/>
+<text x="303" y="437" text-anchor="middle" class="小字">报备链路</text>
+<rect x="34" y="464" width="170" height="38" rx="16" fill="#F0FAF6" stroke="#CDE9DE"/>
+<text x="119" y="489" text-anchor="middle" class="小字">报价订单链路</text>
+<rect x="218" y="464" width="170" height="38" rx="16" fill="#F0FAF6" stroke="#CDE9DE"/>
+<text x="303" y="489" text-anchor="middle" class="小字">异常状态</text>
+    <rect x="34" y="522" width="468" height="120" rx="22" fill="#FFF7ED" stroke="#F3D9B8"/><text x="58" y="558" class="小字">第三段：图片化看板</text><text x="58" y="590" class="弱字">层级关系图 + 链路漏斗 + 异常归属清单</text><text x="58" y="620" class="弱字">图片内必须包含标题、口径、指标、图表和动作。</text>
+    <text x="34" y="672" class="标题" font-size="25">验收重点</text><text x="58" y="700" class="正文">1. 展示层级链路</text>
+<text x="58" y="734" class="正文">2. 标注异常类型</text>
+<text x="58" y="768" class="正文">3. 给出处理建议</text>
+  </g>
+</svg>

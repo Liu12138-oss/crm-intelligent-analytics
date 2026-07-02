@@ -1,0 +1,27 @@
+# ai-model-governance-exclusive-selection Specification
+
+## Purpose
+TBD - created by archiving change sync-env-ai-profiles-with-single-activation. Update Purpose after archive.
+## Requirements
+### Requirement: 系统必须以单选启用方式管理唯一生效的 AI 档案
+AI 模型治理页面 MUST 将管理员可见的“当前生效配置”收敛为单选启用语义。任一时刻系统 MUST 只允许一条档案处于启用并生效状态；当管理员选择新的启用项且验证通过时，系统 MUST 自动取消上一条启用档案的生效状态，并刷新全局当前配置摘要。
+
+#### Scenario: 管理员切换到另一条档案
+- **WHEN** 管理员在列表中将另一条已测试通过的档案设为当前启用项
+- **THEN** 系统必须将该档案切换为唯一生效配置
+- **THEN** 系统必须自动取消上一条启用档案的生效状态
+- **THEN** 治理列表与摘要卡必须同步刷新为新的唯一启用结果
+
+### Requirement: 系统必须在配置抽屉中支持表单级测试连接
+系统 MUST 在 AI 模型配置抽屉中提供“测试连接”按钮，并允许管理员基于当前表单内容直接发起静态校验与真实 smoke test，而不要求先保存当前配置。测试结果 MUST 返回成功 / 失败状态、耗时、失败阶段与失败原因摘要，并在页面上即时反馈。
+
+#### Scenario: 管理员在新建档案时先测试后保存
+- **WHEN** 管理员在配置抽屉中填写一条新的 Codex 或 Claude 档案，并点击“测试连接”
+- **THEN** 系统必须使用当前草稿内容执行校验与测试，而不是要求先保存
+- **THEN** 页面必须即时展示测试是否成功、耗时和失败原因摘要
+
+#### Scenario: 管理员编辑已有档案且不重新输入密钥时测试
+- **WHEN** 管理员编辑一条已保存且已配置密钥的档案，保持密钥输入框为空并点击“测试连接”
+- **THEN** 系统必须复用该档案已保存的密钥执行测试
+- **THEN** 不得因为本次未重新输入密钥而把测试结果误判为“缺少密钥”
+

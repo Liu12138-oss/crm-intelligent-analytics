@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企微看板桥接 - 6场景模拟测试报告</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d28;
+    --border: #2a2e3c;
+    --text: #e4e6ed;
+    --text-dim: #8b8fa3;
+    --accent: #4a9eff;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #eab308;
+    --purple: #a855f7;
+    --orange: #f97316;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 24px;
+  }
+  h1 { font-size: 24px; margin-bottom: 8px; }
+  h2 { font-size: 18px; margin: 24px 0 12px; color: var(--accent); }
+  h3 { font-size: 15px; margin: 16px 0 8px; }
+  .subtitle { color: var(--text-dim); font-size: 13px; margin-bottom: 24px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+  }
+  .stat .num { font-size: 28px; font-weight: 700; }
+  .stat .label { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+  .stat.pass .num { color: var(--green); }
+  .stat.fail .num { color: var(--red); }
+  .stat.total .num { color: var(--accent); }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin: 8px 0;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-pass { background: rgba(34,197,94,0.15); color: var(--green); }
+  .badge-fail { background: rgba(239,68,68,0.15); color: var(--red); }
+  .badge-bridge { background: rgba(168,85,247,0.15); color: var(--purple); }
+  .badge-analyze { background: rgba(74,158,255,0.15); color: var(--accent); }
+  .badge-block { background: rgba(234,179,8,0.15); color: var(--yellow); font-size: 10px; }
+  .scenario {
+    border-left: 3px solid var(--border);
+    padding-left: 16px;
+    margin-bottom: 20px;
+  }
+  .scenario.bridge { border-left-color: var(--purple); }
+  .scenario.analyze { border-left-color: var(--accent); }
+  .scenario .q {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .scenario .q-num {
+    color: var(--text-dim);
+    font-weight: 400;
+    margin-right: 6px;
+  }
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 10px 0;
+    font-size: 12px;
+  }
+  .flow-step {
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+  }
+  .flow-step.active { border-color: var(--green); color: var(--green); }
+  .flow-step.skip { opacity: 0.4; text-decoration: line-through; }
+  .flow-arrow { color: var(--text-dim); }
+  .block-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 8px 0;
+  }
+  .code {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    font-family: 'Fira Code', monospace;
+    font-size: 12px;
+    overflow-x: auto;
+    margin: 8px 0;
+    color: var(--text-dim);
+  }
+  .fix-item {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .fix-item:last-child { border-bottom: none; }
+  .fix-item .title { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+  .fix-item .desc { font-size: 12px; color: var(--text-dim); }
+  .fix-item .file { font-family: monospace; font-size: 11px; color: var(--orange); margin-top: 4px; }
+  .next-steps {
+    background: rgba(74,158,255,0.08);
+    border: 1px solid rgba(74,158,255,0.2);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 20px;
+  }
+  .next-steps ol { padding-left: 20px; }
+  .next-steps li { margin: 6px 0; font-size: 13px; }
+  .profile-comparison {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 12px 0;
+  }
+  .profile-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+  }
+  .profile-card h4 { font-size: 13px; margin-bottom: 8px; }
+  .profile-card .count { font-size: 24px; font-weight: 700; color: var(--accent); }
+  .profile-card ul { list-style: none; font-size: 11px; color: var(--text-dim); margin-top: 8px; }
+  .profile-card li { padding: 2px 0; }
+  .footer { text-align: center; color: var(--text-dim); font-size: 11px; margin-top: 30px; padding-top: 16px; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<h1>企微看板桥接 — 6 场景模拟测试报告</h1>
+<p class="subtitle">生成时间：2026-06-25 | 测试文件：wecom-dashboard-bridge.simulation.spec.ts | 47/47 通过</p>
+
+<div class="summary-grid">
+  <div class="stat total"><div class="num">6</div><div class="label">测试场景</div></div>
+  <div class="stat pass"><div class="num">6</div><div class="label">通过</div></div>
+  <div class="stat fail"><div class="num">0</div><div class="label">失败</div></div>
+  <div class="stat"><div class="num">4</div><div class="label">修复项</div></div>
+  <div class="stat"><div class="num">47</div><div class="label">单元测试</div></div>
+</div>
+
+<h2>本次修复内容</h2>
+<div class="card">
+  <div class="fix-item">
+    <div class="title">修复1：信号层放行 — hasExplicitWecomAnalysisOrBlockSignal 增加 30+ 看板关键词</div>
+    <div class="desc">"渠道商经营分析看板"等提问之前在信号层被拦截（不含商机/客户等 metric 词），路由到帮助提示而非 ANALYZE。新增 数据看板/运营看板/经营看板/发展运营/渠道商.*看板/区域.*看板/订单.*分析 等 30+ 信号词，确保看板类提问放行到 ANALYZE 分支。</div>
+    <div class="file">backend/src/modules/wecom/wecom-bot.service.ts:2330</div>
+  </div>
+  <div class="fix-item">
+    <div class="title">修复2：企微桥接 profile 从硬编码改为自动识别</div>
+    <div class="desc">compose() 调用从硬编码 'agent-development' 改为 'auto'，让 detectProfile 根据问题文本自动选择最匹配的看板模板（agent-development / region-overview / channel-order-summary / owner-performance）。</div>
+    <div class="file">backend/src/modules/wecom/wecom-bot.service.ts:1086</div>
+  </div>
+  <div class="fix-item">
+    <div class="title">修复3：detectProfile 正则增强 — 识别"渠道商发展运营"和"各区域"</div>
+    <div class="desc">原正则只认"代理商.*发展"，不认"渠道商.*发展"和"各区域.*看板"。新增 渠道商.*发展|渠道商.*运营|渠道商.*看板 → agent-development；各区域.*看板|区域.*运营|区域.*发展 → region-overview；订单.*分析|下单.*分析 → channel-order-summary。</div>
+    <div class="file">backend/src/modules/crm-standard-api/dashboard-report-composer.service.ts:173</div>
+  </div>
+  <div class="fix-item">
+    <div class="title">修复4：订单分析模板增强 — 从 6 block 扩展到 9 block</div>
+    <div class="desc">buildChannelOrderSummaryBlocks 新增：技术服务商分布饼图（兜底聚合）、业务转化漏斗（兜底聚合）、区域贡献明细表。buildChannelOrderKpi 新增 partnerContributions 兜底。同时 buildRegionOverviewBlocks 从 2 block 增强到 8 block（补柱状图/饼图/地图/漏斗/排名表）。</div>
+    <div class="file">backend/src/modules/crm-standard-api/dashboard-report-composer.service.ts:215,420</div>
+  </div>
+</div>
+
+<h2>看板模板 Block 对比</h2>
+<div class="profile-comparison">
+  <div class="profile-card">
+    <h4 style="color:var(--purple)">agent-development</h4>
+    <div class="count">13</div>
+    <ul>
+      <li>kpi-matrix 核心指标</li>
+      <li>pie-distribution 合作级别分布</li>
+      <li>pie-distribution 技术服务商分布</li>
+      <li>grouped-bar 区域对比</li>
+      <li>geo-map 省份覆盖</li>
+      <li>pie-distribution 商机阶段分布</li>
+      <li>pie-distribution 报价状态分布</li>
+      <li>pie-distribution 订单状态分布</li>
+      <li>composite-trend 渠道商新增趋势</li>
+      <li>funnel 业务转化漏斗</li>
+      <li>sortable-table 区域排名明细</li>
+      <li>sortable-table 渠道排名明细</li>
+      <li>sortable-table 各团队签约明细</li>
+    </ul>
+  </div>
+  <div class="profile-card">
+    <h4 style="color:var(--accent)">channel-order-summary</h4>
+    <div class="count">9</div>
+    <ul>
+      <li>kpi-matrix 核心指标</li>
+      <li>concentration 集中度分析</li>
+      <li>pie-distribution 合作级别分布 <span style="color:var(--green)">[新]</span></li>
+      <li>pie-distribution 技术服务商分布 <span style="color:var(--green)">[新]</span></li>
+      <li>pie-distribution 订单状态分布</li>
+      <li>composite-trend 订单月度趋势</li>
+      <li>funnel 业务转化漏斗 <span style="color:var(--green)">[新]</span></li>
+      <li>sortable-table 渠道排名明细</li>
+      <li>sortable-table 区域排名明细 <span style="color:var(--green)">[新]</span></li>
+    </ul>
+  </div>
+  <div class="profile-card">
+    <h4 style="color:var(--yellow)">region-overview</h4>
+    <div class="count">8</div>
+    <ul>
+      <li>kpi-matrix 核心指标</li>
+      <li>grouped-bar 区域对比 <span style="color:var(--green)">[新]</span></li>
+      <li>pie-distribution 合作级别分布 <span style="color:var(--green)">[新]</span></li>
+      <li>pie-distribution 技术服务商分布 <span style="color:var(--green)">[新]</span></li>
+      <li>geo-map 省份覆盖 <span style="color:var(--green)">[新]</span></li>
+      <li>funnel 业务转化漏斗 <span style="color:var(--green)">[新]</span></li>
+      <li>sortable-table 区域排名明细</li>
+      <li>sortable-table 渠道排名明细 <span style="color:var(--green)">[新]</span></li>
+    </ul>
+  </div>
+</div>
+
+<h2>6 场景模拟测试结果</h2>
+
+<!-- 场景1 -->
+<div class="scenario analyze">
+  <div class="q"><span class="q-num">场景 1</span>管理员视角，近3个月商机进展</div>
+  <div class="flow">
+    <span class="flow-step active">用户提问</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">hasExplicitWecomAnalysisOrBlockSignal: true（命中"商机"）</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">ANALYZE 分支</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step skip">isWecomDashboardAnalysisRequest: false</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">常规分析管道（executeRegularAnalysisPipeline）</span>
+  </div>
+  <table>
+    <tr><th>检测项</th><th>结果</th><th>命中原因</th></tr>
+    <tr><td>hasExplicitWecomAnalysisOrBlockSignal</td><td><span class="badge badge-pass">true</span></td><td>包含"商机" → 第2321行 metric 关键词命中</td></tr>
+    <tr><td>isWecomDashboardAnalysisRequest</td><td><span class="badge badge-fail">false</span></td><td>不含"数据看板/运营看板/经营看板"等看板信号词</td></tr>
+    <tr><td>预期路由</td><td><span class="badge badge-analyze">ANALYZE 常规管道</span></td><td>走 analysisService.createQuery → 文字报告 + 模板卡片</td></tr>
+    <tr><td>测试状态</td><td><span class="badge badge-pass">PASS</span></td><td>路由正确，走常规分析管道</td></tr>
+  </table>
+</div>
+
+<!-- 场景2 -->
+<div class="scenario analyze">
+  <div class="q"><span class="q-num">场景 2</span>最近一年商机趋势分析</div>
+  <div class="flow">
+    <span class="flow-step active">用户提问</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">hasExplicitWecomAnalysisOrBlockSignal: true（命中"商机"）</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">ANALYZE 分支</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step skip">isWecomDashboardAnalysisRequest: false</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">常规分析管道</span>
+  </div>
+  <table>
+    <tr><th>检测项</th><th>结果</th><th>命中原因</th></tr>
+    <tr><td>hasExplicitWecomAnalysisOrBlockSignal</td><td><span class="badge badge-pass">true</span></td><td>包含"商机" → metric 关键词命中</td></tr>
+    <tr><td>isWecomDashboardAnalysisRequest</td><td><span class="badge badge-fail">false</span></td><td>不含看板信号词（虽有"分析"但无"看板/运营/经营"）</td></tr>
+    <tr><td>预期路由</td><td><span class="badge badge-analyze">ANALYZE 常规管道</span></td><td>走常规分析管道生成趋势分析报告</td></tr>
+    <tr><td>测试状态</td><td><span class="badge badge-pass">PASS</span></td><td>路由正确</td></tr>
+  </table>
+</div>
+
+<!-- 场景3 -->
+<div class="scenario analyze">
+  <div class="q"><span class="q-num">场景 3</span>近3个月没有维护进度的客户情况</div>
+  <div class="flow">
+    <span class="flow-step active">用户提问</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">hasExplicitWecomAnalysisOrBlockSignal: true（命中"客户"）</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">ANALYZE 分支</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step skip">isWecomDashboardAnalysisRequest: false</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">常规分析管道</span>
+  </div>
+  <table>
+    <tr><th>检测项</th><th>结果</th><th>命中原因</th></tr>
+    <tr><td>hasExplicitWecomAnalysisOrBlockSignal</td><td><span class="badge badge-pass">true</span></td><td>包含"客户" → metric 关键词命中</td></tr>
+    <tr><td>isWecomDashboardAnalysisRequest</td><td><span class="badge badge-fail">false</span></td><td>不含看板信号词</td></tr>
+    <tr><td>预期路由</td><td><span class="badge badge-analyze">ANALYZE 常规管道</span></td><td>走常规分析管道筛选未维护客户</td></tr>
+    <tr><td>测试状态</td><td><span class="badge badge-pass">PASS</span></td><td>路由正确</td></tr>
+  </table>
+</div>
+
+<!-- 场景4 -->
+<div class="scenario bridge">
+  <div class="q"><span class="q-num">场景 4</span>全国渠道商发展运营数据看板</div>
+  <div class="flow">
+    <span class="flow-step active">用户提问</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">hasExplicitWecomAnalysisOrBlockSignal: true（命中"发展运营/运营数据/数据看板/渠道商.*看板"）</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">ANALYZE 分支</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">isWecomDashboardAnalysisRequest: true</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">DashboardReportComposer.compose('auto')</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">detectProfile → 'agent-development'</span>
+  </div>
+  <table>
+    <tr><th>检测项</th><th>结果</th><th>命中原因</th></tr>
+    <tr><td>hasExplicitWecomAnalysisOrBlockSignal</td><td><span class="badge badge-pass">true</span></td><td>命中"发展运营"+"运营数据"+"数据看板"+"渠道商.*看板"（第2330行看板信号词）</td></tr>
+    <tr><td>isWecomDashboardAnalysisRequest</td><td><span class="badge badge-pass">true</span></td><td>hasDashboardSignal 命中"发展运营/运营数据/数据看板" + hasAnalysisIntent 命中"看板"</td></tr>
+    <tr><td>detectProfile</td><td><span class="badge badge-bridge">agent-development</span></td><td>命中"渠道商.*发展|渠道商.*运营|渠道商.*看板"</td></tr>
+    <tr><td>生成 block 数</td><td><span class="badge badge-block">13 blocks</span></td><td>KPI + 2饼图 + 柱状图 + 地图 + 3饼图 + 趋势 + 漏斗 + 3表格</td></tr>
+  </table>
+  <div class="block-list">
+    <span class="badge badge-block">kpi-matrix</span>
+    <span class="badge badge-block">pie-distribution(合作级别)</span>
+    <span class="badge badge-block">pie-distribution(技术服务商)</span>
+    <span class="badge badge-block">grouped-bar(区域对比)</span>
+    <span class="badge badge-block">geo-map(省份覆盖)</span>
+    <span class="badge badge-block">pie-distribution(商机阶段)</span>
+    <span class="badge badge-block">pie-distribution(报价状态)</span>
+    <span class="badge badge-block">pie-distribution(订单状态)</span>
+    <span class="badge badge-block">composite-trend(趋势)</span>
+    <span class="badge badge-block">funnel(漏斗)</span>
+    <span class="badge badge-block">sortable-table(区域排名)</span>
+    <span class="badge badge-block">sortable-table(渠道排名)</span>
+    <span class="badge badge-block">sortable-table(团队签约)</span>
+  </div>
+  <table>
+    <tr><td>测试状态</td><td><span class="badge badge-pass">PASS</span></td><td>桥接成功，13 block 全部生成，含饼图/漏斗/地图/趋势/表格</td></tr>
+  </table>
+</div>
+
+<!-- 场景5 -->
+<div class="scenario bridge">
+  <div class="q"><span class="q-num">场景 5</span>各区域渠道商发展运营数据情况看板</div>
+  <div class="flow">
+    <span class="flow-step active">用户提问</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">hasExplicitWecomAnalysisOrBlockSignal: true（命中"发展运营/运营数据/数据看板/区域.*看板"）</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">ANALYZE 分支</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">isWecomDashboardAnalysisRequest: true</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">DashboardReportComposer.compose('auto')</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">detectProfile → 'region-overview'</span>
+  </div>
+  <table>
+    <tr><th>检测项</th><th>结果</th><th>命中原因</th></tr>
+    <tr><td>hasExplicitWecomAnalysisOrBlockSignal</td><td><span class="badge badge-pass">true</span></td><td>命中"发展运营"+"运营数据"+"数据看板"+"区域.*看板"</td></tr>
+    <tr><td>isWecomDashboardAnalysisRequest</td><td><span class="badge badge-pass">true</span></td><td>hasDashboardSignal 命中 + hasAnalysisIntent 命中"看板"</td></tr>
+    <tr><td>detectProfile</td><td><span class="badge badge-bridge">region-overview</span></td><td>命中"各区域.*看板|区域.*运营|区域.*发展"（本次新增正则）</td></tr>
+    <tr><td>生成 block 数</td><td><span class="badge badge-block">8 blocks</span></td><td>KPI + 柱状图 + 2饼图 + 地图 + 漏斗 + 2表格</td></tr>
+  </table>
+  <div class="block-list">
+    <span class="badge badge-block">kpi-matrix</span>
+    <span class="badge badge-block">grouped-bar(区域对比)</span>
+    <span class="badge badge-block">pie-distribution(合作级别)</span>
+    <span class="badge badge-block">pie-distribution(技术服务商)</span>
+    <span class="badge badge-block">geo-map(省份覆盖)</span>
+    <span class="badge badge-block">funnel(漏斗)</span>
+    <span class="badge badge-block">sortable-table(区域排名)</span>
+    <span class="badge badge-block">sortable-table(渠道排名)</span>
+  </div>
+  <table>
+    <tr><td>测试状态</td><td><span class="badge badge-pass">PASS</span></td><td>桥接成功，profile 正确识别为 region-overview，8 block 生成</td></tr>
+  </table>
+</div>
+
+<!-- 场景6 -->
+<div class="scenario analyze">
+  <div class="q"><span class="q-num">场景 6</span>最近3个月没有商机和订单的渠道商情况</div>
+  <div class="flow">
+    <span class="flow-step active">用户提问</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">hasExplicitWecomAnalysisOrBlockSignal: true（命中"商机"）</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">ANALYZE 分支</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step skip">isWecomDashboardAnalysisRequest: false</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step active">常规分析管道</span>
+  </div>
+  <table>
+    <tr><th>检测项</th><th>结果</th><th>命中原因</th></tr>
+    <tr><td>hasExplicitWecomAnalysisOrBlockSignal</td><td><span class="badge badge-pass">true</span></td><td>包含"商机" → metric 关键词命中</td></tr>
+    <tr><td>isWecomDashboardAnalysisRequest</td><td><span class="badge badge-fail">false</span></td><td>不含看板信号词（"情况"不是看板信号词）</td></tr>
+    <tr><td>预期路由</td><td><span class="badge badge-analyze">ANALYZE 常规管道</span></td><td>走常规分析管道筛选无商机无订单渠道商</td></tr>
+    <tr><td>测试状态</td><td><span class="badge badge-pass">PASS</span></td><td>路由正确，不走看板桥接</td></tr>
+  </table>
+</div>
+
+<h2>兜底聚合验证</h2>
+<div class="card">
+  <table>
+    <tr><th>测试场景</th><th>数据条件</th><th>兜底触发</th><th>block 数</th><th>状态</th></tr>
+    <tr>
+      <td>完整数据模式</td>
+      <td>所有 summary + funnel 正常</td>
+      <td>无兜底</td>
+      <td>13</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td>funnel 为空</td>
+      <td>funnel=null, summary 正常</td>
+      <td>buildFunnelBlockFromSummariesOrContributions</td>
+      <td>13</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td>summary 字段为空</td>
+      <td>byCooperationLevel=0, byTechServiceType=0</td>
+      <td>buildCooperationLevelDistributionFromContributions + buildTechServiceTypeDistributionFromContributions</td>
+      <td>12</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td>channel-order-summary 模板</td>
+      <td>完整数据</td>
+      <td>无兜底</td>
+      <td>9</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td>region-overview 模板</td>
+      <td>完整数据</td>
+      <td>无兜底</td>
+      <td>8</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+    </tr>
+  </table>
+</div>
+
+<h2>消息处理链路图</h2>
+<div class="card">
+<div class="code">
+用户消息
+  │
+  ▼
+hasExplicitWecomAnalysisOrBlockSignal(text)          ← 第一道门：信号检测
+  │                                                    ① metric 词（商机/客户/订单...）→ true
+  │                                                    ② 看板信号词（数据看板/运营看板/渠道商.*看板...）→ true  [本次修复]
+  │                                                    ③ hasAnalysisReportSignal（metric+dimension+time 组合）→ true
+  │
+  ├─ false → shouldReturnIdleUnrecognizedHelp → 帮助提示  ← 之前"渠道商经营分析看板"卡在这里
+  │
+  └─ true → ANALYZE 分支
+              │
+              ▼
+          isWecomDashboardAnalysisRequest(text)       ← 第二道门：看板桥接检测
+              │                                        hasDashboardSignal（数据看板/运营看板...）&&
+              │                                        hasAnalysisIntent（分析/看板/概览...）
+              │
+              ├─ false → executeRegularAnalysisPipeline  ← 常规分析：createQuery → 文字报告 + 模板卡片
+              │
+              └─ true → DashboardReportComposer.compose('auto', {}, text)  ← 看板桥接 [本次修复：auto]
+                          │
+                          ▼
+                      detectProfile(text)              ← 自动识别看板类型 [本次修复：正则增强]
+                          │
+                          ├─ 渠道商.*发展|渠道商.*运营 → 'agent-development'  → 13 blocks
+                          ├─ 各区域.*看板|区域.*运营 → 'region-overview'     → 8 blocks
+                          ├─ 渠道.*下单|订单.*分析   → 'channel-order-summary' → 9 blocks
+                          └─ 负责人.*业绩            → 'owner-performance'     → 2 blocks
+                          │
+                          ▼
+                      convertDashboardResultToWecomFormat  ← 转企微格式
+                          │
+                          ├─ 模板卡片（KPI horizontal_content_list）
+                          └─ 4 个 StreamBlock（标题+KPI / 图表 / 表格 / 清单）
+</div>
+</div>
+
+<div class="next-steps">
+  <h2 style="margin-top:0">下一步操作</h2>
+  <ol>
+    <li><strong>重启后端服务</strong>：在 backend 目录执行 <code>pnpm dev</code>（或重启 NestJS 进程），让代码修改生效</li>
+    <li><strong>企微实测 6 个场景</strong>：在企微机器人中依次发送以下 6 条消息，确认返回结果包含看板 block（饼图/漏斗/地图/表格）而非纯文字或帮助提示：
+      <ul style="margin:8px 0 8px 20px;font-size:12px;color:var(--text-dim)">
+        <li>① 管理员视角，近3个月商机进展</li>
+        <li>② 最近一年商机趋势分析</li>
+        <li>③ 近3个月没有维护进度的客户情况</li>
+        <li>④ 全国渠道商发展运营数据看板</li>
+        <li>⑤ 各区域渠道商发展运营数据情况看板</li>
+        <li>⑥ 最近3个月没有商机和订单的渠道商情况</li>
+      </ul>
+    </li>
+    <li><strong>检查后端日志</strong>：在终端过滤 <code>[DashboardReportComposer]</code> 和 <code>企微看板分析请求</code>，确认：
+      <ul style="margin:8px 0 8px 20px;font-size:12px;color:var(--text-dim)">
+        <li>日志出现"企微看板分析请求已识别，桥接到 DashboardReportComposer"</li>
+        <li>日志出现"compose() 生成 N 个 block"且 block 数量与上表一致</li>
+        <li>日志出现"convertDashboardResultToWecomFormat"转换成功</li>
+      </ul>
+    </li>
+    <li><strong>如仍出帮助提示</strong>：说明信号层未放行，检查 <code>hasExplicitWecomAnalysisOrBlockSignal</code> 第2330行的正则是否包含你的提问关键词</li>
+    <li><strong>如出纯文字无图表</strong>：说明桥接未触发（isWecomDashboardAnalysisRequest=false），确认提问中包含"看板/运营/经营"等看板信号词</li>
+  </ol>
+</div>
+
+<div class="footer">
+  CRM-Agent 企微看板桥接模拟测试报告 | 2026-06-25 | 6/6 场景通过 | 47/47 单元测试通过
+</div>
+
+</body>
+</html>

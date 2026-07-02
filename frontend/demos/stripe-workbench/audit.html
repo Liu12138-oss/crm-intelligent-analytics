@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CRM Stripe Demo · 治理审计页</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./assets/crm-stripe-demo.css" />
+  </head>
+  <body class="demo-body">
+    <div class="demo-shell">
+      <aside class="demo-sidebar">
+        <section class="brand-lockup">
+          <div class="brand-mark">C</div>
+          <div class="brand-copy">
+            <h1>CRM 智能分析系统</h1>
+            <p>治理审计中心 demo</p>
+          </div>
+        </section>
+        <nav class="nav-group">
+          <p class="nav-caption">主导航</p>
+          <a class="nav-link" href="./workbench.html" title="智能分析">
+            <span class="nav-link__icon">工</span>
+            <span class="nav-link__text">智能分析</span>
+          </a>
+          <a class="nav-link" href="./result.html" title="分析结果详情">
+            <span class="nav-link__icon">析</span>
+            <span class="nav-link__text">分析结果详情</span>
+          </a>
+          <a class="nav-link nav-link--active" href="./audit.html" title="治理审计中心">
+            <span class="nav-link__icon">审</span>
+            <span class="nav-link__text">治理审计中心</span>
+          </a>
+          <a class="nav-link" href="./contract-review.html" title="智能合同">
+            <span class="nav-link__icon">合</span>
+            <span class="nav-link__text">智能合同</span>
+          </a>
+          <a class="nav-link" href="./login.html" title="登录页">
+            <span class="nav-link__icon">登</span>
+            <span class="nav-link__text">登录页</span>
+          </a>
+        </nav>
+      </aside>
+
+      <main class="demo-main motion-surface">
+        <header class="demo-topbar">
+          <div class="topbar-group">
+            <button class="topbar-toggle" type="button" data-nav-toggle aria-pressed="false" title="收起导航">收起</button>
+            <span class="badge badge--warning">治理审计中心</span>
+            <span class="chip">今日查询量：182</span>
+            <span class="chip">今日拦截量：11</span>
+            <span class="chip">敏感字段命中：7</span>
+          </div>
+          <div class="topbar-group">
+            <a class="soft-button" href="./index.html">返回总览</a>
+            <button class="ghost-button" type="button" data-loading-label="导出中...">导出审计视图</button>
+          </div>
+        </header>
+
+        <div class="demo-content">
+          <section>
+            <span class="eyebrow">AUDIT</span>
+            <h1 class="page-title page-title--compact">今天发生了什么，哪里有风险，哪些事件需要处理</h1>
+            <p class="page-subtitle page-subtitle--compact">
+              先给态势，再给筛选和可处理事件。首屏优先露出表格与当前选中详情。
+            </p>
+          </section>
+
+          <section class="content-frame">
+            <div class="main-stack">
+              <section class="metrics-grid metrics-grid--compact">
+                <article class="card metric-card metric-card--inline">
+                  <div class="metric-card__copy">
+                    <div class="metric-kicker">当日查询量</div>
+                    <div class="metric-meta">Web 端持续增长</div>
+                  </div>
+                  <div class="metric-card__side">
+                    <strong>182</strong>
+                    <span class="badge badge--brand">企微 46%</span>
+                  </div>
+                </article>
+                <article class="card metric-card metric-card--inline">
+                  <div class="metric-card__copy">
+                    <div class="metric-kicker">当日拦截量</div>
+                    <div class="metric-meta">主要来自敏感字段请求</div>
+                  </div>
+                  <div class="metric-card__side">
+                    <strong>11</strong>
+                    <span class="badge badge--danger">3 起高风险</span>
+                  </div>
+                </article>
+                <article class="card metric-card metric-card--inline">
+                  <div class="metric-card__copy">
+                    <div class="metric-kicker">导出行为</div>
+                    <div class="metric-meta">建议引导至常用查询</div>
+                  </div>
+                  <div class="metric-card__side">
+                    <strong>14</strong>
+                    <span class="badge badge--warning">2 起超限</span>
+                  </div>
+                </article>
+                <article class="card metric-card metric-card--inline">
+                  <div class="metric-card__copy">
+                    <div class="metric-kicker">待复核事件</div>
+                    <div class="metric-meta">含合同降级快审与权限争议</div>
+                  </div>
+                  <div class="metric-card__side">
+                    <strong>5</strong>
+                    <span class="badge badge--neutral">需人工确认</span>
+                  </div>
+                </article>
+              </section>
+
+              <section class="card filter-card filter-card--compact">
+                <div class="panel-header panel-header--compact">
+                  <div>
+                    <h2 class="panel-title">筛选与分区</h2>
+                  </div>
+                </div>
+                <div class="filter-grid filter-grid--compact">
+                  <input class="input-field" type="text" value="王文定" />
+                  <select class="select-field">
+                    <option>事件类型：全部</option>
+                    <option>QUERY_BLOCKED</option>
+                    <option>EXPORT_BLOCKED</option>
+                  </select>
+                  <select class="select-field">
+                    <option>风险等级：全部</option>
+                    <option>高风险</option>
+                    <option>待复核</option>
+                  </select>
+                  <select class="select-field">
+                    <option>入口场景：全部</option>
+                    <option>企业微信问数</option>
+                    <option>Web 智能分析</option>
+                  </select>
+                  <button class="button" type="button" data-loading-label="筛选中...">应用筛选</button>
+                  <button class="ghost-button" type="button">重置</button>
+                </div>
+              </section>
+
+              <article class="card table-card">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title">事件明细</h2>
+                    <p class="panel-subtitle">重点是“可复核、可比对、可处理”，不是堆技术字段。</p>
+                  </div>
+                  <span class="badge badge--neutral">共 182 条</span>
+                </div>
+                <div class="event-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>事件类型</th>
+                        <th>行为人</th>
+                        <th>入口</th>
+                        <th>风险等级</th>
+                        <th>结果</th>
+                        <th>时间</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>QUERY_BLOCKED</td>
+                        <td>王文定</td>
+                        <td>企业微信问数</td>
+                        <td><span class="badge badge--danger">高风险</span></td>
+                        <td>请求敏感字段明细，已阻断</td>
+                        <td>09:18</td>
+                      </tr>
+                      <tr>
+                        <td>EXPORT_BLOCKED</td>
+                        <td>林国伟</td>
+                        <td>Web 智能分析</td>
+                        <td><span class="badge badge--warning">待复核</span></td>
+                        <td>导出超过 1000 行限制</td>
+                        <td>09:04</td>
+                      </tr>
+                      <tr>
+                        <td>CONTRACT_REVIEW_TASK_COMPLETED</td>
+                        <td>商务一组</td>
+                        <td>合同审核</td>
+                        <td><span class="badge badge--neutral">提示</span></td>
+                        <td>规则快审已返回，等待 AI 补充审核</td>
+                        <td>08:52</td>
+                      </tr>
+                      <tr>
+                        <td>AI_RESULT_EXPLAINED</td>
+                        <td>销售总监</td>
+                        <td>Web 智能分析</td>
+                        <td><span class="badge badge--brand">正常</span></td>
+                        <td>解释型追问已完成</td>
+                        <td>08:47</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </article>
+            </div>
+
+            <aside class="rail-stack">
+              <article class="card detail-card">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title">当前选中事件</h2>
+                  </div>
+                  <span class="badge badge--danger">高风险</span>
+                </div>
+                <div class="detail-block">
+                  <strong>原始问题</strong>
+                  <span class="muted">“把本季度全部重点客户联系人和手机号明细导出来给我。”</span>
+                </div>
+                <div class="detail-block">
+                  <strong>阻断原因</strong>
+                  <span class="muted">请求超出一期白名单字段范围，并包含敏感字段手机号。</span>
+                </div>
+                <div class="detail-block">
+                  <strong>建议动作</strong>
+                  <span class="muted">引导使用已批准的重点客户经营概览查询，不开放联系人原始明细导出。</span>
+                </div>
+              </article>
+
+              <article class="card detail-card">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title">AI 治理建议</h2>
+                  </div>
+                </div>
+                <div class="event-highlight">
+                  <strong>近期企业微信入口的敏感字段请求占比上升。</strong>
+                  <p class="panel-subtitle" style="margin-top: 8px">
+                    建议在企微问数入口增加“支持主题与拒绝范围”的固定说明，并强化常用查询替代导出路径。
+                  </p>
+                </div>
+                <div class="detail-block">
+                  <strong>Fallback 预警</strong>
+                  <span class="muted">近 7 天“模糊时间范围 + 模糊对象”的 fallback 占比上升至 18%，建议优化补问模版。</span>
+                </div>
+              </article>
+            </aside>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="./assets/crm-stripe-demo.js"></script>
+  </body>
+</html>

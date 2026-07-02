@@ -1,0 +1,24 @@
+code: company-commercial-v1
+version: 2026.04
+title: 公司商务合同审核标准
+summary: 面向公司商务人员的商业合同签署前风险识别标准，优先暴露高风险和否决项。
+issuedAt: 2026-04-06T00:00:00.000Z
+requirementsFile: requirements.md
+workflowFile: workflow.md
+checksFile: checks.json
+plannerPromptFile: prompts/planner.md
+reviewerPromptFile: prompts/reviewer.md
+summarizerPromptFile: prompts/summarizer.md
+defaultExecutionMode: AI_HYBRID
+defaultModelProfile: codex-high
+applicableContractTypes:
+  - 购销合同
+  - 服务合同
+  - 扩容合同
+deterministicValidators:
+  - payment-term-limit
+  - tax-rate-limit
+  - discount-threshold
+  - penalty-cap-limit
+  - invoice-prefix
+  - license-delivery-gate

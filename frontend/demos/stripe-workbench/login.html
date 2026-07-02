@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CRM Stripe Demo · 登录页</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./assets/crm-stripe-demo.css" />
+  </head>
+  <body class="demo-body">
+    <main class="login-system-page motion-surface">
+      <header class="login-system-brand">
+        <div class="login-system-logo">C</div>
+        <div>
+          <h1>CRM 智能业务平台</h1>
+          <p>统一客户经营入口</p>
+        </div>
+      </header>
+
+      <section class="login-system-layout">
+        <div class="login-system-layout__backdrop" aria-hidden="true"></div>
+
+        <section class="login-system-side" aria-label="系统能力简述">
+          <span class="badge badge--brand">统一客户经营入口</span>
+          <h2>问数、审核、治理从同一个入口进入</h2>
+          <div class="login-system-side__list">
+            <div>
+              <strong>经营问数</strong>
+              <span>围绕商机、客户、合同快速分析</span>
+            </div>
+            <div>
+              <strong>合同审核</strong>
+              <span>聚焦风险结论和审核依据</span>
+            </div>
+            <div>
+              <strong>治理审计</strong>
+              <span>追踪导出、拦截和复核事件</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="login-system-panel">
+          <article class="login-system-card">
+            <div class="login-system-card__glow"></div>
+
+            <div class="login-system-card__head">
+              <span class="badge badge--brand">安全登录</span>
+              <h2>登录 CRM 智能业务平台</h2>
+            </div>
+
+            <div class="login-system-tabs" role="tablist" aria-label="登录方式切换">
+              <button class="login-system-tab login-system-tab--active" type="button">账号登录</button>
+              <button class="login-system-tab" type="button">企业微信登录</button>
+            </div>
+
+            <section class="login-system-form">
+              <label class="login-system-field">
+                <span>账号</span>
+                <input class="input-field" type="text" placeholder="请输入 CRM 账号或手机号" />
+              </label>
+
+              <label class="login-system-field">
+                <span>密码</span>
+                <input class="input-field" type="password" placeholder="请输入登录密码" />
+              </label>
+
+              <div class="login-system-support">
+                <button class="login-system-support__trigger" type="button">联系管理员</button>
+                <div class="login-system-support__panel">
+                  <p class="login-system-support__title">管理员信息</p>
+                  <div class="support-list">
+                    <div class="support-list-item">
+                      <span>王亮</span>
+                      <strong>19806510901</strong>
+                    </div>
+                    <div class="support-list-item">
+                      <span>邱凤云</span>
+                      <strong>18503081052</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button class="button login-system-submit" type="button" data-loading-label="登录中...">登录</button>
+            </section>
+
+            <section class="login-system-qrcode">
+              <div class="login-system-qrcode__box">企业微信扫码区</div>
+              <p>请使用已绑定 CRM 的企业微信扫码</p>
+            </section>
+          </article>
+        </section>
+      </section>
+    </main>
+
+    <script src="./assets/crm-stripe-demo.js"></script>
+  </body>
+</html>

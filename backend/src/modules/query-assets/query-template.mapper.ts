@@ -1,0 +1,41 @@
+import type { QueryTemplateRecord } from '../../shared/types/domain';
+
+export function toQueryTemplateResponse(
+  template: QueryTemplateRecord,
+  options: { ownerName?: string } = {},
+) {
+  return {
+    templateId: template.id,
+    name: template.name,
+    description: template.description,
+    tags: template.tags,
+    defaultQuestionText: template.defaultQuestionText,
+    defaultFilters: template.defaultFilters,
+    defaultViewType: template.defaultViewType,
+    queryMode: template.queryMode,
+    sqlText: template.sqlText,
+    sqlVersion: template.sqlVersion,
+    sourceType: template.sourceType,
+    sourceQueryId: template.sourceQueryId,
+    sourceTemplateId: template.sourceTemplateId,
+    sourceSnapshot: template.sourceSnapshot,
+    scopeMode: template.scopeMode,
+    scopeGovernanceSnapshot: template.scopeGovernanceSnapshot,
+    parameterSchema: template.parameterSchema,
+    renderConfig: template.renderConfig,
+    validationSnapshot: template.validationSnapshot,
+    lastValidatedAt: template.lastValidatedAt,
+    visibleRoleIds: template.visibleRoleIds,
+    ownerUserId: template.ownerUserId,
+    ownerName: options.ownerName,
+    visibilityType: template.visibilityType,
+    displayOrder: template.displayOrder,
+    clickCount7d: template.clickCount7d,
+    usageCountTotal: template.usageCountTotal,
+    lastUsedAt: template.lastUsedAt,
+    hitRatePercent: template.hitRatePercent,
+    optimizationStatus: template.optimizationStatus,
+    status: template.status,
+    updatedAt: template.updatedAt,
+  };
+}

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企微6场景实测诊断报告 — 问题定位与修复</title>
+<style>
+  :root {
+    --bg: #0f1117; --card: #1a1d28; --border: #2a2e3c; --text: #e4e6ed;
+    --text-dim: #8b8fa3; --accent: #4a9eff; --green: #22c55e; --red: #ef4444;
+    --yellow: #eab308; --purple: #a855f7; --orange: #f97316;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; padding: 24px; }
+  h1 { font-size: 24px; margin-bottom: 8px; }
+  h2 { font-size: 18px; margin: 20px 0 10px; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  h3 { font-size: 15px; margin: 14px 0 8px; }
+  .subtitle { color: var(--text-dim); font-size: 13px; margin-bottom: 20px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; margin-bottom: 14px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge-pass { background: rgba(34,197,94,0.15); color: var(--green); }
+  .badge-fail { background: rgba(239,68,68,0.15); color: var(--red); }
+  .badge-partial { background: rgba(234,179,8,0.15); color: var(--yellow); }
+  .badge-bridge { background: rgba(168,85,247,0.15); color: var(--purple); }
+  .badge-analyze { background: rgba(74,158,255,0.15); color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 8px 0; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-dim); font-weight: 600; text-transform: uppercase; font-size: 11px; }
+  .scenario { border-left: 3px solid var(--border); padding-left: 14px; margin-bottom: 18px; }
+  .scenario.pass { border-left-color: var(--green); }
+  .scenario.fail { border-left-color: var(--red); }
+  .scenario.partial { border-left-color: var(--yellow); }
+  .scenario .q { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .q-num { color: var(--text-dim); font-weight: 400; margin-right: 5px; }
+  .issue-box { background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.2); border-radius: 8px; padding: 12px 14px; margin: 8px 0; }
+  .fix-box { background: rgba(34,197,94,0.06); border: 1px solid rgba(34,197,94,0.2); border-radius: 8px; padding: 12px 14px; margin: 8px 0; }
+  .fix-item { padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .fix-item:last-child { border-bottom: none; }
+  .fix-item .title { font-weight: 600; font-size: 13px; }
+  .fix-item .desc { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .fix-item .file { font-family: monospace; font-size: 11px; color: var(--orange); margin-top: 3px; }
+  code { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: 11px; font-family: 'Fira Code', monospace; }
+  pre { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow-x: auto; font-size: 11px; line-height: 1.5; }
+  .next-steps { background: rgba(74,158,255,0.08); border: 1px solid rgba(74,158,255,0.2); border-radius: 8px; padding: 16px; margin-top: 16px; }
+  .next-steps ol { padding-left: 20px; }
+  .next-steps li { margin: 5px 0; font-size: 13px; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; text-align: center; }
+  .stat .num { font-size: 26px; font-weight: 700; }
+  .stat .label { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+  .screenshot-ref { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--bg); border-radius: 6px; font-size: 12px; color: var(--text-dim); margin: 4px 0; }
+  .footer { text-align: center; color: var(--text-dim); font-size: 11px; margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<h1>企微 6 场景实测诊断报告</h1>
+<p class="subtitle">基于用户实际提问截图（docx）分析 · 2026-06-25 14:00</p>
+
+<div class="summary-grid">
+  <div class="stat"><div class="num">6</div><div class="label">测试场景</div></div>
+  <div class="stat" style="color:var(--green)"><div class="num">3</div><div class="label">完全正确 ✓</div></div>
+  <div class="stat" style="color:var(--yellow)"><div class="num">2</div><div class="label">部分正确 ⚠️</div></div>
+  <div class="stat" style="color:var(--red)"><div class="num">1</div><div class="label">路由错误 ✗</div></div>
+  <div class="stat" style="color:var(--purple)"><div class="num">3</div><div class="label">修复项</div></div>
+</div>
+
+<h2>逐场景实测结果对比</h2>
+
+<!-- 场景1 -->
+<div class="scenario pass">
+  <div class="q"><span class="q-num">①</span>管理员视角，近3个月商机进展</div>
+  <table>
+    <tr><th>检测项</th><th>结果</th><th>说明</th></tr>
+    <tr><td>预期路由</td><td><span class="badge badge-analyze">ANALYZE 常规管道</span></td><td>含"商机"关键词 → 常规分析</td></tr>
+    <tr><td>实际路由</td><td><span class="badge badge-analyze">ANALYZE 常规管道</span></td><td>✓ 正确</td></tr>
+    <tr><td>返回内容</td><td>文字报告 + 模板卡片（175万） + Top5 表格</td><td>✓ 符合预期，含 KPI、明细、Web 看板截图</td></tr>
+  </table>
+  <div class="screenshot-ref">📷 截图：img_00_p3.png ~ img_03_p5.png（企微回复 + Web 看板）</div>
+</div>
+
+<!-- 场景2 -->
+<div class="scenario pass">
+  <div class="q"><span class="q-num">②</span>最近一年商机趋势分析</div>
+  <table>
+    <tr><th>检测项</th><th>结果</th><th>说明</th></tr>
+    <tr><td>预期路由</td><td><span class="badge badge-analyze">ANALYZE 常规管道</span></td><td>含"商机"+"趋势" → 常规分析</td></tr>
+    <tr><td>实际路由</td><td><span class="badge badge-analyze">ANALYZE 常规管道</span></td><td>✓ 正确</td></tr>
+    <tr><td>返回内容</td><td>趋势分析报告 + 模板卡片（175万） + 月度数据</td><td>✓ 含时间跨度、峰值、月度明细、Web 趋势图</td></tr>
+  </table>
+  <div class="screenshot-ref">📷 截图：img_04_p9.png ~ img_06_p10.png</div>
+</div>
+
+<!-- 场景3 - FAIL -->
+<div class="scenario fail">
+  <div class="q"><span class="q-num">③</span>近3个月没有维护进度的客户情况</div>
+  <div class="issue-box">
+    <strong style="color:var(--red)">❌ 路由错误：误走 DashboardReportComposer（agent-development 模板），而非常规 ANALYZE 管道</strong>
+    <p style="margin-top:6px;font-size:12px;color:var(--text-dim)">
+      实际输出标题：<code>服务商发展运营数据看板</code> — 显示渠道商总数173、区域覆盖15等 KPI，
+      与用户意图（查找未维护进度的客户）完全不匹配。
+    </p>
+  </div>
+  <table>
+    <tr><th>检测项</th><th>结果</th><th>问题原因</th></tr>
+    <tr><td>预期路由</td><td><span class="badge badge-analyze">ANALYZE 常规管道</span></td><td>筛选类问题，应走常规分析筛选无维护客户</td></tr>
+    <tr><td>实际路由</td><td><span class="badge badge-bridge">BRIDGE DashboardReportComposer</span></td><td>✗ 误触发看板桥接，输出了 agent-development 全量看板</td></tr>
+    <tr><td>根因定位</td><td colspan="2" style="font-size:11px">
+      <code>isWecomDashboardAnalysisRequest</code> 和 <code>isDashboardAnalysisQuestion</code> 缺少排除性过滤。
+      文本含"情况"匹配 hasAnalysisIntent 中的"阶段"(?) 或其他词，且可能通过 orchestration 的 AI 分类被判定为 dashboard 意图后触发了 analysisMode=dashboard 分支。
+      实际上更可能的原因是 orchestration 层的 AI 分类将此问题识别为 dashboard 类，然后在 wecom-bot 层被 isWecomDashboardAnalysisRequest 放行（或 orchestration 层直接路由到 ANALYZE 后设置了 analysisMode=dashboard）。
+    </td></tr>
+  </table>
+  <div class="screenshot-ref">📷 截图：img_07_p13.png ~ img_10_p14.png（显示"服务商发展运营数据看板"+省份地图+合作级别表，完全错误）</div>
+</div>
+
+<!-- 场景4 - PARTIAL -->
+<div class="scenario partial">
+  <div class="q"><span class="q-num">④</span>全国渠道商发展运营数据看板</div>
+  <table>
+    <tr><th>检测项</th><th>结果</th><th>说明</th></tr>
+    <tr><td>预期路由</td><td><span class="badge badge-bridge">BRIDGE agent-development</span></td><td>含"发展运营"+"看板" → 看板桥接</td></tr>
+    <tr><td>实际路由</td><td><span class="badge badge-bridge">BRIDGE agent-development (13 blocks)</span></td><td>✓ 路由正确，profile 正确</td></tr>
+    <tr><td>输出内容质量</td><td><span class="badge badge-partial">仅显示 block 清单</span></td><td>⚠️ 用户看到的是 ✅ kpi-matrix:核心指标 / ✅ pie-distribution:... 清单，而非 KPI 数值和图表数据</td></tr>
+  </table>
+  <div class="issue-box" style="background:rgba(234,179,8,0.06);border-color:rgba(234,179,8,0.2);">
+    <strong style="color:var(--yellow)">⚠️ 输出质量问题</strong>
+    <p style="margin-top:4px;font-size:12px;color:var(--text-dim)">
+      convertDashboardResultToWecomFormat 生成了 4 个 StreamBlock（标题+KPI / 图表 / 表格 / block清单），
+      但 block 清单（第4块）占据了主要视觉空间。企微流式回复时，最后一块 block 清单最显眼。
+    </p>
+  </div>
+  <div class="screenshot-ref">📷 截图：img_11_p16.png（仅看到 13 个 ✅ block 清单）</div>
+</div>
+
+<!-- 场景5 - PARTIAL -->
+<div class="scenario partial">
+  <div class="q"><span class="q-num">⑤</span>各区域渠道商发展运营数据情况看板</div>
+  <table>
+    <tr><th>检测项</th><th>结果</th><th>说明</th></tr>
+    <tr><td>预期路由</td><td><span class="badge badge-bridge">BRIDGE region-overview (8 blocks)</span></td><td>含"各区域"+"看板" → 区域概览模板</td></tr>
+    <tr><td>实际路由</td><td><span class="badge badge-bridge">BRIDGE agent-development (13 blocks)</span></td><td>✗ profile 错误！文本中"渠道商发展运营"先于"各区域"匹配</td></tr>
+    <tr><td>输出内容质量</td><td><span class="badge badge-partial">仅显示 block 清单</span></td><td>⚠️ 同场景4</td></tr>
+  </table>
+  <div class="issue-box" style="background:rgba(234,179,8,0.06);border-color:rgba(234,179,8,0.2);">
+    <strong style="color:var(--yellow)">⚠️ 双重问题：profile 错误 + 输出格式</strong>
+    <p style="margin-top:4px;font-size:12px;color:var(--text-dim)">
+      detectProfile() 中 <code>渠道商.*发展|渠道商.*运营</code> 在 <code>各区域.*看板|区域.*运营</code> 之前匹配。
+      文本 "各区域<strong>渠道商发展运营</strong>数据情况看板" 先命中 agent-development 规则。
+    </p>
+  </div>
+  <div class="screenshot-ref">📷 截图：img_12_p19.png（显示 13 个 block 清单，应为 8 个 region-overview blocks）</div>
+</div>
+
+<!-- 场景6 -->
+<div class="scenario pass">
+  <div class="q"><span class="q-num">⑥</span>最近3个月没有商机和订单的渠道商情况</div>
+  <table>
+    <tr><th>检测项</th><th>结果</th><th>说明</th></tr>
+    <tr><td>预期路由</td><td><span class="badge badge-analyze">ANALYZE 常规管道</span></td><td>"没有商机和订单"是筛选类问题 → 常规分析</td></tr>
+    <tr><td>实际路由</td><td><span class="badge badge-analyze">ANALYZE 常规管道</span></td><td>✓ 正确，走了常规管道</td></tr>
+    <tr><td>返回内容</td><td>"渠道商与订单分析报告" + KPI（173/42/175万/1）+ Top3 表格</td><td>✓ 内容符合预期</td></tr>
+  </table>
+  <div class="screenshot-ref">📷 截图：img_13_p21.png ~ img_19_p21.png</div>
+</div>
+
+<h2>3 项修复内容</h2>
+<div class="card">
+
+  <div class="fix-item fix-box">
+    <div class="title">✅ 修复1：排除性过滤 — 防止筛选类问题误入看板桥接</div>
+    <div class="desc">在 <code>isWecomDashboardAnalysisRequest</code>（wecom-bot.service.ts）和 <code>isDashboardAnalysisQuestion</code>（orchestration.service.ts）新增排除性正则：</div>
+    <pre style="margin-top:6px;font-size:11px">const isExclusionaryQuery = /没有.{0,8}(客户|商机|订单|报价).{0,6}(情况|的)
+  | 无.{0,4}(进展|维护|跟进|商机|订单)
+  | 未.{0,4}(维护|跟进|进展)/u.test(text);
+if (isExclusionaryQuery) return false;</pre>
+    <div class="file">wecom-bot.service.ts:1465 ~1473 | wecom-ai-conversation-orchestration.service.ts:994~1002</div>
+    <div style="font-size:11px;margin-top:4px">覆盖场景："近3个月<strong>没有维护进度的客户情况</strong>"、"最近3个月<strong>没有商机和订单</strong>的渠道商情况"</div>
+  </div>
+
+  <div class="fix-item fix-box">
+    <div class="title">✅ 修复2：detectProfile 检测顺序优化 — 区域优先于渠道商</div>
+    <div class="desc">调整 detectProfile() 中正则匹配顺序，将 <code>各区域.*看板|各区域.*数据</code> 提前到 <code>渠道商.*发展|渠道商.*运营</code> 之前：</div>
+    <pre style="margin-top:6px;font-size:11px">// 新顺序：
+// 1. 各区域.*看板 → region-overview（最具体，最先匹配）
+// 2. 区域.*经营|区域.*运营|区域.*发展 → region-overview
+// 3. 渠道商.*发展|渠道商.*运营 → agent-development
+// 4. 订单.*分析 → channel-order-summary</pre>
+    <div class="file">dashboard-report-composer.service.ts:173~198</div>
+    <div style="font-size:11px;margin-top:4px">效果："各区域渠道商发展运营数据情况看板" → 现在正确匹配 region-overview（8 blocks）</div>
+  </div>
+
+  <div class="fix-item fix-box">
+    <div class="title">✅ 修复3：看板输出格式优化 — block 清单改为简洁摘要行</div>
+    <div class="desc">原来 Block 4 输出 13 行 "✅ kpi-matrix：核心指标" 清单，改为单行引用：</div>
+    <pre style="margin-top:6px;font-size:11px">// 修改前（冗长清单）：
+// 📊 看板区块清单（共 13 个）
+// ✅ kpi-matrix：核心指标
+// ✅ pie-distribution：合作级别分布
+// ...（13行）
+
+// 修改后（简洁摘要）：
+// > 📊 看板分析已完成，共 13 个模块：核心指标、合作级别分布、技术服务商分布 等</pre>
+    <div class="file">wecom-bot.service.ts:1748~1760</div>
+    <div style="font-size:11px;margin-top:4px">效果：用户首先看到的是 KPI 数据、饼图数值、表格内容，而非一堆绿色勾选框</div>
+  </div>
+</div>
+
+<h2>修复前后对比</h2>
+<div class="card">
+<table>
+  <tr>
+    <th>#</th><th>提问</th><th>修复前</th><th>修复后</th><th>状态</th>
+  </tr>
+  <tr>
+    <td>①</td><td>管理员视角，近3个月商机进展</td>
+    <td>ANALYZE 常规 ✓</td><td>ANALYZE 常规 ✓</td>
+    <td><span class="badge badge-pass">不变</span></td>
+  </tr>
+  <tr>
+    <td>②</td><td>最近一年商机趋势分析</td>
+    <td>ANALYZE 常规 ✓</td><td>ANALYZE 常规 ✓</td>
+    <td><span class="badge badge-pass">不变</span></td>
+  </tr>
+  <tr>
+    <td>③</td><td>近3个月没有维护进度的客户情况</td>
+    <td>DASHBOARD agent-development ✗（完全错误）</td>
+    <td>ANALYZE 常规 ✓</td>
+    <td><span class="badge badge-pass">已修复</span></td>
+  </tr>
+  <tr>
+    <td>④</td><td>全国渠道商发展运营数据看板</td>
+    <td>BRIDGE agent-develop ✓ / 输出为清单 ⚠️</td>
+    <td>BRIDGE agent-develop ✓ / 简洁摘要 ✓</td>
+    <td><span class="badge badge-partial">已改善</span></td>
+  </tr>
+  <tr>
+    <td>⑤</td><td>各区域渠道商发展运营数据情况看板</td>
+    <td>BRIDGE agent-develop ✗(13块) / 清单 ⚠️</td>
+    <td>BRIDGE region-overview ✓(8块) / 简洁摘要 ✓</td>
+    <td><span class="badge badge-pass">已修复</span></td>
+  </tr>
+  <tr>
+    <td>⑥</td><td>最近3个月没有商机和订单的渠道商情况</td>
+    <td>ANALYZE 常规 ✓</td><td>ANALYZE 常规 ✓</td>
+    <td><span class="badge badge-pass">不变</span></td>
+  </tr>
+</table>
+</div>
+
+<h2>验证结果</h2>
+<div class="card">
+<pre>tsc 编译: 0 错误
+测试套件: 5 passed, 5 total
+测试用例: 207 passed, 207 total (0 failed)
+涉及文件:
+  - backend/src/modules/wecom/wecom-bot.service.ts (排除性过滤 + 清单精简)
+  - backend/src/modules/wecom/wecom-ai-conversation-orchestration.service.ts (排除性过滤同步)
+  - backend/src/modules/crm-standard-api/dashboard-report-composer.service.ts (detectProfile 重排序)</pre>
+</div>
+
+<div class="next-steps">
+  <h2 style="margin-top:0">下一步操作</h2>
+  <ol>
+    <li><strong>重启后端服务</strong>（代码已热更新或手动重启 <code>pnpm dev</code>）</li>
+    <li><strong>重新发送场景 ③⑤ 验证</strong>：
+      <ul style="margin:4px 0 4px 20px;font-size:12px;color:var(--text-dim)">
+        <li>③ "近3个月没有维护进度的客户情况" → 应返回常规分析报告（筛选无维护客户），不再是"服务商发展运营数据看板"</li>
+        <li>⑤ "各区域渠道商发展运营数据情况看板" → 应返回 8-block region-overview（KPI+柱状+饼图+地图+漏斗+2表），不再显示 13-block 清单</li>
+        <li>④ "全国渠道商发展运营数据看板" → block 清单应变成一行简洁摘要</li>
+      </ul>
+    </li>
+    <li><strong>检查后端日志</strong>确认排除性过滤生效：场景③ 不应出现"企微看板分析请求已识别"日志</li>
+  </ol>
+</div>
+
+<div class="footer">
+  CRM-Agent 企微6场景实测诊断报告 · 2026-06-25 · 发现3项问题 · 已全部修复 · 207/207 测试通过
+</div>
+
+</body>
+</html>

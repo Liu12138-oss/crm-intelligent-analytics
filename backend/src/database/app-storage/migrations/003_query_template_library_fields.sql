@@ -1,0 +1,10 @@
+ALTER TABLE query_templates
+  ADD COLUMN tags TEXT NULL,
+  ADD COLUMN source_type VARCHAR(48) NOT NULL DEFAULT 'LEGACY_MIGRATED',
+  ADD COLUMN source_query_id VARCHAR(64) NULL,
+  ADD COLUMN source_template_id VARCHAR(64) NULL,
+  ADD COLUMN source_snapshot TEXT NULL,
+  ADD COLUMN owner_user_id VARCHAR(64) NOT NULL DEFAULT 'system',
+  ADD COLUMN visibility_type VARCHAR(32) NOT NULL DEFAULT 'SHARED',
+  ADD COLUMN usage_count_total INT NOT NULL DEFAULT 0,
+  ADD COLUMN last_used_at DATETIME NULL;

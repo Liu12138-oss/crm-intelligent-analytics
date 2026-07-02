@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CRM Stripe Demo · 合同审核页</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./assets/crm-stripe-demo.css" />
+  </head>
+  <body class="demo-body">
+    <div class="demo-shell">
+      <aside class="demo-sidebar">
+        <section class="brand-lockup">
+          <div class="brand-mark">C</div>
+          <div class="brand-copy">
+            <h1>CRM 智能分析系统</h1>
+            <p>合同审核工作台 demo</p>
+          </div>
+        </section>
+        <nav class="nav-group">
+          <p class="nav-caption">主导航</p>
+          <a class="nav-link" href="./workbench.html" title="智能分析">
+            <span class="nav-link__icon">工</span>
+            <span class="nav-link__text">智能分析</span>
+          </a>
+          <a class="nav-link" href="./result.html" title="分析结果详情">
+            <span class="nav-link__icon">析</span>
+            <span class="nav-link__text">分析结果详情</span>
+          </a>
+          <a class="nav-link" href="./audit.html" title="治理审计中心">
+            <span class="nav-link__icon">审</span>
+            <span class="nav-link__text">治理审计中心</span>
+          </a>
+          <a class="nav-link nav-link--active" href="./contract-review.html" title="智能合同">
+            <span class="nav-link__icon">合</span>
+            <span class="nav-link__text">智能合同</span>
+          </a>
+          <a class="nav-link" href="./login.html" title="登录页">
+            <span class="nav-link__icon">登</span>
+            <span class="nav-link__text">登录页</span>
+          </a>
+        </nav>
+      </aside>
+
+      <main class="demo-main motion-surface">
+        <header class="demo-topbar">
+          <div class="topbar-group">
+            <button class="topbar-toggle" type="button" data-nav-toggle aria-pressed="false" title="收起导航">收起</button>
+            <span class="badge badge--danger">智能合同</span>
+            <span class="chip">当前模式：规则快审 + AI 补充审核</span>
+            <span class="chip">审核标准：v2026.04.12</span>
+          </div>
+          <div class="topbar-group">
+            <a class="soft-button" href="./index.html">返回总览</a>
+            <button class="ghost-button" type="button" data-loading-label="下载中...">下载报告</button>
+          </div>
+        </header>
+
+        <div class="demo-content">
+          <section>
+            <span class="eyebrow">CONTRACT REVIEW</span>
+            <h1 class="page-title page-title--compact">风险结论优先展示，审核依据持续可见</h1>
+            <p class="page-subtitle page-subtitle--compact">
+              首屏优先露出上传、总体结论和高风险条款，审核依据放入右侧区持续可见。
+            </p>
+          </section>
+
+          <section class="content-frame">
+            <div class="main-stack">
+              <section class="two-column">
+                <article class="card table-card">
+                  <div class="panel-header">
+                    <div>
+                      <h2 class="panel-title">上传合同</h2>
+                      <p class="panel-subtitle">上传区要简洁清楚，不堆叠与审核无关的信息。</p>
+                    </div>
+                    <span class="badge badge--brand">仅支持 .docx</span>
+                  </div>
+                  <div class="upload-dropzone">
+                    <strong>拖拽或选择合同文件</strong>
+                    <p class="panel-subtitle">上传后自动创建审核任务，进入详情页并返回风险优先结果。</p>
+                    <div class="action-row">
+                      <button class="button" type="button" data-loading-label="上传中...">选择合同并开始审核</button>
+                      <button class="ghost-button" type="button">查看上传规范</button>
+                    </div>
+                  </div>
+                </article>
+
+                <article class="card mini-card">
+                  <div class="panel-header">
+                    <div>
+                      <h2 class="panel-title">最近审核任务</h2>
+                      <p class="panel-subtitle">返回首页后，任务入口仍保留在主工作流中。</p>
+                    </div>
+                  </div>
+                  <div class="list">
+                    <div class="task-card card" style="padding: 18px">
+                      <div class="task-card-top">
+                        <div>
+                          <h3>华东渠道合作协议.docx</h3>
+                          <p>今天 09:06 · 商务一组</p>
+                        </div>
+                        <span class="badge badge--warning">降级快审</span>
+                      </div>
+                      <p>AI 补充审核失败，当前仅保留规则快审结果，需要人工确认覆盖边界。</p>
+                    </div>
+                    <div class="task-card card" style="padding: 18px">
+                      <div class="task-card-top">
+                        <div>
+                          <h3>年度框架采购协议.docx</h3>
+                          <p>今天 08:42 · 商务二组</p>
+                        </div>
+                        <span class="badge badge--success">AI 补充完成</span>
+                      </div>
+                      <p>总体建议修改后签署，存在 1 条一票否决项和 2 条高风险项。</p>
+                    </div>
+                  </div>
+                </article>
+              </section>
+
+              <section class="card hero-card">
+                <div class="panel-header">
+                  <div>
+                    <span class="badge badge--danger">总体结论：建议修改后签署</span>
+                    <h2 class="panel-title" style="margin-top: 14px">当前合同存在 1 条一票否决项、2 条高风险项和 4 条中风险项。</h2>
+                    <p class="panel-subtitle">
+                      一票否决项集中在责任边界与违约金表述不对等。AI 补充审核已完成，但仍建议先修正高风险条款再进入流程。
+                    </p>
+                  </div>
+                  <div class="status-row">
+                    <span class="badge badge--neutral">审核标准 v2026.04.12</span>
+                    <span class="badge badge--brand">AI 补充审核已完成</span>
+                  </div>
+                </div>
+                <div class="chip-row">
+                  <span class="chip">执行模式：AI_HYBRID</span>
+                  <span class="chip">上传者：商务一组</span>
+                  <span class="chip">结果批次：今日 09:12</span>
+                  <span class="chip">下载再次鉴权</span>
+                </div>
+              </section>
+
+              <section class="metrics-grid">
+                <article class="card metric-card">
+                  <div class="metric-kicker">一票否决</div>
+                  <strong>1</strong>
+                  <div class="metric-meta"><span class="badge badge--danger">必须处理</span> 违约责任单向过重</div>
+                </article>
+                <article class="card metric-card">
+                  <div class="metric-kicker">高风险项</div>
+                  <strong>2</strong>
+                  <div class="metric-meta"><span class="badge badge--danger">优先修改</span> 付款条件与验收口径不清</div>
+                </article>
+                <article class="card metric-card">
+                  <div class="metric-kicker">中风险项</div>
+                  <strong>4</strong>
+                  <div class="metric-meta"><span class="badge badge--warning">需确认</span> 包含保密义务与售后条款</div>
+                </article>
+                <article class="card metric-card">
+                  <div class="metric-kicker">低风险项</div>
+                  <strong>3</strong>
+                  <div class="metric-meta"><span class="badge badge--neutral">建议修饰</span> 语义清晰度可优化</div>
+                </article>
+              </section>
+
+              <article class="card table-card">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title">高风险条款</h2>
+                    <p class="panel-subtitle">风险卡片优先展示结论、依据和建议动作，不做过度戏剧化包装。</p>
+                  </div>
+                </div>
+                <div class="list">
+                  <article class="card risk-card" style="padding: 20px; border-color: rgb(194 61 75 / 18%)">
+                    <div class="risk-card-top">
+                      <div>
+                        <span class="badge badge--danger">一票否决</span>
+                        <h3 style="margin-top: 12px">违约责任仅对甲方免责，对乙方承担无限责任</h3>
+                      </div>
+                      <span class="badge badge--danger">必须处理</span>
+                    </div>
+                    <div class="quote">“乙方因任何原因导致项目未按期交付，应承担甲方全部直接及间接损失，甲方不承担任何责任。”</div>
+                    <p>该条款责任边界严重失衡，建议改为双方按违约原因和损失边界承担责任，并设定赔偿上限。</p>
+                  </article>
+
+                  <article class="card risk-card" style="padding: 20px">
+                    <div class="risk-card-top">
+                      <div>
+                        <span class="badge badge--warning">高风险</span>
+                        <h3 style="margin-top: 12px">付款节点绑定模糊验收结果，交付边界不清</h3>
+                      </div>
+                      <span class="badge badge--warning">建议优先改</span>
+                    </div>
+                    <div class="quote">“项目完成后经甲方认可即可支付尾款。”</div>
+                    <p>建议补充明确验收标准、验收时限和默认视为验收通过的条件，避免回款被无限后延。</p>
+                  </article>
+                </div>
+              </article>
+            </div>
+
+            <aside class="rail-stack">
+              <article class="card detail-card">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title">审核依据</h2>
+                    <p class="panel-subtitle">审核依据持续可见，但不压过风险结论。</p>
+                  </div>
+                </div>
+                <div class="detail-block">
+                  <strong>标准包版本</strong>
+                  <span class="muted">packCode: enterprise-b2b · packVersion: 2026.04.12</span>
+                </div>
+                <div class="detail-block">
+                  <strong>执行模式</strong>
+                  <span class="muted">AI_HYBRID，规则快审已完成，AI 补充审核已完成。</span>
+                </div>
+                <div class="detail-block">
+                  <strong>提示</strong>
+                  <span class="muted">若 AI 不可用或返回非法结构，应明确退化为降级快审，而不是伪装为完整审核结果。</span>
+                </div>
+              </article>
+
+              <article class="card detail-card">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title">正文与批注预览</h2>
+                    <p class="panel-subtitle">阅读面板应浅色高可读，而不是深色风险空间。</p>
+                  </div>
+                </div>
+                <div class="quote">
+                  <strong>第 8 条 违约责任</strong><br />
+                  若任一方违反本协议，守约方有权要求违约方承担因此产生的直接损失。乙方延迟交付超过 30 日的，甲方有权解除合同并要求乙方赔偿……
+                </div>
+                <div class="detail-block">
+                  <strong>批注</strong>
+                  <span class="muted">建议补充责任边界、赔偿上限以及不可抗力免责条件，避免责任承担不对等。</span>
+                </div>
+              </article>
+            </aside>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="./assets/crm-stripe-demo.js"></script>
+  </body>
+</html>
