@@ -28,6 +28,23 @@ fi
 
 APP_BASE_PATH_NO_TRAILING="${APP_BASE_PATH%/}"
 
+ensure_traversable_path() {
+  local target_path="$1"
+  local normalized_path="${target_path%/}"
+  local current_path=""
+
+  IFS='/' read -r -a path_parts <<< "${normalized_path#/}"
+  for path_part in "${path_parts[@]}"; do
+    if [[ -z "${path_part}" ]]; then
+      continue
+    fi
+    current_path="${current_path}/${path_part}"
+    if [[ -d "${current_path}" ]]; then
+      chmod a+rx "${current_path}" 2>/dev/null || true
+    fi
+  done
+}
+
 echo "==> 安装系统基础软件"
 apt update
 apt install -y curl ca-certificates git nginx openssh-client build-essential python3 make g++ unzip
@@ -43,10 +60,15 @@ corepack enable
 corepack prepare "pnpm@${PNPM_VERSION}" --activate
 
 echo "==> 创建应用用户和目录"
-if ! id -u "${APP_USER}" >/dev/null 2>&1; then
-  useradd --system --create-home --home-dir "${APP_ROOT}" --shell /bin/bash "${APP_USER}"
+if ! getent group "${APP_GROUP}" >/dev/null 2>&1; then
+  groupadd --system "${APP_GROUP}"
 fi
 
+if ! id -u "${APP_USER}" >/dev/null 2>&1; then
+  useradd --system --gid "${APP_GROUP}" --create-home --home-dir "${APP_ROOT}" --shell /bin/bash "${APP_USER}"
+fi
+
+mkdir -p "$(dirname "${APP_ROOT}")"
 mkdir -p "${APP_ROOT}/releases"
 mkdir -p "${APP_ROOT}/backups"
 mkdir -p "${APP_ROOT}/shared/.runtime/contract-review"
@@ -85,6 +107,7 @@ else
 fi
 
 chown -R "${APP_USER}:${APP_GROUP}" "${APP_ROOT}"
+ensure_traversable_path "${APP_ROOT}"
 chmod 700 "${APP_ROOT}/.ssh"
 chmod 600 "${APP_ROOT}/shared/backend.env"
 
@@ -158,6 +181,10 @@ server {
 
     location = ${APP_BASE_PATH_NO_TRAILING} {
         return 301 ${APP_BASE_PATH};
+    }
+
+    location = ${APP_BASE_PATH} {
+        return 302 ${APP_BASE_PATH}index.html;
     }
 
     location = ${APP_BASE_PATH}index.html {

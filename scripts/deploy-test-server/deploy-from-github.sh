@@ -16,6 +16,23 @@ RELEASE_DIR="${APP_ROOT}/releases/${RELEASE_NAME}"
 ENV_FILE="${APP_ROOT}/shared/backend.env"
 CURRENT_LINK="${APP_ROOT}/current"
 
+ensure_traversable_path() {
+  local target_path="$1"
+  local normalized_path="${target_path%/}"
+  local current_path=""
+
+  IFS='/' read -r -a path_parts <<< "${normalized_path#/}"
+  for path_part in "${path_parts[@]}"; do
+    if [[ -z "${path_part}" ]]; then
+      continue
+    fi
+    current_path="${current_path}/${path_part}"
+    if [[ -d "${current_path}" ]]; then
+      chmod a+rx "${current_path}" 2>/dev/null || true
+    fi
+  done
+}
+
 if [[ "${EUID}" -ne 0 ]]; then
   echo "请使用 root 用户执行：sudo REPO_URL=仓库地址 bash $0"
   exit 1
@@ -83,6 +100,20 @@ echo "==> 挂载共享运行态目录"
 rm -rf .runtime
 ln -s "${APP_ROOT}/shared/.runtime" .runtime
 
+echo "==> 修复前端静态资源读取权限"
+# Nginx 在 Ubuntu 下通常以 www-data 运行，需要能穿透 current 软链接、
+# releases 目录和当前版本目录，并读取 frontend/dist 下的静态文件。
+# 这里只开放前端静态资源和必要目录的读取/穿透权限，不放开 shared/backend.env。
+ensure_traversable_path "${APP_ROOT}"
+ensure_traversable_path "${RELEASE_DIR}/frontend/dist"
+chmod a+rx "${APP_ROOT}"
+chmod a+rx "${APP_ROOT}/releases"
+chmod a+rx "${RELEASE_DIR}"
+chmod a+rx "${RELEASE_DIR}/frontend"
+find "${RELEASE_DIR}/frontend/dist" -type d -exec chmod 755 {} \;
+find "${RELEASE_DIR}/frontend/dist" -type f -exec chmod 644 {} \;
+chmod 600 "${ENV_FILE}"
+
 echo "==> 切换当前版本"
 chown -R "${APP_USER}:${APP_GROUP}" "${RELEASE_DIR}"
 ln -sfn "${RELEASE_DIR}" "${CURRENT_LINK}"
@@ -97,7 +128,7 @@ systemctl is-active --quiet "${SERVICE_NAME}"
 
 echo "==> 验证前端入口"
 if command -v curl >/dev/null 2>&1; then
-  curl -fsS -I "http://127.0.0.1${VITE_APP_BASE_PATH}" >/dev/null
+  curl -fsS -I "http://127.0.0.1${VITE_APP_BASE_PATH}index.html" >/dev/null
 fi
 
 echo "==> 发布完成"
