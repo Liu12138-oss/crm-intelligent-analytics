@@ -212,6 +212,13 @@ export class WecomBotConnectionConfigService {
         message: '消息来源和签名均已配置，可用于本地模拟入站消息。',
         durationMs: Date.now() - inboundStepStartedAt,
       });
+    } else if (view.botTransportMode === 'sdk') {
+      steps.push({
+        name: '入站验签参数',
+        status: 'SKIPPED',
+        message: '当前为 SDK 长连接模式，HTTP 回调签名不是必填项。',
+        durationMs: Date.now() - inboundStepStartedAt,
+      });
     } else {
       steps.push({
         name: '入站验签参数',
@@ -245,7 +252,7 @@ export class WecomBotConnectionConfigService {
       });
     }
 
-    const success = steps.every((step) => step.status === 'SUCCESS');
+    const success = steps.every((step) => step.status !== 'FAILED');
     const result = {
       success,
       checkedAt,
@@ -449,7 +456,15 @@ export class WecomBotConnectionConfigService {
     config: WecomRuntimeConfig,
     enabled: boolean,
   ): boolean {
-    return Boolean(enabled && config.botSignature && config.botSource);
+    if (!enabled) {
+      return false;
+    }
+
+    if (config.botTransportMode === 'sdk') {
+      return Boolean(config.botId && config.botSecret && config.botWsUrl);
+    }
+
+    return Boolean(config.botSignature && config.botSource);
   }
 
   private pickUpdatedSecret(

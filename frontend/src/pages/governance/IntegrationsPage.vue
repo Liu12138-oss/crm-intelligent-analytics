@@ -68,6 +68,11 @@ const pilotForm = reactive({
 
 const summaryCards = computed(() => {
   const snapshot = statusSnapshot.value;
+  const wecomSdkMode = snapshot?.wecom?.botTransportMode === 'sdk';
+  const wecomReady = Boolean(
+    snapshot?.wecom?.effectiveEnabled &&
+      (wecomSdkMode ? snapshot?.wecom?.sdkReady : snapshot?.wecom?.inboundReady),
+  );
   return [
     {
       key: 'ai',
@@ -79,9 +84,9 @@ const summaryCards = computed(() => {
     {
       key: 'wecom',
       title: '企微机器人',
-      status: snapshot?.wecom?.inboundReady ? '可接收' : '待补齐',
+      status: wecomReady ? (wecomSdkMode ? '长连接就绪' : '可接收') : '待补齐',
       detail: snapshot?.wecom?.botSource ?? '未配置消息来源',
-      tone: snapshot?.wecom?.inboundReady ? 'success' : 'warning',
+      tone: wecomReady ? 'success' : 'warning',
     },
     {
       key: 'crm',
