@@ -74,7 +74,9 @@ fi
 
 echo "==> 安装依赖并构建"
 cd "${RELEASE_DIR}"
-pnpm install --frozen-lockfile
+# 构建阶段必须安装 devDependencies，因为 TypeScript、Vite、vue-tsc 等构建工具都在开发依赖中。
+# 运行时仍由 systemd 使用 NODE_ENV=production 启动，不影响服务按生产模式运行。
+pnpm install --frozen-lockfile --prod=false
 pnpm build
 
 echo "==> 挂载共享运行态目录"

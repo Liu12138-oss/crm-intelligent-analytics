@@ -74,7 +74,10 @@ ANALYSIS_AI_STRUCTURED_OUTPUT_MODE=json_schema
 OPENAI_API_KEY=请替换为AI密钥
 WECOM_BOT_ID=请替换为企业微信机器人ID
 WECOM_BOT_SECRET=请替换为企业微信机器人Secret
-WECOM_BOT_SIGNATURE=请替换为企业微信机器人签名
+WECOM_ENABLE_SDK_TRANSPORT=true
+WECOM_BOT_WS_URL=wss://openws.work.weixin.qq.com
+# 仅 HTTP 回调入口需要签名校验；长连接 SDK 模式不需要填写。
+# WECOM_BOT_SIGNATURE=请替换为企业微信HTTP回调签名
 EOF
   echo "已创建环境变量模板：${APP_ROOT}/shared/backend.env"
 else
