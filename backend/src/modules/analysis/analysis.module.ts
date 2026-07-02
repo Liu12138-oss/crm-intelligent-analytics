@@ -61,6 +61,7 @@ import { CrmSqliteReadonlySqlGuardService } from './crm-sqlite-readonly-sql-guar
 import { DataFreshnessService } from './data-freshness.service';
 import { KnowledgeSedimentationService } from './knowledge-sedimentation.service';
 import { LianruanCrmAnalysisExecutorService } from './lianruan-crm-analysis-executor.service';
+import { OpenApiMarkdownSnapshotSchedulerService } from './openapi-markdown-snapshot-scheduler.service';
 import { OpenApiMarkdownSnapshotService } from './openapi-markdown-snapshot.service';
 import { PublicAnalysisResultController } from './public-analysis-result.controller';
 import { QueryAstValidatorService } from './query-ast-validator.service';
@@ -128,6 +129,7 @@ import { QueryTemplateRepository } from '../query-assets/query-template.reposito
     LianruanCrmOpenApiClient,
     LianruanCrmQueryAdapterService,
     LocalRuntimeConfigService,
+    OpenApiMarkdownSnapshotSchedulerService,
     OpenApiMarkdownSnapshotService,
     OrganizationScopeService,
     PermissionEnforcementService,
