@@ -12,6 +12,13 @@ import { resolve, sep } from 'node:path';
 import type { AnalysisResultRecord } from '../../shared/types/domain';
 import { LocalRuntimeConfigService } from '../../shared/config/local-runtime-config.service';
 import { formatWanAmount, type AmountSourceUnit } from '../../shared/utils/business-amount.util';
+import {
+  CHINA_PREFECTURE_CITY_TOTAL,
+  CHINA_PROVINCE_CITY_NAMES,
+  MAINLAND_CHINA_PROVINCE_NAMES,
+  UNKNOWN_CITY_LABEL,
+  resolveChinaCityByText,
+} from '../../shared/china-administrative-division.util';
 import { AnalysisChannelPresenterService } from './analysis-channel-presenter.service';
 import { AnalysisRequestRepository } from './analysis-request.repository';
 
@@ -241,40 +248,6 @@ const PUBLIC_HIDDEN_ID_READABLE_PAIRS: Record<string, string[]> = {
   user_id: ['ownerName', 'owner_name'],
   ownerName: ['businessSection'],
 };
-
-const MAINLAND_CHINA_PROVINCE_NAMES = [
-  '北京',
-  '天津',
-  '河北',
-  '山西',
-  '内蒙古',
-  '辽宁',
-  '吉林',
-  '黑龙江',
-  '上海',
-  '江苏',
-  '浙江',
-  '安徽',
-  '福建',
-  '江西',
-  '山东',
-  '河南',
-  '湖北',
-  '湖南',
-  '广东',
-  '广西',
-  '海南',
-  '重庆',
-  '四川',
-  '贵州',
-  '云南',
-  '西藏',
-  '陕西',
-  '甘肃',
-  '青海',
-  '宁夏',
-  '新疆',
-];
 
 const COVERAGE_LEVEL_COLORS: Record<string, string> = {
   LEP: '#f0883e',
@@ -1277,6 +1250,8 @@ export class PublicAnalysisResultController {
     );
     const uncoveredProvinces = MAINLAND_CHINA_PROVINCE_NAMES.filter((province) => !coveredProvinceSet.has(province));
     const coverageRate = `${((coveredProvinceSet.size / MAINLAND_CHINA_PROVINCE_NAMES.length) * 100).toFixed(1)}%`;
+    const coveredCityCount = normalizedRows.reduce((sum, row) => sum + row.coveredCityCount, 0);
+    const cityCoverageRate = `${((coveredCityCount / CHINA_PREFECTURE_CITY_TOTAL) * 100).toFixed(1)}%`;
     const description = section.description
       ? `<p class="coverage-description">${this.escapeHtml(section.description)}</p>`
       : '';
@@ -1290,7 +1265,7 @@ export class PublicAnalysisResultController {
     };
     const domSuffix = this.hashPublicDomId(section.title);
 
-    return `<section class="section coverage-shell"><div class="coverage-head"><h2>${this.escapeHtml(section.title)}</h2><div class="coverage-legend"><span><i class="legend-dot" style="background:#238636"></i>已覆盖</span><span><i class="legend-dot" style="background:#fff1b8;border:1px solid #ff8a70"></i>未覆盖</span><span>双击省份查看代理商详情</span></div></div>${description}<div class="coverage-body"><aside class="coverage-overview"><div class="coverage-overview-label">覆盖概览</div><div class="coverage-overview-value">${coveredProvinceSet.size}<small>/${MAINLAND_CHINA_PROVINCE_NAMES.length}省</small></div><div class="coverage-overview-rate">覆盖率 <strong>${coverageRate}</strong></div><div class="coverage-uncovered">${this.escapeHtml(uncoveredText)}</div></aside><div class="coverage-map" id="${chartId}"><div class="coverage-map-fallback">地图加载中；若长时间无响应，请稍后刷新报告页。</div></div></div><div class="modal-overlay" id="${modalId}"><div class="modal-box"><button class="modal-close" onclick="closeCoverageProvinceModal_${domSuffix}()">&times;</button><div class="modal-title" id="${modalId}-title"></div><div class="modal-subtitle" id="${modalId}-subtitle"></div><div id="${modalId}-body"></div></div></div><script>${this.renderCoverageMapRuntimeScript(chartId, modalId, domSuffix, coverageData)}</script></section>`;
+    return `<section class="section coverage-shell"><div class="coverage-head"><h2>${this.escapeHtml(section.title)}</h2><div class="coverage-legend"><span><i class="legend-dot" style="background:#238636"></i>已覆盖</span><span><i class="legend-dot" style="background:#fff1b8;border:1px solid #ff8a70"></i>未覆盖</span><span>双击省份查看地市渠道商详情</span></div></div>${description}<div class="coverage-body"><aside class="coverage-overview"><div class="coverage-overview-label">省份覆盖</div><div class="coverage-overview-value">${coveredProvinceSet.size}<small>/${MAINLAND_CHINA_PROVINCE_NAMES.length}省</small></div><div class="coverage-overview-rate">省份覆盖率 <strong>${coverageRate}</strong></div><div class="coverage-overview-rate">地市覆盖 <strong>${coveredCityCount}/${CHINA_PREFECTURE_CITY_TOTAL}</strong></div><div class="coverage-overview-rate">地市覆盖率 <strong>${cityCoverageRate}</strong></div><div class="coverage-uncovered">${this.escapeHtml(uncoveredText)}</div></aside><div class="coverage-map" id="${chartId}"><div class="coverage-map-fallback">地图加载中；若长时间无响应，请稍后刷新报告页。</div></div></div><div class="modal-overlay" id="${modalId}"><div class="modal-box"><button class="modal-close" onclick="closeCoverageProvinceModal_${domSuffix}()">&times;</button><div class="modal-title" id="${modalId}-title"></div><div class="modal-subtitle" id="${modalId}-subtitle"></div><div id="${modalId}-body"></div></div></div><script>${this.renderCoverageMapRuntimeScript(chartId, modalId, domSuffix, coverageData)}</script></section>`;
   }
 
   /**
@@ -1306,15 +1281,22 @@ export class PublicAnalysisResultController {
       const levelGroups = Array.isArray(row.levelGroups)
         ? row.levelGroups.map((item) => this.normalizeCoverageLevelGroup(item))
         : [];
-      const cityGroups = this.normalizeCoverageCityGroups(row.cityGroups ?? row.cities);
+      const explicitCityGroups = this.normalizeCoverageCityGroups(row.cityGroups ?? row.cities);
+      const cityGroups = explicitCityGroups.length > 0
+        ? explicitCityGroups
+        : this.buildCoverageCityGroupsFromLegacyRow(row, levelGroups, province);
+      const provinceCityNames = CHINA_PROVINCE_CITY_NAMES[province] ?? [];
+      const derivedCoveredCityCount = cityGroups.filter((group) => group.cityName !== UNKNOWN_CITY_LABEL).length;
+      const configuredCoveredCityCount = this.toPublicFiniteNumber(row.coveredCityCount);
+      const configuredTotalCityCount = this.toPublicFiniteNumber(row.totalCityCount);
 
       return {
         ...row,
         province,
         label,
         partnerCount: this.toPublicFiniteNumber(row.partnerCount ?? row.agentCount ?? row.count ?? 0),
-        coveredCityCount: this.toPublicFiniteNumber(row.coveredCityCount ?? cityGroups.filter((group) => group.cityName !== '未识别地市').length),
-        totalCityCount: this.toPublicFiniteNumber(row.totalCityCount ?? cityGroups.length),
+        coveredCityCount: configuredCoveredCityCount > 0 ? configuredCoveredCityCount : derivedCoveredCityCount,
+        totalCityCount: configuredTotalCityCount > 0 ? configuredTotalCityCount : provinceCityNames.length,
         levelGroups,
         cityGroups,
       };
@@ -1362,6 +1344,71 @@ export class PublicAnalysisResultController {
         partners,
       };
     });
+  }
+
+  /**
+   * 从旧版覆盖行中补充地市分组。
+   *
+   * 参数说明：`row` 是旧报告中的省份覆盖行，可能只有 `agents` 或 `levelGroups`。
+   * 返回值说明：返回可用于弹窗的地市渠道商分组；无法识别地市时进入“未识别地市”。
+   */
+  private buildCoverageCityGroupsFromLegacyRow(
+    row: Record<string, unknown>,
+    levelGroups: Array<Record<string, unknown>>,
+    province: string,
+  ): NormalizedCoverageCityGroup[] {
+    if (!province) {
+      return [];
+    }
+
+    const partnerNames = new Set<string>();
+    if (Array.isArray(row.agents)) {
+      row.agents.forEach((agent) => partnerNames.add(String(agent)));
+    }
+    for (const group of levelGroups) {
+      const agents = group.agents;
+      if (Array.isArray(agents)) {
+        agents.forEach((agent) => partnerNames.add(String(agent)));
+      }
+    }
+
+    if (partnerNames.size === 0) {
+      return [];
+    }
+
+    const cityPartnerMap = new Map<string, Set<string>>();
+    for (const partnerName of partnerNames) {
+      const cityName = resolveChinaCityByText([
+        row.city,
+        row.cityName,
+        row.city_name,
+        row.prefectureCity,
+        row.prefecture_city,
+        row.region,
+        row.coverageKey,
+        partnerName,
+      ].map((item) => String(item ?? '').trim()).filter(Boolean).join(' '), province) ?? UNKNOWN_CITY_LABEL;
+      const partners = cityPartnerMap.get(cityName) ?? new Set<string>();
+      partners.add(partnerName);
+      cityPartnerMap.set(cityName, partners);
+    }
+
+    return [...cityPartnerMap.entries()]
+      .map(([cityName, partners]) => ({
+        cityName,
+        partnerCount: partners.size,
+        partners: [...partners],
+      }))
+      .sort((left, right) => {
+        if (left.cityName === UNKNOWN_CITY_LABEL) {
+          return 1;
+        }
+        if (right.cityName === UNKNOWN_CITY_LABEL) {
+          return -1;
+        }
+
+        return right.partnerCount - left.partnerCount || left.cityName.localeCompare(right.cityName, 'zh-CN');
+      });
   }
 
   /**

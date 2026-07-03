@@ -534,6 +534,9 @@ describe('AnalysisReportComposerService', () => {
       region: '华南',
       partnerCount: 1,
       levelSummary: '核心 1 家',
+      coveredCityCount: 1,
+      totalCityCount: 21,
+      cityGroups: [expect.objectContaining({ cityName: '广州', partnerCount: 1, partners: ['广州核心服务商'] })],
     });
   });
 
@@ -840,6 +843,9 @@ describe('AnalysisReportComposerService', () => {
         partnerCount: 1,
         levelSummary: '一级渠道 1 家',
         levelGroups: [expect.objectContaining({ level: '一级渠道', count: 1, agents: ['广州核心服务商'] })],
+        coveredCityCount: 1,
+        totalCityCount: 21,
+        cityGroups: [expect.objectContaining({ cityName: '广州', partnerCount: 1, partners: ['广州核心服务商'] })],
       }),
       expect.objectContaining({
         coverageKey: '山东',
@@ -848,6 +854,9 @@ describe('AnalysisReportComposerService', () => {
         partnerCount: 1,
         levelSummary: '未设置 1 家',
         levelGroups: [expect.objectContaining({ level: '未设置', count: 1, agents: ['山东成长服务商'] })],
+        coveredCityCount: 0,
+        totalCityCount: 16,
+        cityGroups: [expect.objectContaining({ cityName: '未识别地市', partnerCount: 1, partners: ['山东成长服务商'] })],
       }),
     ]);
     expect(report.sections.map((item) => item.title)).not.toContain('技术服务人员与证书认证');

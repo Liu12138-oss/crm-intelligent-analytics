@@ -15,6 +15,13 @@ import { formatWanAmount } from '../../shared/utils/business-amount.util';
 import { ResultAccuracyError } from './analysis.errors';
 import { resolveCrmAnalysisQuestionTemplateRuleByText } from './crm-analysis-question-template.registry';
 import { formatTemporalScopeLabel } from './temporal-scope.util';
+import {
+  CHINA_PREFECTURE_CITY_TOTAL,
+  CHINA_PROVINCE_CITY_NAMES,
+  UNKNOWN_CITY_LABEL,
+  resolveChinaCityByText,
+  resolveChinaProvinceByText,
+} from '../../shared/china-administrative-division.util';
 
 type BusinessReportTemplate =
   | 'partner-development-operations'
@@ -144,40 +151,6 @@ const MAINLAND_CHINA_PROVINCE_LABELS = [
   '青海',
   '宁夏',
   '新疆',
-];
-
-const CHINA_PROVINCE_ALIASES: Array<{ province: string; aliases: string[] }> = [
-  { province: '北京', aliases: ['北京'] },
-  { province: '天津', aliases: ['天津'] },
-  { province: '河北', aliases: ['河北', '石家庄', '唐山', '保定', '廊坊'] },
-  { province: '山西', aliases: ['山西', '太原', '大同'] },
-  { province: '内蒙古', aliases: ['内蒙古', '呼和浩特', '包头'] },
-  { province: '辽宁', aliases: ['辽宁', '沈阳', '大连'] },
-  { province: '吉林', aliases: ['吉林', '长春'] },
-  { province: '黑龙江', aliases: ['黑龙江', '哈尔滨'] },
-  { province: '上海', aliases: ['上海'] },
-  { province: '江苏', aliases: ['江苏', '南京', '苏州', '无锡', '常州', '南通'] },
-  { province: '浙江', aliases: ['浙江', '杭州', '宁波', '温州'] },
-  { province: '安徽', aliases: ['安徽', '合肥'] },
-  { province: '福建', aliases: ['福建', '福州', '厦门', '泉州'] },
-  { province: '江西', aliases: ['江西', '南昌'] },
-  { province: '山东', aliases: ['山东', '济南', '青岛', '烟台', '临沂', '淄博'] },
-  { province: '河南', aliases: ['河南', '郑州', '洛阳'] },
-  { province: '湖北', aliases: ['湖北', '武汉'] },
-  { province: '湖南', aliases: ['湖南', '长沙'] },
-  { province: '广东', aliases: ['广东', '广州', '深圳', '佛山', '东莞', '珠海'] },
-  { province: '广西', aliases: ['广西', '南宁', '柳州'] },
-  { province: '海南', aliases: ['海南', '海口'] },
-  { province: '重庆', aliases: ['重庆'] },
-  { province: '四川', aliases: ['四川', '成都'] },
-  { province: '贵州', aliases: ['贵州', '贵阳'] },
-  { province: '云南', aliases: ['云南', '昆明'] },
-  { province: '西藏', aliases: ['西藏', '拉萨'] },
-  { province: '陕西', aliases: ['陕西', '西安'] },
-  { province: '甘肃', aliases: ['甘肃', '兰州'] },
-  { province: '青海', aliases: ['青海', '西宁'] },
-  { province: '宁夏', aliases: ['宁夏', '银川'] },
-  { province: '新疆', aliases: ['新疆', '乌鲁木齐'] },
 ];
 
 const PARTNER_LEVEL_DISPLAY_ORDER = [
@@ -1837,6 +1810,7 @@ export class AnalysisReportComposerService {
         partnerNames: Set<string>;
         amount: number;
         levelAgents: Map<string, Set<string>>;
+        cityAgents: Map<string, Set<string>>;
       }
     >();
 
@@ -1850,6 +1824,7 @@ export class AnalysisReportComposerService {
         partnerNames: new Set<string>(),
         amount: 0,
         levelAgents: new Map<string, Set<string>>(),
+        cityAgents: new Map<string, Set<string>>(),
       };
       const partnerName = this.resolveRowLabel(row);
       const displayPartnerName = partnerName && partnerName !== '未命名分组' ? partnerName : '未命名渠道商';
@@ -1862,23 +1837,41 @@ export class AnalysisReportComposerService {
       levelAgentSet.add(displayPartnerName);
       current.levelAgents.set(level, levelAgentSet);
 
+      const cityName = province
+        ? this.resolvePartnerCityLabel(row, province, region) ?? UNKNOWN_CITY_LABEL
+        : UNKNOWN_CITY_LABEL;
+      const cityAgentSet = current.cityAgents.get(cityName) ?? new Set<string>();
+      cityAgentSet.add(displayPartnerName);
+      current.cityAgents.set(cityName, cityAgentSet);
+
       coverageMap.set(coverageKey, current);
     }
 
     return [...coverageMap.entries()]
-      .map(([coverageKey, value]) => ({
-        coverageKey,
-        province: value.province,
-        region: value.region,
-        covered: Boolean(value.province),
-        partnerCount: value.partnerNames.size,
-        agentCount: value.partnerNames.size,
-        amount: value.amount,
-        amountText: formatWanAmount(value.amount),
-        levelSummary: this.buildPartnerLevelSummary(value.levelAgents),
-        levelGroups: this.buildPartnerLevelGroups(value.levelAgents),
-        agents: [...value.partnerNames],
-      }))
+      .map(([coverageKey, value]) => {
+        const provinceCityNames = CHINA_PROVINCE_CITY_NAMES[value.province] ?? [];
+        const cityGroups = this.buildPartnerCityGroups(value.cityAgents);
+        const coveredCityCount = cityGroups
+          .filter((group) => group.cityName !== UNKNOWN_CITY_LABEL && provinceCityNames.includes(group.cityName))
+          .length;
+
+        return {
+          coverageKey,
+          province: value.province,
+          region: value.region,
+          covered: Boolean(value.province),
+          partnerCount: value.partnerNames.size,
+          agentCount: value.partnerNames.size,
+          amount: value.amount,
+          amountText: formatWanAmount(value.amount),
+          levelSummary: this.buildPartnerLevelSummary(value.levelAgents),
+          levelGroups: this.buildPartnerLevelGroups(value.levelAgents),
+          coveredCityCount,
+          totalCityCount: provinceCityNames.length,
+          cityGroups,
+          agents: [...value.partnerNames],
+        };
+      })
       .sort((left, right) => right.partnerCount - left.partnerCount || right.amount - left.amount);
   }
 
@@ -1901,8 +1894,18 @@ export class AnalysisReportComposerService {
     const rankedRows = this.rankRowsByAmount(rows, PARTNER_CONTRIBUTION_AMOUNT_FIELD_KEYS);
     const topPartner = rankedRows[0];
     const oneDealCount = rows.filter((row) => this.resolveRowCountNumber(row) === 1).length;
+    const coveredCityCount = new Set(
+      rows
+        .map((row) => {
+          const region = this.resolveRegionLabel(row);
+          const province = this.resolveChinaProvinceLabel(this.buildPartnerCoverageText(row, region));
+          const cityName = province ? this.resolvePartnerCityLabel(row, province, region) : null;
+          return province && cityName ? `${province}::${cityName}` : '';
+        })
+        .filter(Boolean),
+    ).size;
     const items = [
-      `当前覆盖 ${coveredProvinceCount}/${MAINLAND_CHINA_PROVINCE_LABELS.length} 个省级区域，共 ${rows.length} 家服务商或渠道商进入本次结果。`,
+      `当前覆盖 ${coveredProvinceCount}/${MAINLAND_CHINA_PROVINCE_LABELS.length} 个省级区域、${coveredCityCount}/${CHINA_PREFECTURE_CITY_TOTAL} 个地市，共 ${rows.length} 家服务商或渠道商进入本次结果。`,
     ];
 
     if (topPartner) {
@@ -2184,6 +2187,13 @@ export class AnalysisReportComposerService {
       row.province,
       row.provinceName,
       row.province_name,
+      row.city,
+      row.cityName,
+      row.city_name,
+      row.prefectureCity,
+      row.prefecture_city,
+      row.prefectureCityName,
+      row.prefecture_city_name,
       row.region,
       row.regionName,
       row.region_name,
@@ -2194,10 +2204,30 @@ export class AnalysisReportComposerService {
       row.department_name,
       row.team,
       row.teamName,
+      row.address,
+      row.registeredAddress,
+      row.registered_address,
+      row.officeAddress,
+      row.office_address,
       row.partnerName,
       row.partner_name,
       region,
     ].map((item) => String(item ?? '').trim()).filter(Boolean).join(' ');
+  }
+
+  /**
+   * 解析渠道商所在地市。
+   *
+   * 参数说明：`row` 为服务商明细，`province` 为已识别省份，`region` 为原始区域。
+   * 返回值说明：命中标准地市时返回地市名称，否则返回空值。
+   * 调用注意事项：只从 CRM 返回字段和渠道商名称识别，不虚构地市；无法识别的渠道商进入“未识别地市”。
+   */
+  private resolvePartnerCityLabel(
+    row: Record<string, unknown>,
+    province: string,
+    region: string,
+  ): string | null {
+    return resolveChinaCityByText(this.buildPartnerCoverageText(row, region), province);
   }
 
   /**
@@ -2231,6 +2261,35 @@ export class AnalysisReportComposerService {
         agents: [...agents],
       }))
       .sort((left, right) => this.comparePartnerLevelRows(left.level, right.level) || right.count - left.count);
+  }
+
+  /**
+   * 构造弹窗使用的地市渠道商分组。
+   *
+   * 参数说明：`cityAgents` 为地市到渠道商集合的映射。
+   * 返回值说明：返回已排序的地市、数量和渠道商名单。
+   */
+  private buildPartnerCityGroups(cityAgents: Map<string, Set<string>>): Array<{
+    cityName: string;
+    partnerCount: number;
+    partners: string[];
+  }> {
+    return [...cityAgents.entries()]
+      .map(([cityName, partners]) => ({
+        cityName,
+        partnerCount: partners.size,
+        partners: [...partners],
+      }))
+      .sort((left, right) => {
+        if (left.cityName === UNKNOWN_CITY_LABEL) {
+          return 1;
+        }
+        if (right.cityName === UNKNOWN_CITY_LABEL) {
+          return -1;
+        }
+
+        return right.partnerCount - left.partnerCount || left.cityName.localeCompare(right.cityName, 'zh-CN');
+      });
   }
 
   /**
@@ -2304,10 +2363,7 @@ export class AnalysisReportComposerService {
    * 调用注意事项：地图标注只使用真实文本归一，不根据模板示例补虚拟省份。
    */
   private resolveChinaProvinceLabel(regionText: string): string {
-    const normalizedText = regionText.replace(/\s/gu, '');
-    return CHINA_PROVINCE_ALIASES.find((item) =>
-      item.aliases.some((alias) => normalizedText.includes(alias)),
-    )?.province ?? '';
+    return resolveChinaProvinceByText(regionText);
   }
 
   private buildSourceNotes(

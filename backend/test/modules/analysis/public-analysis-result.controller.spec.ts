@@ -324,6 +324,21 @@ describe('PublicAnalysisResultController', () => {
                 amount: 12000,
                 levelSummary: '金牌',
               },
+              {
+                coverageKey: '湖南',
+                province: '湖南',
+                region: '湖南区',
+                partnerCount: 2,
+                amount: 15000,
+                levelSummary: '一级渠道',
+                levelGroups: [
+                  {
+                    level: '一级渠道',
+                    count: 2,
+                    agents: ['长沙核心服务商', '株洲成长渠道'],
+                  },
+                ],
+              },
             ],
           },
         ],
@@ -359,12 +374,19 @@ describe('PublicAnalysisResultController', () => {
     expect(html).toContain("registerMap('china'");
     expect(html).toContain('type: \'map\'');
     expect(html).toContain('省份代理商覆盖情况');
-    expect(html).toContain('覆盖概览');
-    expect(html).toContain('覆盖率');
+    expect(html).toContain('省份覆盖');
+    expect(html).toContain('省份覆盖率');
+    expect(html).toContain('地市覆盖 <strong>3/');
+    expect(html).toContain('地市覆盖率');
     expect(html).toContain('未覆盖：');
-    expect(html).toContain('双击省份查看代理商详情');
+    expect(html).toContain('双击省份查看地市渠道商详情');
     expect(html).toContain('showCoverageProvinceDetail_');
     expect(html).toContain('临沂普悦天诚信息科技有限公司');
+    expect(html).toContain('"cityName":"临沂"');
+    expect(html).toContain('"cityName":"长沙"');
+    expect(html).toContain('"cityName":"株洲"');
+    expect(html).toContain('"totalCityCount":16');
+    expect(html).toContain('"totalCityCount":14');
     expect(html).not.toContain('coverage-list-wrap');
     expect(html).not.toContain('data-coverage-province');
     expect(html).toContain('山东');
