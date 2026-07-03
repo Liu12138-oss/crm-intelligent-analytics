@@ -408,6 +408,8 @@ describe('PublicAnalysisResultController', () => {
     expect(html).toContain("const seriesName = String(params.seriesName || '')");
     expect(html).toContain("seriesName === '省份边框' || seriesName === '省份名称'");
     expect(html).toContain('function resolveProvinceByCoordinate(coordinate)');
+    expect(html).toContain('function buildCityMapRowsFromGeoJson()');
+    expect(html).toContain('window.__CRM_LOCAL_CHINA_CITY_GEO_JSON__.features.map');
     expect(html).toContain("chart.getZr().on('dblclick'");
     expect(html).toContain('showCoverageProvinceDetail_');
     expect(html).toContain('临沂普悦天诚信息科技有限公司');

@@ -1707,6 +1707,48 @@ export class PublicAnalysisResultController {
     }
     window.showCoverageProvinceDetail_${domSuffix}(normalizedProvinceName);
   }
+  function buildCityMapItem(province, cityName, covered, partnerCount){
+    return {
+      name: cityName,
+      value: covered ? Number(partnerCount || 0) : 0,
+      province: province,
+      cityName: cityName,
+      itemStyle: {
+        areaColor: covered ? cityCoveredColor : cityUncoveredColor,
+        borderColor: cityBorderColor,
+        borderWidth: 0.45
+      }
+    };
+  }
+  function buildCityMapRowsFromGeoJson(){
+    const rowByKey = new Map();
+    cityRows.forEach(function(city){
+      const province = String(city.province || '');
+      const cityName = String(city.cityName || '');
+      if (province && cityName) {
+        rowByKey.set(province + '|' + cityName, city);
+      }
+    });
+    if (!hasGeoJsonFeatures(window.__CRM_LOCAL_CHINA_CITY_GEO_JSON__)) {
+      return cityRows.map(function(city){
+        const province = String(city.province || '');
+        const cityName = String(city.cityName || '');
+        return buildCityMapItem(province, cityName, Boolean(city.covered), city.partnerCount);
+      });
+    }
+    return window.__CRM_LOCAL_CHINA_CITY_GEO_JSON__.features.map(function(feature){
+      const properties = feature.properties || {};
+      const province = String(properties.province || '');
+      const mapCityName = String(properties.name || properties.cityName || '');
+      const candidateNames = [properties.name, properties.cityName, properties.fullName]
+        .map(function(value){ return String(value || '').replace(/市$|地区$|盟$|自治州$/u, ''); })
+        .filter(Boolean);
+      const row = candidateNames
+        .map(function(cityName){ return rowByKey.get(province + '|' + cityName); })
+        .find(Boolean);
+      return buildCityMapItem(province, mapCityName, Boolean(row && row.covered), row ? row.partnerCount : 0);
+    });
+  }
   window.showCoverageProvinceDetail_${domSuffix} = function(provinceName){
     const row = provinceRows.get(provinceName);
     const isCovered = Boolean(row);
@@ -1776,27 +1818,13 @@ export class PublicAnalysisResultController {
       name: province,
       value: covered ? Number(row.partnerCount || 0) : 0,
       itemStyle: {
-        areaColor: hasCityGeoJson ? 'rgba(255,255,255,0)' : (covered ? cityCoveredColor : cityUncoveredColor),
+        areaColor: hasCityGeoJson ? cityUncoveredColor : (covered ? cityCoveredColor : cityUncoveredColor),
         borderColor: hasCityGeoJson ? 'rgba(255,255,255,0)' : (covered ? provinceCoveredBorderColor : provincePlainBorderColor),
         borderWidth: hasCityGeoJson ? 0 : (covered ? 1.45 : 0.62)
       }
     };
   });
-  const cityMapRows = cityRows.map(function(city){
-    const province = String(city.province || '');
-    const cityName = String(city.cityName || '');
-    const covered = Boolean(city.covered);
-    return {
-      name: cityName,
-      value: covered ? Number(city.partnerCount || 0) : 0,
-      province: province,
-      itemStyle: {
-        areaColor: covered ? cityCoveredColor : cityUncoveredColor,
-        borderColor: cityBorderColor,
-        borderWidth: 0.45
-      }
-    };
-  });
+  const cityMapRows = buildCityMapRowsFromGeoJson();
   const provinceBorderLines = buildProvinceBorderLines();
   const provinceLabelPoints = buildProvinceLabelPoints();
   chartDom.innerHTML = '';
@@ -1845,7 +1873,7 @@ export class PublicAnalysisResultController {
       silent: true,
       label: { show: false },
       itemStyle: {
-        areaColor: 'rgba(255,255,255,0)',
+        areaColor: cityUncoveredColor,
         borderColor: 'rgba(255,255,255,0)',
         borderWidth: 0
       },
@@ -1856,7 +1884,7 @@ export class PublicAnalysisResultController {
           name: item.name,
           value: item.value,
           itemStyle: {
-            areaColor: 'rgba(255,255,255,0)',
+            areaColor: cityUncoveredColor,
             borderColor: 'rgba(255,255,255,0)',
             borderWidth: 0
           }
