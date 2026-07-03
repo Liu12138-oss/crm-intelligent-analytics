@@ -386,6 +386,11 @@ describe('PublicAnalysisResultController', () => {
     expect(html).toContain('地市未覆盖');
     expect(html).toContain('省份已覆盖');
     expect(html).toContain('省份未覆盖');
+    expect(html).toContain('普通地市/未覆盖省份边界');
+    expect(html).toContain('cityBorderColor');
+    expect(html).toContain('provincePlainBorderColor');
+    expect(html).not.toContain('provinceUncoveredBorderColor');
+    expect(html).not.toContain('border:2px solid #cf222e');
     expect(html).toContain('name: \'地市覆盖\'');
     expect(html).toContain('name: \'省份边框\'');
     expect(html).toContain('name: \'省份边界\'');
