@@ -436,10 +436,10 @@ export class PublicAnalysisResultController {
     const summary = String(report?.executiveSummary ?? payload.summary ?? '当前结果已生成。');
     const metricCards = report?.metricCards ?? [];
     const chartBlocks = report?.chartBlocks ?? [];
-    const tableBlocks = report?.tableBlocks ?? [];
     const sections = report?.sections ?? [];
     const dashboardTemplate = report?.dashboardTemplate;
     const chartSections = this.buildPublicChartSections(sections, chartBlocks);
+    const tableBlocks = this.deduplicatePublicTableBlocks(report?.tableBlocks ?? [], chartSections);
 
     return `<!doctype html>
 <html lang="zh-CN">
@@ -459,7 +459,7 @@ export class PublicAnalysisResultController {
     .template-badge{display:inline-flex;align-items:center;gap:8px;margin:0 0 12px;padding:7px 12px;border-radius:999px;background:#e7f5ef;color:#176b52;font-size:13px;font-weight:800;}
     .template-badge small{color:#64736d;font-weight:700;}
     .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:18px 0;}
-    .report-flow{display:grid;grid-template-columns:1fr;gap:18px;align-items:start;grid-auto-flow:dense;}
+    .report-flow{display:grid;grid-template-columns:1fr;gap:18px;align-items:start;}
     .card,.section{background:#fff;border:1px solid #e3ebe7;border-radius:18px;padding:16px;}
     .metric-name{color:#64736d;font-size:13px;}
     .metric-value{margin-top:8px;font-size:26px;font-weight:800;color:#176b52;}
@@ -478,10 +478,15 @@ export class PublicAnalysisResultController {
     .dashboard-chart-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:16px 18px 8px;}
     .dashboard-chart-head h2{margin:0;font-size:18px;}
     .dashboard-chart-desc{margin:0;color:#64736d;font-size:13px;line-height:1.7;}
-    .dashboard-chart{height:360px;margin:8px 18px 18px;border:1px solid #e3ebe7;border-radius:16px;background:#fbfdfc;}
+    .dashboard-chart-layout{display:grid;grid-template-columns:1fr;gap:14px;margin:8px 18px 18px;}
+    .dashboard-chart{height:360px;border:1px solid #e3ebe7;border-radius:16px;background:#fbfdfc;}
     .dashboard-chart--map{height:430px;}
     .dashboard-chart-fallback{display:flex;align-items:center;justify-content:center;height:100%;padding:20px;text-align:center;color:#7b8781;}
     .dashboard-chart-insights{margin:0 18px 18px;padding:12px 16px;border-radius:14px;background:#f7faf9;color:#43524b;font-size:13px;line-height:1.8;}
+    .dashboard-inline-table{min-width:0;}
+    .dashboard-inline-table-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 8px;color:#20322e;font-size:14px;font-weight:800;}
+    .dashboard-inline-table-title small{color:#64736d;font-size:12px;font-weight:600;}
+    .dashboard-inline-table .table-wrap{border-radius:14px;}
     .coverage-shell{border:1px solid #d8e1dc;border-radius:16px;overflow:hidden;background:#fff;}
     .coverage-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px;border-bottom:1px solid #e4ece8;}
     .coverage-head h2{margin:0;font-size:18px;}
@@ -513,8 +518,8 @@ export class PublicAnalysisResultController {
     .modal-agent-list{line-height:1.9;color:#43524b;font-size:13px;}
     .agent-item{display:inline;}
     .modal-no-data{padding:18px;border-radius:12px;background:#f7faf9;color:#7b8781;text-align:center;}
-    @media (min-width: 1280px){.hero{padding:26px 28px}.grid{grid-template-columns:repeat(6,minmax(0,1fr))}.report-flow{grid-template-columns:repeat(12,minmax(0,1fr))}.report-flow>.section{grid-column:1/-1;margin:0}.report-flow>.dashboard-chart-section{grid-column:span 6}.report-flow>.table-section{grid-column:span 6}.report-flow>.markdown-section{grid-column:1/-1}.report-flow>.coverage-shell{grid-column:1/-1}.dashboard-chart{height:390px}.dashboard-chart--map{height:520px}.coverage-body{grid-template-columns:260px minmax(0,1fr)}.coverage-map{height:540px}}
-    @media (max-width: 980px){.page{width:min(100% - 24px,1080px);padding-top:16px}.coverage-body{grid-template-columns:1fr}.coverage-map{height:360px}.coverage-head{align-items:flex-start;flex-direction:column}.coverage-legend{flex-wrap:wrap}.dashboard-chart{height:320px}.dashboard-chart--map{height:360px}.dashboard-chart-head{flex-direction:column}}
+    @media (min-width: 1280px){.hero{padding:26px 28px}.grid{grid-template-columns:repeat(6,minmax(0,1fr))}.report-flow{grid-template-columns:repeat(12,minmax(0,1fr))}.report-flow>.section{grid-column:1/-1;margin:0}.report-flow>.markdown-section{grid-column:1/-1}.report-flow>.coverage-shell{grid-column:1/-1}.dashboard-chart{height:390px}.dashboard-chart--map{height:520px}.coverage-body{grid-template-columns:260px minmax(0,1fr)}.coverage-map{height:540px}}
+    @media (max-width: 980px){.page{width:min(100% - 24px,1080px);padding-top:16px}.coverage-body{grid-template-columns:1fr}.coverage-map{height:360px}.coverage-head{align-items:flex-start;flex-direction:column}.coverage-legend{flex-wrap:wrap}.dashboard-chart{height:320px}.dashboard-chart--map{height:360px}.dashboard-chart-head{flex-direction:column}.dashboard-chart-layout{margin:8px 12px 16px}}
   </style>
 </head>
 <body>
@@ -661,6 +666,10 @@ export class PublicAnalysisResultController {
         title: chartBlock.title,
         chartType: 'composite-trend',
         description: '按当前结果集生成的趋势对比图，和下方明细表使用同一批只读数据。',
+        rows: points.map((point) => ({
+          分组: point.label,
+          数值: point.value,
+        })),
         chartData: {
           categories: points.map((point) => point.label),
           lineSeries: [
@@ -681,6 +690,10 @@ export class PublicAnalysisResultController {
         title: chartBlock.title,
         chartType: 'pie-distribution',
         description: '按当前结果集生成的占比分布图，空值或 0 值会如实保留。',
+        rows: points.map((point) => ({
+          分组: point.label,
+          数值: point.value,
+        })),
         chartData: {
           segments: points.map((point) => ({
             name: point.label,
@@ -698,6 +711,10 @@ export class PublicAnalysisResultController {
         title: chartBlock.title,
         chartType: 'grouped-bar',
         description: '按当前结果集生成的对比柱状图，和表格明细保持同源。',
+        rows: points.map((point) => ({
+          分组: point.label,
+          数值: point.value,
+        })),
         chartData: {
           categories: points.map((point) => point.label),
           series: [
@@ -872,8 +889,34 @@ export class PublicAnalysisResultController {
       ? `<p class="dashboard-chart-desc">${this.escapeHtml(section.description)}</p>`
       : '';
     const insightHtml = this.renderDashboardChartInsightsHtml(section);
+    const inlineTableHtml = this.renderDashboardChartInlineTableHtml(section);
 
-    return `<section class="section dashboard-chart-section"><div class="dashboard-chart-head"><div><h2>${this.escapeHtml(section.title)}</h2>${description}</div></div><div class="${chartClass}" id="${chartId}"><div class="dashboard-chart-fallback">图表加载中；若当前网络无法访问图表脚本，请打开完整报告后刷新。</div></div>${insightHtml}<script>${this.renderDashboardChartRuntimeScript(chartId, section.chartType, section.chartData)}</script></section>`;
+    return `<section class="section dashboard-chart-section"><div class="dashboard-chart-head"><div><h2>${this.escapeHtml(section.title)}</h2>${description}</div></div><div class="dashboard-chart-layout"><div class="${chartClass}" id="${chartId}"><div class="dashboard-chart-fallback">图表加载中；若当前网络无法访问图表脚本，请打开完整报告后刷新。</div></div>${inlineTableHtml}</div>${insightHtml}<script>${this.renderDashboardChartRuntimeScript(chartId, section.chartType, section.chartData)}</script></section>`;
+  }
+
+  /**
+   * 渲染图表区块内的同源紧凑表格。
+   *
+   * 参数说明：`section` 为图表区块。
+   * 返回值说明：存在结构化行时返回嵌入表格，否则返回空字符串。
+   */
+  private renderDashboardChartInlineTableHtml(section: PublicResultSection): string {
+    const rows = (section.rows ?? []).slice(0, 8);
+    if (rows.length === 0 || this.isDashboardMapSection(section)) {
+      return '';
+    }
+
+    const columns = this.resolvePublicTableColumns(rows, undefined, section.title).slice(0, 5);
+    if (columns.length === 0) {
+      return '';
+    }
+
+    const tableHeaderHtml = `<thead><tr>${columns
+      .map((column) => `<th>${this.escapeHtml(column.label)}</th>`)
+      .join('')}</tr></thead>`;
+    const tableHtml = this.renderPublicTableElementHtml(tableHeaderHtml, rows, columns);
+
+    return `<div class="dashboard-inline-table"><div class="dashboard-inline-table-title"><span>同源数据</span><small>展示前 ${rows.length} 条</small></div><div class="table-wrap">${tableHtml}</div></div>`;
   }
 
   /**
@@ -1327,6 +1370,67 @@ export class PublicAnalysisResultController {
       .replace(/</gu, '\\u003c')
       .replace(/>/gu, '\\u003e')
       .replace(/&/gu, '\\u0026');
+  }
+
+  /**
+   * 去除公开报告中完全重复的表格块。
+   *
+   * 参数说明：`tableBlocks` 为报告表格区块。
+   * 返回值说明：同一批行数据只保留首次出现的表格。
+   */
+  private deduplicatePublicTableBlocks(
+    tableBlocks: Array<{
+      title: string;
+      rows: Array<Record<string, unknown>>;
+      columns?: Array<{ key: string; label: string }>;
+    }>,
+    chartSections: PublicResultSection[] = [],
+  ): Array<{
+    title: string;
+    rows: Array<Record<string, unknown>>;
+    columns?: Array<{ key: string; label: string }>;
+  }> {
+    const seenSignatures = new Set(
+      chartSections
+        .map((section) => this.buildPublicRowsSignature(section.rows ?? []))
+        .filter((signature) => signature.length > 0),
+    );
+    return tableBlocks.filter((tableBlock) => {
+      const signature = this.buildPublicRowsSignature(tableBlock.rows);
+      if (!signature) {
+        return true;
+      }
+
+      if (seenSignatures.has(signature)) {
+        return false;
+      }
+
+      seenSignatures.add(signature);
+      return true;
+    });
+  }
+
+  /**
+   * 构造公开报告表格行签名。
+   *
+   * 参数说明：`rows` 为表格行。
+   * 返回值说明：返回稳定签名，用于识别完全相同的数据块。
+   */
+  private buildPublicRowsSignature(rows: Array<Record<string, unknown>>): string {
+    if (rows.length === 0) {
+      return '';
+    }
+
+    return JSON.stringify(
+      rows.slice(0, 20).map((row) =>
+        Object.keys(row)
+          .sort()
+          .reduce<Record<string, unknown>>((acc, key) => {
+            acc[key] = row[key];
+            return acc;
+          }, {}),
+      ),
+    );
   }
 
   /**

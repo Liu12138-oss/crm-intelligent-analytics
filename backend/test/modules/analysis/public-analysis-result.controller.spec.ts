@@ -152,6 +152,48 @@ describe('PublicAnalysisResultController', () => {
     expect(html).toContain('测试商机1');
   });
 
+  it('图表区块应内嵌同源数据表，重复表格只渲染一次', () => {
+    const controller = createController();
+    const duplicatedRows = [
+      { month_label: '2026-04', opportunityAmount: 120000 },
+      { month_label: '2026-05', opportunityAmount: 160000 },
+    ];
+
+    const html = renderPublicResultHtml(controller, {
+      title: '商机趋势分析报告',
+      report: {
+        reportTitle: '商机趋势分析报告',
+        sections: [
+          {
+            sectionType: 'DASHBOARD_CHART',
+            title: '商机金额趋势',
+            chartType: 'composite-trend',
+            rows: duplicatedRows,
+            chartData: {
+              categories: ['2026-04', '2026-05'],
+              lineSeries: [{ name: '商机金额', values: [120000, 160000] }],
+            },
+          },
+        ],
+        tableBlocks: [
+          {
+            title: '商机金额趋势明细',
+            rows: duplicatedRows,
+          },
+          {
+            title: '商机金额趋势重复明细',
+            rows: duplicatedRows,
+          },
+        ],
+      },
+    });
+
+    expect(html).toContain('dashboard-chart-layout');
+    expect(html).toContain('同源数据');
+    expect(html).not.toContain('商机金额趋势明细');
+    expect(html).not.toContain('商机金额趋势重复明细');
+  });
+
   it('业务链汇总表应使用中文业务列名并隐藏重复负责人列', () => {
     const controller = createController();
 

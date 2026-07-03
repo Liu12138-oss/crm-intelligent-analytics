@@ -421,6 +421,7 @@ describe('WecomBotService', () => {
       expect.objectContaining({
         title: '山东区服务商商机分布',
         variant: 'distribution',
+        layout: 'card',
         rows: [
           {
             partnerName: '山东华安赛服智能科技有限公司',
@@ -439,18 +440,11 @@ describe('WecomBotService', () => {
 
   it('多区块分析结果应生成企微图片附件', async () => {
     const service = createService() as any;
-    const renderTableImage = jest
-      .fn()
-      .mockResolvedValueOnce({
-        filename: 'partners.png',
-        buffer: Buffer.from('partners-image'),
-        previewText: '渠道商新增情况图片',
-      })
-      .mockResolvedValueOnce({
-        filename: 'opportunities.png',
-        buffer: Buffer.from('opportunities-image'),
-        previewText: '商机增长情况图片',
-      });
+    const renderTableImage = jest.fn().mockResolvedValueOnce({
+      filename: 'opportunities.png',
+      buffer: Buffer.from('opportunities-image'),
+      previewText: '商机增长情况图片',
+    });
     service.wecomAnalysisTableImageService = {
       renderTableImage,
     };
@@ -477,30 +471,18 @@ describe('WecomBotService', () => {
       tableRows: [{ section_name: '汇总', row_count: 2 }],
     });
 
-    expect(renderTableImage).toHaveBeenCalledTimes(2);
-    expect(renderTableImage).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        title: '渠道商新增情况',
-        variant: 'summary',
-        rows: [{ month_label: '2026-04', new_partner_count: 1 }],
-      }),
-    );
-    expect(renderTableImage).toHaveBeenNthCalledWith(
-      2,
+    expect(renderTableImage).toHaveBeenCalledTimes(1);
+    expect(renderTableImage).toHaveBeenCalledWith(
       expect.objectContaining({
         title: '商机增长情况',
         variant: 'trend',
+        layout: 'card',
         rows: [{ month_label: '2026-04', new_opportunity_count: 5, opportunity_amount: 120000 }],
       }),
     );
     expect(attachments).toEqual([
       expect.objectContaining({
         sequence: 9200,
-        filename: 'partners.png',
-      }),
-      expect.objectContaining({
-        sequence: 9201,
         filename: 'opportunities.png',
       }),
     ]);
@@ -886,7 +868,7 @@ describe('WecomBotService', () => {
     ['QUOTE_TO_ORDER', 'ranking'],
     ['RENEWAL_SUCCESS', 'trend'],
     ['PRODUCT_SOLUTION', 'distribution'],
-    ['SERVICE_ECOSYSTEM', 'map'],
+    ['SERVICE_ECOSYSTEM', 'distribution'],
     ['DISTRIBUTION_HEALTH', 'distribution'],
     ['CADENCE_REPORT', 'trend'],
     ['DATA_SCOPE_QUALITY', 'summary'],

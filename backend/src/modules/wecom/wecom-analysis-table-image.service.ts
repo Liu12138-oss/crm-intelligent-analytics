@@ -33,6 +33,8 @@ export class WecomAnalysisTableImageService {
   private readonly metricCardHeight = 86;
   private readonly tableHeaderHeight = 48;
   private readonly rowHeight = 48;
+  private readonly cardTableHeaderHeight = 42;
+  private readonly cardTableRowHeight = 42;
   private readonly footerHeight = 58;
   private readonly sequenceColumnWidth = 72;
   private readonly fontFamily =
@@ -67,7 +69,7 @@ export class WecomAnalysisTableImageService {
       buffer,
       previewText:
         input.layout === 'card'
-          ? `分析结果卡片图表，共 ${tableModel.totalRowCount} 条，展示核心趋势和指标。`
+          ? `分析结果卡片图表，共 ${tableModel.totalRowCount} 条，展示核心趋势、指标和紧凑明细。`
           : `分析结果表格图片，共 ${tableModel.totalRowCount} 条，展示 ${tableModel.visibleRows.length} 条。`,
       width: this.imageWidth,
       height: svgResult.height,
@@ -195,7 +197,7 @@ export class WecomAnalysisTableImageService {
    *
    * 参数说明：`input` 为图片输入，`tableModel` 为已归一化的结果表。
    * 返回值说明：返回 SVG 字符串和图片高度。
-   * 调用注意事项：卡片版只放指标和图表，不放长表格，避免企微卡片中内容被挤到下方。
+   * 调用注意事项：卡片版只放核心图表和前几行明细，避免同一结果拆成多张图片。
    */
   private buildCardSvg(
     input: WecomAnalysisTableImageInput,
@@ -208,11 +210,21 @@ export class WecomAnalysisTableImageService {
     const chartSectionHeight = chartModel
       ? this.resolveChartSectionHeight(chartModel)
       : 0;
+    const compactTable = this.buildCardCompactTableModel(tableModel, chartModel);
+    const compactTableHeight = compactTable
+      ? this.resolveCardCompactTableHeight(compactTable.rows.length)
+      : 0;
     const imageHeight = Math.max(
       560,
-      this.titleHeight + metricSectionHeight + chartSectionHeight + this.footerHeight,
+      this.titleHeight +
+        metricSectionHeight +
+        chartSectionHeight +
+        compactTableHeight +
+        this.footerHeight +
+        14,
     );
     const chartTop = this.titleHeight + metricSectionHeight;
+    const compactTableTop = chartTop + chartSectionHeight + 12;
     const title = this.truncate(input.title || 'CRM 智能分析图表', 34);
     const summary = this.truncate(
       this.sanitizeSummary(input.summary || '以下为企业微信卡片版图表，便于直接查看趋势和对比。'),
@@ -222,7 +234,10 @@ export class WecomAnalysisTableImageService {
     const chartSvg = chartModel
       ? this.buildChart(chartModel, chartTop, tableWidth)
       : this.buildCardFallbackList(tableModel, chartTop, tableWidth);
-    const footerText = `图表基于本次返回数据生成，共 ${tableModel.totalRowCount} 条；完整明细请打开备查报告。`;
+    const compactTableSvg = compactTable
+      ? this.buildCardCompactTable(compactTable, compactTableTop, tableWidth)
+      : '';
+    const footerText = `图表和明细基于同一批返回数据生成，共 ${tableModel.totalRowCount} 条；完整明细请打开备查报告。`;
 
     return {
       height: imageHeight,
@@ -234,9 +249,148 @@ export class WecomAnalysisTableImageService {
   <text x="${this.sidePadding}" y="94" font-family="${this.fontFamily}" font-size="16" fill="#5C6670">${this.escapeXml(summary)}</text>
   ${metricCardsSvg}
   ${chartSvg}
+  ${compactTableSvg}
   <text x="${this.sidePadding}" y="${imageHeight - 30}" font-family="${this.fontFamily}" font-size="15" fill="#68727D">${this.escapeXml(footerText)}</text>
 </svg>`.trim(),
     };
+  }
+
+  /**
+   * 构造卡片图中的紧凑表格模型。
+   *
+   * 参数说明：`tableModel` 为表格模型，`chartModel` 为已生成的图表模型。
+   * 返回值说明：返回最多 4 行、3 列的卡片表格模型。
+   */
+  private buildCardCompactTableModel(
+    tableModel: ReturnType<typeof buildWecomMarkdownTableModel>,
+    chartModel?: ReturnType<WecomAnalysisTableImageService['buildChartModel']>,
+  ):
+    | {
+        rows: Array<Record<string, unknown>>;
+        columns: WecomMarkdownTableColumn[];
+      }
+    | undefined {
+    const rows = tableModel.visibleRows.slice(0, chartModel ? 4 : 5);
+    if (rows.length === 0) {
+      return undefined;
+    }
+
+    const columns = this.resolveCardCompactTableColumns(tableModel, chartModel);
+    if (columns.length === 0) {
+      return undefined;
+    }
+
+    return {
+      rows,
+      columns,
+    };
+  }
+
+  /**
+   * 解析卡片紧凑表格列。
+   *
+   * 参数说明：`tableModel` 为表格模型，`chartModel` 为图表模型。
+   * 返回值说明：优先展示图表的标签列和数值列，再补充一个业务列。
+   */
+  private resolveCardCompactTableColumns(
+    tableModel: ReturnType<typeof buildWecomMarkdownTableModel>,
+    chartModel?: ReturnType<WecomAnalysisTableImageService['buildChartModel']>,
+  ): WecomMarkdownTableColumn[] {
+    const selected: WecomMarkdownTableColumn[] = [];
+    const addColumn = (column: WecomMarkdownTableColumn | undefined) => {
+      if (!column || selected.some((item) => item.key === column.key)) {
+        return;
+      }
+
+      selected.push(column);
+    };
+
+    if (chartModel) {
+      addColumn(chartModel.labelColumn);
+      addColumn(chartModel.valueColumn);
+    }
+
+    for (const column of tableModel.columns) {
+      addColumn(column);
+      if (selected.length >= 3) {
+        break;
+      }
+    }
+
+    return selected.slice(0, 3);
+  }
+
+  /**
+   * 解析卡片紧凑表格高度。
+   *
+   * 参数说明：`rowCount` 为表格行数。
+   * 返回值说明：返回表头、数据行和标题所需高度。
+   */
+  private resolveCardCompactTableHeight(rowCount: number): number {
+    return 46 + this.cardTableHeaderHeight + rowCount * this.cardTableRowHeight;
+  }
+
+  /**
+   * 绘制卡片图中的紧凑表格。
+   *
+   * 参数说明：`table` 为紧凑表格模型，`top/tableWidth` 控制绘制区域。
+   * 返回值说明：返回 SVG 表格片段。
+   */
+  private buildCardCompactTable(
+    table: {
+      rows: Array<Record<string, unknown>>;
+      columns: WecomMarkdownTableColumn[];
+    },
+    top: number,
+    tableWidth: number,
+  ): string {
+    const titleTop = top + 18;
+    const tableTop = top + 34;
+    const businessColumnWidth =
+      (tableWidth - this.sequenceColumnWidth) / table.columns.length;
+    const headerCells = [
+      this.buildTextCell('序号', this.sidePadding, tableTop, this.sequenceColumnWidth, true),
+      ...table.columns.map((column, index) =>
+        this.buildTextCell(
+          column.label,
+          this.sidePadding + this.sequenceColumnWidth + index * businessColumnWidth,
+          tableTop,
+          businessColumnWidth,
+          true,
+        ),
+      ),
+    ].join('');
+    const rowCells = table.rows
+      .map((row, rowIndex) => {
+        const y = tableTop + this.cardTableHeaderHeight + rowIndex * this.cardTableRowHeight;
+        const background = rowIndex % 2 === 0 ? '#FFFFFF' : '#F8FAFC';
+        const cells = [
+          this.buildTextCell(String(rowIndex + 1), this.sidePadding, y, this.sequenceColumnWidth),
+          ...table.columns.map((column, columnIndex) =>
+            this.buildTextCell(
+              this.truncate(
+                formatWecomMarkdownTableCellValue(row[column.key], column, row),
+                this.resolveCellTextLimit(businessColumnWidth),
+              ),
+              this.sidePadding +
+                this.sequenceColumnWidth +
+                columnIndex * businessColumnWidth,
+              y,
+              businessColumnWidth,
+            ),
+          ),
+        ].join('');
+
+        return `<rect x="${this.sidePadding}" y="${y}" width="${tableWidth}" height="${this.cardTableRowHeight}" fill="${background}"/>${cells}`;
+      })
+      .join('');
+
+    return `
+  <text x="${this.sidePadding}" y="${titleTop}" font-family="${this.fontFamily}" font-size="18" font-weight="700" fill="#15202B">${this.escapeXml('同源明细')}</text>
+  <rect x="${this.sidePadding}" y="${tableTop}" width="${tableWidth}" height="${this.cardTableHeaderHeight}" rx="14" fill="#20322E"/>
+  ${headerCells}
+  ${rowCells}
+  <rect x="${this.sidePadding}" y="${tableTop}" width="${tableWidth}" height="${this.cardTableHeaderHeight + table.rows.length * this.cardTableRowHeight}" rx="14" fill="none" stroke="#D6DEE4"/>`;
   }
 
   /**

@@ -2065,6 +2065,7 @@ export class WecomBotService implements OnModuleInit {
         title: block.title,
         description: '趋势图用于观察月度变化、节奏波动和阶段性拐点。',
         chartType: 'composite-trend',
+        rows: this.buildDashboardTrendImageRows(block),
         chartData: {
           categories: block.categories,
           barSeries: block.barSeries,
@@ -2082,6 +2083,10 @@ export class WecomBotService implements OnModuleInit {
         description: '占比图用于判断结构是否均衡，以及未设置、低活跃或高集中项是否需要治理。',
         items: block.insights,
         chartType: 'pie-distribution',
+        rows: block.segments.map((segment) => ({
+          分组: segment.name,
+          数值: segment.value,
+        })),
         chartData: {
           segments: block.segments,
           totalValue: block.totalValue,
@@ -2097,6 +2102,7 @@ export class WecomBotService implements OnModuleInit {
         title: block.title,
         description: block.description ?? '分组柱状图只比较同一指标在不同区域、团队或渠道之间的差异。',
         chartType: 'grouped-bar',
+        rows: this.buildDashboardGroupedBarImageRows(block),
         chartData: {
           categories: block.categories,
           series: block.series,
@@ -2112,6 +2118,7 @@ export class WecomBotService implements OnModuleInit {
         description: '漏斗图用于识别从客户报备、商机、报价到订单的主要流失阶段。',
         items: block.insights,
         chartType: 'funnel',
+        rows: this.buildDashboardFunnelImageRows(block) ?? [],
         chartData: {
           stages: block.stages,
           insights: block.insights ?? [],
@@ -2126,6 +2133,7 @@ export class WecomBotService implements OnModuleInit {
         description: '集中度图用于观察头部渠道或区域贡献是否过度集中。',
         items: block.insights,
         chartType: 'concentration',
+        rows: this.buildDashboardConcentrationImageRows(block) ?? [],
         chartData: {
           totalValue: block.totalValue,
           totalUnits: block.totalUnits,
@@ -2463,9 +2471,15 @@ export class WecomBotService implements OnModuleInit {
       return { imageAttachments: [] };
     }
 
-    const variant = this.resolveDashboardImageVariant(dashboardPayload.dashboardTemplate.code);
-    const rows = this.resolveDashboardImageRows(dashboardResult, dashboardPayload, variant);
-    if (rows.length === 0) {
+    const defaultVariant = this.resolveDashboardImageVariant(dashboardPayload.dashboardTemplate.code);
+    const imageSource =
+      options.layout === 'card'
+        ? this.resolveDashboardCardImageSource(dashboardResult, dashboardPayload, defaultVariant)
+        : {
+            variant: defaultVariant,
+            rows: this.resolveDashboardImageRows(dashboardResult, dashboardPayload, defaultVariant),
+          };
+    if (imageSource.rows.length === 0) {
       return { imageAttachments: [] };
     }
 
@@ -2477,9 +2491,9 @@ export class WecomBotService implements OnModuleInit {
             : `${dashboardPayload.dashboardTemplate.cardTitle}图片看板`,
         summary: dashboardResult.executiveSummary,
         metricCards: dashboardPayload.metricCardsForDetail.slice(0, 4),
-        variant,
+        variant: imageSource.variant,
         layout: options.layout,
-        rows,
+        rows: imageSource.rows,
       });
       if (!artifact) {
         return { imageAttachments: [] };
@@ -2600,6 +2614,54 @@ export class WecomBotService implements OnModuleInit {
       'CADENCE_REPORT',
       'DATA_SCOPE_QUALITY',
     ].includes(templateCode);
+  }
+
+  /**
+   * 解析模板卡片图片优先展示的数据来源。
+   *
+   * 参数说明：`dashboardResult` 为看板结果，`dashboardPayload` 为卡片载荷，`fallbackVariant` 为模板默认图形。
+   * 返回值说明：优先返回趋势、排行或分布数据，保证折线图和对比图进入模板卡片图片。
+   */
+  private resolveDashboardCardImageSource(
+    dashboardResult: DashboardComposeResult,
+    dashboardPayload: {
+      metricCardsForDetail: MetricCard[];
+      tableBlocksForDetail: Array<{ title?: string; rows?: Array<Record<string, unknown>> }>;
+    },
+    fallbackVariant: WecomAnalysisImageVariant,
+  ): {
+    variant: WecomAnalysisImageVariant;
+    rows: Array<Record<string, unknown>>;
+  } {
+    const preferredVariants: WecomAnalysisImageVariant[] = [
+      'trend',
+      'ranking',
+      'distribution',
+      'map',
+      fallbackVariant,
+      'summary',
+    ];
+    const seenVariants = new Set<WecomAnalysisImageVariant>();
+
+    for (const variant of preferredVariants) {
+      if (seenVariants.has(variant)) {
+        continue;
+      }
+
+      seenVariants.add(variant);
+      const chartRows = this.resolveDashboardChartImageRows(dashboardResult.blocks, variant);
+      if (chartRows.length > 0) {
+        return {
+          variant,
+          rows: chartRows.slice(0, 10),
+        };
+      }
+    }
+
+    return {
+      variant: fallbackVariant,
+      rows: this.resolveDashboardImageRows(dashboardResult, dashboardPayload, fallbackVariant),
+    };
   }
 
   /**
@@ -2816,8 +2878,7 @@ export class WecomBotService implements OnModuleInit {
   ): WecomAnalysisImageVariant {
     if (
       templateCode === 'BUSINESS_OVERVIEW' ||
-      templateCode === 'REGION_COMPARISON' ||
-      templateCode === 'SERVICE_ECOSYSTEM'
+      templateCode === 'REGION_COMPARISON'
     ) {
       return 'map';
     }
@@ -11757,7 +11818,9 @@ export class WecomBotService implements OnModuleInit {
           metricCards?: MetricCard[];
         }
       | undefined;
-    const sources = this.resolveAnalysisImageSources(detail, report).slice(0, 2);
+    const sources = this.sortAnalysisImageSourcesForCard(
+      this.resolveAnalysisImageSources(detail, report),
+    ).slice(0, 1);
     const attachments: WecomDispatchImageAttachment[] = [];
 
     for (const [index, source] of sources.entries()) {
@@ -11767,6 +11830,7 @@ export class WecomBotService implements OnModuleInit {
           summary: source.summary,
           metricCards: (report?.metricCards ?? []).slice(0, 4),
           variant: source.variant,
+          layout: 'card',
           rows: source.rows.slice(0, 10),
         });
         if (!artifact) {
@@ -11818,7 +11882,7 @@ export class WecomBotService implements OnModuleInit {
         summary: primaryView.description || report?.executiveSummary,
         variant: this.resolveAnalysisImageVariant(primaryView.viewType, report?.variant),
         rows: primaryRows,
-        signature: this.buildAnalysisImageSourceSignature(primaryView.title, primaryView.viewType, primaryRows),
+        signature: this.buildAnalysisImageSourceSignature(primaryRows),
       };
       usedSignatures.add(source.signature);
       sources.push(source);
@@ -11835,7 +11899,7 @@ export class WecomBotService implements OnModuleInit {
         summary: view.description || report?.executiveSummary,
         variant: this.resolveAnalysisImageVariant(view.viewType, report?.variant),
         rows,
-        signature: this.buildAnalysisImageSourceSignature(view.title, view.viewType, rows),
+        signature: this.buildAnalysisImageSourceSignature(rows),
       };
       if (usedSignatures.has(source.signature)) {
         continue;
@@ -11857,7 +11921,7 @@ export class WecomBotService implements OnModuleInit {
         summary: report?.executiveSummary,
         variant: report?.variant,
         rows: tableRows,
-        signature: this.buildAnalysisImageSourceSignature(report?.reportTitle, 'PRIMARY_TABLE', tableRows),
+        signature: this.buildAnalysisImageSourceSignature(tableRows),
       };
       if (!usedSignatures.has(source.signature)) {
         sources.push(source);
@@ -11865,6 +11929,30 @@ export class WecomBotService implements OnModuleInit {
     }
 
     return sources.slice(0, 3);
+  }
+
+  /**
+   * 按卡片展示价值排序图片来源。
+   *
+   * 参数说明：`sources` 为已去重的图片来源。
+   * 返回值说明：趋势、排行和分布优先于普通明细，保证卡片首屏先看到图表分析。
+   */
+  private sortAnalysisImageSourcesForCard(
+    sources: WecomAnalysisImageSource[],
+  ): WecomAnalysisImageSource[] {
+    const priorityByVariant: Record<WecomAnalysisImageVariant, number> = {
+      trend: 0,
+      ranking: 1,
+      distribution: 2,
+      map: 3,
+      summary: 4,
+    };
+
+    return [...sources].sort(
+      (left, right) =>
+        priorityByVariant[left.variant ?? 'summary'] -
+        priorityByVariant[right.variant ?? 'summary'],
+    );
   }
 
   /**
@@ -11917,16 +12005,23 @@ export class WecomBotService implements OnModuleInit {
   /**
    * 构造图片区块去重签名。
    *
-   * 参数说明：`title/viewType/rows` 用于判断同一结果是否已生成过图片。
-   * 返回值说明：返回稳定短签名，避免主表和二级视图重复下发同一张图。
+   * 参数说明：`rows` 为图片区块使用的数据行。
+   * 返回值说明：返回稳定短签名，避免不同标题的同源数据重复下发。
    */
   private buildAnalysisImageSourceSignature(
-    title: string | undefined,
-    viewType: string | undefined,
     rows: Array<Record<string, unknown>>,
   ): string {
-    const firstRow = rows[0] ? JSON.stringify(rows[0]).slice(0, 240) : '';
-    return `${title ?? ''}|${viewType ?? ''}|${rows.length}|${firstRow}`;
+    const rowSignature = JSON.stringify(
+      rows.slice(0, 3).map((row) =>
+        Object.keys(row)
+          .sort()
+          .reduce<Record<string, unknown>>((acc, key) => {
+            acc[key] = row[key];
+            return acc;
+          }, {}),
+      ),
+    ).slice(0, 360);
+    return `${rows.length}|${rowSignature}`;
   }
 
   /**

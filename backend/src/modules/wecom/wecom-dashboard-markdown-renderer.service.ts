@@ -93,7 +93,38 @@ export class WecomDashboardMarkdownRendererService {
         : '【企微展示说明】已通过卡片、正文和图片看板在企微内完成交付；当前未配置外部备查报告入口。',
     );
 
-    return lines.join('\n');
+    return this.removeDuplicateMarkdownLines(lines).join('\n');
+  }
+
+  /**
+   * 去除正文中的完全重复行。
+   *
+   * 参数说明：`lines` 为已组装 Markdown 行。
+   * 返回值说明：保留首次出现的有效行，并压缩连续空行。
+   */
+  private removeDuplicateMarkdownLines(lines: string[]): string[] {
+    const seenLines = new Set<string>();
+    let previousLineIsBlank = false;
+
+    return lines.filter((line) => {
+      const normalizedLine = line.replace(/\s+/gu, ' ').trim();
+      if (!normalizedLine) {
+        if (previousLineIsBlank) {
+          return false;
+        }
+
+        previousLineIsBlank = true;
+        return true;
+      }
+
+      previousLineIsBlank = false;
+      if (seenLines.has(normalizedLine)) {
+        return false;
+      }
+
+      seenLines.add(normalizedLine);
+      return true;
+    });
   }
 
   /**
@@ -940,7 +971,6 @@ export class WecomDashboardMarkdownRendererService {
     return [
       this.renderAmountRankingLine(table.rows, 'quoteAmount', '报价金额前3'),
       this.renderAmountRankingLine(table.rows, 'orderAmount', '订单金额前3', '暂无真实订单金额沉淀，当前不输出下单排行结论。'),
-      ...this.renderTableTopLines(context, /渠道|排行|服务商/u),
     ];
   }
 

@@ -44,6 +44,33 @@ describe('WecomAnalysisTableImageService', () => {
     ).resolves.toBeUndefined();
   });
 
+  it('卡片版图片应同时生成图表和同源紧凑明细', async () => {
+    const service = new WecomAnalysisTableImageService();
+
+    const artifact = await service.renderTableImage({
+      title: '经营区块数据覆盖',
+      summary: '指标、趋势和明细在同一张模板卡片图片内展示。',
+      layout: 'card',
+      variant: 'trend',
+      metricCards: [
+        { name: '合作伙伴数', value: 173 },
+        { name: '客户报备数', value: 150 },
+      ],
+      rows: [
+        { 月份: '2026-04', 数量: 173 },
+        { 月份: '2026-05', 数量: 150 },
+        { 月份: '2026-06', 数量: 42 },
+      ],
+    });
+
+    expect(artifact?.filename).toMatch(/^crm-analysis-card-\d+\.png$/u);
+    expect(artifact?.previewText).toContain('核心趋势、指标和紧凑明细');
+    expect(artifact?.height).toBeGreaterThan(560);
+    expect(artifact?.buffer.subarray(0, 8).toString('hex')).toBe(
+      '89504e470d0a1a0a',
+    );
+  });
+
   it('应生成企微内可查看的省份覆盖热力图 PNG', async () => {
     const service = new WecomAnalysisTableImageService();
 
