@@ -403,7 +403,12 @@ describe('PublicAnalysisResultController', () => {
     expect(html).toContain('"province":"湖南","cityName":"湘潭","covered":false');
     expect(html).toContain('"province":"青海","cityName":"西宁","covered":false');
     expect(html).toContain('未覆盖：');
-    expect(html).toContain('双击省份或地市查看地市渠道商详情');
+    expect(html).toContain('双击省份查看省内地市渠道商覆盖情况');
+    expect(html).not.toContain('双击省份或地市查看地市渠道商详情');
+    expect(html).toContain("const seriesName = String(params.seriesName || '')");
+    expect(html).toContain("seriesName === '省份边框' || seriesName === '省份名称'");
+    expect(html).toContain('function resolveProvinceByCoordinate(coordinate)');
+    expect(html).toContain("chart.getZr().on('dblclick'");
     expect(html).toContain('showCoverageProvinceDetail_');
     expect(html).toContain('临沂普悦天诚信息科技有限公司');
     expect(html).toContain('"cityName":"临沂"');

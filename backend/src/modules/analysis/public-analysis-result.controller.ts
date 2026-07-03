@@ -871,7 +871,7 @@ export class PublicAnalysisResultController {
    *
    * 参数说明：无。
    * 返回值说明：返回 ECharts 可注册的地市 GeoJSON；读取失败时返回空集合。
-   * 调用注意事项：地市图只用于覆盖地图底色，省份边框仍由省级地图负责。
+   * 调用注意事项：地市图用于覆盖地图底色和地市边界，省份图层只负责透明交互与省界强调。
    */
   private loadLocalChinaCityMapGeoJson(): Record<string, unknown> {
     const candidates = [
@@ -1334,7 +1334,7 @@ export class PublicAnalysisResultController {
     };
     const domSuffix = this.hashPublicDomId(section.title);
 
-    return `<section class="section coverage-shell"><div class="coverage-head"><h2>${this.escapeHtml(section.title)}</h2><div class="coverage-legend"><span><i class="legend-dot" style="background:#238636"></i>地市已覆盖</span><span><i class="legend-dot" style="background:#ffeda8;border:1px solid #e3bd61"></i>地市未覆盖</span><span><i class="legend-dot" style="background:transparent;border:2px solid #16833a"></i>省份已覆盖</span><span><i class="legend-dot" style="background:transparent;border:1px solid rgba(66,84,72,0.31)"></i>普通地市/未覆盖省份边界</span><span>双击省份或地市查看地市渠道商详情</span></div></div>${description}<div class="coverage-body"><aside class="coverage-overview"><div class="coverage-overview-label">省份覆盖</div><div class="coverage-overview-value">${coveredProvinceSet.size}<small>/${MAINLAND_CHINA_PROVINCE_NAMES.length}省</small></div><div class="coverage-overview-rate">省份覆盖率 <strong>${coverageRate}</strong></div><div class="coverage-overview-rate">地市覆盖 <strong>${coveredCityCount}/${CHINA_PREFECTURE_CITY_TOTAL}</strong></div><div class="coverage-overview-rate">地市覆盖率 <strong>${cityCoverageRate}</strong></div><div class="coverage-uncovered">${this.escapeHtml(uncoveredText)}</div></aside><div class="coverage-map" id="${chartId}"><div class="coverage-map-fallback">地图加载中；若长时间无响应，请稍后刷新报告页。</div></div></div><div class="modal-overlay" id="${modalId}"><div class="modal-box"><button class="modal-close" onclick="closeCoverageProvinceModal_${domSuffix}()">&times;</button><div class="modal-title" id="${modalId}-title"></div><div class="modal-subtitle" id="${modalId}-subtitle"></div><div id="${modalId}-body"></div></div></div><script>${this.renderCoverageMapRuntimeScript(chartId, modalId, domSuffix, coverageData)}</script></section>`;
+    return `<section class="section coverage-shell"><div class="coverage-head"><h2>${this.escapeHtml(section.title)}</h2><div class="coverage-legend"><span><i class="legend-dot" style="background:#238636"></i>地市已覆盖</span><span><i class="legend-dot" style="background:#ffeda8;border:1px solid #e3bd61"></i>地市未覆盖</span><span><i class="legend-dot" style="background:transparent;border:2px solid #16833a"></i>省份已覆盖</span><span><i class="legend-dot" style="background:transparent;border:1px solid rgba(66,84,72,0.31)"></i>普通地市/未覆盖省份边界</span><span>双击省份查看省内地市渠道商覆盖情况</span></div></div>${description}<div class="coverage-body"><aside class="coverage-overview"><div class="coverage-overview-label">省份覆盖</div><div class="coverage-overview-value">${coveredProvinceSet.size}<small>/${MAINLAND_CHINA_PROVINCE_NAMES.length}省</small></div><div class="coverage-overview-rate">省份覆盖率 <strong>${coverageRate}</strong></div><div class="coverage-overview-rate">地市覆盖 <strong>${coveredCityCount}/${CHINA_PREFECTURE_CITY_TOTAL}</strong></div><div class="coverage-overview-rate">地市覆盖率 <strong>${cityCoverageRate}</strong></div><div class="coverage-uncovered">${this.escapeHtml(uncoveredText)}</div></aside><div class="coverage-map" id="${chartId}"><div class="coverage-map-fallback">地图加载中；若长时间无响应，请稍后刷新报告页。</div></div></div><div class="modal-overlay" id="${modalId}"><div class="modal-box"><button class="modal-close" onclick="closeCoverageProvinceModal_${domSuffix}()">&times;</button><div class="modal-title" id="${modalId}-title"></div><div class="modal-subtitle" id="${modalId}-subtitle"></div><div id="${modalId}-body"></div></div></div><script>${this.renderCoverageMapRuntimeScript(chartId, modalId, domSuffix, coverageData)}</script></section>`;
   }
 
   /**
@@ -1548,7 +1548,6 @@ export class PublicAnalysisResultController {
   const cityBorderColor = 'rgba(66,84,72,0.23)';
   const provinceCoveredBorderColor = '#16833a';
   const provincePlainBorderColor = 'rgba(66,84,72,0.31)';
-  const provinceBaseBorderColor = 'rgba(66,84,72,0.18)';
   function escapeHtml(value){
     return String(value ?? '').replace(/[&<>"']/g, function(ch){
       return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch];
@@ -1643,6 +1642,71 @@ export class PublicAnalysisResultController {
       };
     }).filter(Boolean);
   }
+  function isPointInRing(point, ring){
+    if (!Array.isArray(point) || !Array.isArray(ring) || ring.length < 3) {
+      return false;
+    }
+    const x = Number(point[0]);
+    const y = Number(point[1]);
+    let inside = false;
+    for (let index = 0, prevIndex = ring.length - 1; index < ring.length; prevIndex = index++) {
+      const current = ring[index] || [];
+      const previous = ring[prevIndex] || [];
+      const xi = Number(current[0]);
+      const yi = Number(current[1]);
+      const xj = Number(previous[0]);
+      const yj = Number(previous[1]);
+      if (![x, y, xi, yi, xj, yj].every(Number.isFinite)) {
+        continue;
+      }
+      const intersects = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / ((yj - yi) || 1e-12) + xi);
+      if (intersects) {
+        inside = !inside;
+      }
+    }
+    return inside;
+  }
+  function isPointInPolygon(point, polygon){
+    if (!Array.isArray(polygon) || polygon.length === 0 || !isPointInRing(point, polygon[0])) {
+      return false;
+    }
+    return !polygon.slice(1).some(function(ring){ return isPointInRing(point, ring); });
+  }
+  function isPointInGeometry(point, geometry){
+    if (!geometry || !Array.isArray(geometry.coordinates)) {
+      return false;
+    }
+    if (geometry.type === 'Polygon') {
+      return isPointInPolygon(point, geometry.coordinates);
+    }
+    if (geometry.type === 'MultiPolygon') {
+      return geometry.coordinates.some(function(polygon){ return isPointInPolygon(point, polygon); });
+    }
+    return false;
+  }
+  function resolveProvinceByCoordinate(coordinate){
+    const cityGeoJson = hasGeoJsonFeatures(window.__CRM_LOCAL_CHINA_CITY_GEO_JSON__)
+      ? window.__CRM_LOCAL_CHINA_CITY_GEO_JSON__
+      : null;
+    if (!cityGeoJson || !Array.isArray(coordinate)) {
+      return '';
+    }
+    for (const feature of cityGeoJson.features) {
+      if (!isPointInGeometry(coordinate, feature.geometry)) {
+        continue;
+      }
+      const properties = feature.properties || {};
+      return String(properties.province || properties.name || '');
+    }
+    return '';
+  }
+  function openCoverageProvinceDetail(provinceName){
+    const normalizedProvinceName = String(provinceName || '').trim();
+    if (!normalizedProvinceName) {
+      return;
+    }
+    window.showCoverageProvinceDetail_${domSuffix}(normalizedProvinceName);
+  }
   window.showCoverageProvinceDetail_${domSuffix} = function(provinceName){
     const row = provinceRows.get(provinceName);
     const isCovered = Boolean(row);
@@ -1713,8 +1777,8 @@ export class PublicAnalysisResultController {
       value: covered ? Number(row.partnerCount || 0) : 0,
       itemStyle: {
         areaColor: hasCityGeoJson ? 'rgba(255,255,255,0)' : (covered ? cityCoveredColor : cityUncoveredColor),
-        borderColor: covered ? provinceCoveredBorderColor : provincePlainBorderColor,
-        borderWidth: covered ? 1.45 : 0.62
+        borderColor: hasCityGeoJson ? 'rgba(255,255,255,0)' : (covered ? provinceCoveredBorderColor : provincePlainBorderColor),
+        borderWidth: hasCityGeoJson ? 0 : (covered ? 1.45 : 0.62)
       }
     };
   });
@@ -1781,9 +1845,9 @@ export class PublicAnalysisResultController {
       silent: true,
       label: { show: false },
       itemStyle: {
-        areaColor: cityUncoveredColor,
-        borderColor: provinceBaseBorderColor,
-        borderWidth: 0.35
+        areaColor: 'rgba(255,255,255,0)',
+        borderColor: 'rgba(255,255,255,0)',
+        borderWidth: 0
       },
       emphasis: { disabled: true },
       select: { disabled: true },
@@ -1792,9 +1856,9 @@ export class PublicAnalysisResultController {
           name: item.name,
           value: item.value,
           itemStyle: {
-            areaColor: cityUncoveredColor,
-            borderColor: provinceBaseBorderColor,
-            borderWidth: 0.35
+            areaColor: 'rgba(255,255,255,0)',
+            borderColor: 'rgba(255,255,255,0)',
+            borderWidth: 0
           }
         };
       })
@@ -1806,6 +1870,7 @@ export class PublicAnalysisResultController {
       zoom: 1.35,
       center: [104, 36],
       zlevel: 1,
+      silent: true,
       label: {
         show: false,
         color: '#40534c',
@@ -1813,10 +1878,7 @@ export class PublicAnalysisResultController {
         formatter: function(params){ return params.name; }
       },
       labelLayout: { hideOverlap: true },
-      emphasis: {
-        label: { show: true, color: '#1f2328', fontSize: 11, fontWeight: 'bold' },
-        itemStyle: { areaColor: '#33a852' }
-      },
+      emphasis: { disabled: true },
       itemStyle: {
         areaColor: cityUncoveredColor,
         borderColor: cityBorderColor,
@@ -1913,8 +1975,23 @@ export class PublicAnalysisResultController {
   });
   chart.on('dblclick', function(params){
     const data = params.data || {};
-    window.showCoverageProvinceDetail_${domSuffix}(data.province || params.name);
+    const seriesName = String(params.seriesName || '');
+    const isProvinceEvent = seriesName === '省份边框' || seriesName === '省份名称' || (!hasCityGeoJson && seriesName === '省份覆盖');
+    if (!isProvinceEvent) {
+      return;
+    }
+    openCoverageProvinceDetail(data.province || data.name || params.name);
   });
+  if (hasCityGeoJson && chart.getZr) {
+    chart.getZr().on('dblclick', function(event){
+      const pixel = [event.offsetX, event.offsetY];
+      if (!chart.containPixel({ geoIndex: 0 }, pixel)) {
+        return;
+      }
+      const coordinate = chart.convertFromPixel({ geoIndex: 0 }, pixel);
+      openCoverageProvinceDetail(resolveProvinceByCoordinate(coordinate));
+    });
+  }
   window.addEventListener('resize', function(){ chart.resize(); });
 })();`;
   }
