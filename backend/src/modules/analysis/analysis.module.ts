@@ -64,6 +64,7 @@ import { LianruanCrmAnalysisExecutorService } from './lianruan-crm-analysis-exec
 import { OpenApiMarkdownSnapshotSchedulerService } from './openapi-markdown-snapshot-scheduler.service';
 import { OpenApiMarkdownSnapshotService } from './openapi-markdown-snapshot.service';
 import {
+  PublicAnalysisAssetController,
   PublicAnalysisResultController,
   PublicWecomDashboardImageController,
 } from './public-analysis-result.controller';
@@ -81,7 +82,7 @@ import { QueryTemplateRepository } from '../query-assets/query-template.reposito
 
 @Module({
   imports: [DatabaseModule, AiModelsModule],
-  controllers: [PublicAnalysisResultController, PublicWecomDashboardImageController],
+  controllers: [PublicAnalysisResultController, PublicAnalysisAssetController, PublicWecomDashboardImageController],
   providers: [
     AccessDecisionService,
     AccessPolicyRepository,

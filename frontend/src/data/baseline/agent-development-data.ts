@@ -46,6 +46,8 @@ export const agentDevelopmentData = {
     mapName: 'china',
     totalRegionCount: 31,
     coveredRegionCount: 25,
+    totalCityCount: 322,
+    coveredCityCount: 68,
     regions: [
       { name: '北京', value: 12 },
       { name: '天津', value: 5 },
@@ -64,7 +66,18 @@ export const agentDevelopmentData = {
       { name: '山东', value: 12 },
       { name: '河南', value: 8 },
       { name: '湖北', value: 7 },
-      { name: '湖南', value: 6 },
+      {
+        name: '湖南',
+        value: 6,
+        coveredCityCount: 3,
+        totalCityCount: 14,
+        extra: '覆盖地市：3/14',
+        cityGroups: [
+          { cityName: '长沙', partnerCount: 3, partners: ['长沙核心渠道商', '湖南智联服务商', '星城数字科技'] },
+          { cityName: '株洲', partnerCount: 2, partners: ['株洲产业渠道商', '株洲云网科技'] },
+          { cityName: '湘潭', partnerCount: 1, partners: ['湘潭创新服务商'] },
+        ],
+      },
       { name: '广东', value: 22 },
       { name: '广西', value: 3 },
       { name: '海南', value: 2 },

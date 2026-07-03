@@ -831,19 +831,20 @@ export class WecomDashboardMarkdownRendererService {
       return '暂无区域覆盖数据，不能判断区域强弱和空白市场。';
     }
 
-    const coveredCount = block.coveredRegionCount ?? block.regions.length;
-    const totalCount = block.totalRegionCount ?? 31;
+    const coveredCount = block.coveredCityCount ?? block.coveredRegionCount ?? block.regions.length;
+    const totalCount = block.totalCityCount ?? block.totalRegionCount ?? 31;
+    const coverageUnit = block.coveredCityCount !== undefined ? '地市' : '省份';
     const coverageRate = totalCount > 0 ? coveredCount / totalCount : 0;
     const rateText = `${(coverageRate * 100).toFixed(1)}%`;
     if (coverageRate < 0.3) {
-      return `当前覆盖 ${coveredCount}/${totalCount}，覆盖率 ${rateText}，区域覆盖偏低，应优先补齐空白区域和重点区域渠道。`;
+      return `当前覆盖${coverageUnit} ${coveredCount}/${totalCount}，覆盖率 ${rateText}，区域覆盖偏低，应优先补齐空白区域和重点区域渠道。`;
     }
 
     if (coverageRate < 0.7) {
-      return `当前覆盖 ${coveredCount}/${totalCount}，覆盖率 ${rateText}，区域覆盖中等，应继续比较各区域产出效率。`;
+      return `当前覆盖${coverageUnit} ${coveredCount}/${totalCount}，覆盖率 ${rateText}，区域覆盖中等，应继续比较各区域产出效率。`;
     }
 
-    return `当前覆盖 ${coveredCount}/${totalCount}，覆盖率 ${rateText}，覆盖较广，应重点看区域产出差异和资源效率。`;
+    return `当前覆盖${coverageUnit} ${coveredCount}/${totalCount}，覆盖率 ${rateText}，覆盖较广，应重点看区域产出差异和资源效率。`;
   }
 
   /**
@@ -953,8 +954,12 @@ export class WecomDashboardMarkdownRendererService {
     }
 
     const topRegions = [...block.regions].sort((left, right) => right.value - left.value).slice(0, 5);
+    const cityCoverageLine = block.coveredCityCount !== undefined && block.totalCityCount !== undefined
+      ? `地市覆盖：${block.coveredCityCount}/${block.totalCityCount}`
+      : undefined;
     return [
-      `覆盖范围：${block.coveredRegionCount ?? topRegions.length}/${block.totalRegionCount ?? 31}`,
+      `省份覆盖：${block.coveredRegionCount ?? topRegions.length}/${block.totalRegionCount ?? 31}`,
+      ...(cityCoverageLine ? [cityCoverageLine] : []),
       `重点区域：${topRegions.map((region) => `${region.name}${region.value}`).join('，') || '暂无'}`,
     ];
   }

@@ -59,6 +59,8 @@ const section = computed<ManagementReportSectionData>(() => ({
       mapName: data.provinceMap.mapName,
       totalRegionCount: data.provinceMap.totalRegionCount,
       coveredRegionCount: data.provinceMap.coveredRegionCount,
+      totalCityCount: data.provinceMap.totalCityCount,
+      coveredCityCount: data.provinceMap.coveredCityCount,
       regions: data.provinceMap.regions,
       unitLabel: data.provinceMap.unitLabel,
     },

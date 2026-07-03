@@ -7,7 +7,7 @@ import {
   Res,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import type { AnalysisResultRecord } from '../../shared/types/domain';
 import { LocalRuntimeConfigService } from '../../shared/config/local-runtime-config.service';
@@ -41,6 +41,15 @@ interface NormalizedCoverageRow extends Record<string, unknown> {
   label: string;
   partnerCount: number;
   levelGroups: Array<Record<string, unknown>>;
+  coveredCityCount: number;
+  totalCityCount: number;
+  cityGroups: NormalizedCoverageCityGroup[];
+}
+
+interface NormalizedCoverageCityGroup {
+  cityName: string;
+  partnerCount: number;
+  partners: string[];
 }
 
 const PUBLIC_COLUMN_LABEL_MAP: Record<string, string> = {
@@ -482,6 +491,15 @@ export class PublicAnalysisResultController {
     .dashboard-chart{height:360px;border:1px solid #e3ebe7;border-radius:16px;background:#fbfdfc;}
     .dashboard-chart--map{height:430px;}
     .dashboard-chart-fallback{display:flex;align-items:center;justify-content:center;height:100%;padding:20px;text-align:center;color:#7b8781;}
+    .map-city-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:16px;}
+    .map-city-stat{padding:10px 12px;border:1px solid #e3ebe7;border-radius:12px;background:#f7faf9;}
+    .map-city-stat span{display:block;color:#64736d;font-size:11px;}
+    .map-city-stat strong{display:block;margin-top:4px;color:#176b52;font-size:18px;}
+    .map-city-group{margin:0 0 14px;padding:12px 14px;border:1px solid #e3ebe7;border-radius:13px;background:#fbfdfc;}
+    .map-city-group-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;color:#20322e;font-weight:800;}
+    .map-city-group-head small{color:#64736d;font-weight:700;}
+    .map-city-partners{display:flex;flex-wrap:wrap;gap:7px;line-height:1.6;}
+    .map-city-partner{display:inline-flex;align-items:center;max-width:100%;padding:3px 8px;border-radius:999px;background:#eef8f4;color:#315b4c;font-size:12px;word-break:break-word;}
     .dashboard-chart-insights{margin:0 18px 18px;padding:12px 16px;border-radius:14px;background:#f7faf9;color:#43524b;font-size:13px;line-height:1.8;}
     .dashboard-inline-table{min-width:0;}
     .dashboard-inline-table-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 8px;color:#20322e;font-size:14px;font-weight:800;}
@@ -519,7 +537,7 @@ export class PublicAnalysisResultController {
     .agent-item{display:inline;}
     .modal-no-data{padding:18px;border-radius:12px;background:#f7faf9;color:#7b8781;text-align:center;}
     @media (min-width: 1280px){.hero{padding:26px 28px}.grid{grid-template-columns:repeat(6,minmax(0,1fr))}.report-flow{grid-template-columns:repeat(12,minmax(0,1fr))}.report-flow>.section{grid-column:1/-1;margin:0}.report-flow>.markdown-section{grid-column:1/-1}.report-flow>.coverage-shell{grid-column:1/-1}.dashboard-chart{height:390px}.dashboard-chart--map{height:520px}.coverage-body{grid-template-columns:260px minmax(0,1fr)}.coverage-map{height:540px}}
-    @media (max-width: 980px){.page{width:min(100% - 24px,1080px);padding-top:16px}.coverage-body{grid-template-columns:1fr}.coverage-map{height:360px}.coverage-head{align-items:flex-start;flex-direction:column}.coverage-legend{flex-wrap:wrap}.dashboard-chart{height:320px}.dashboard-chart--map{height:360px}.dashboard-chart-head{flex-direction:column}.dashboard-chart-layout{margin:8px 12px 16px}}
+    @media (max-width: 980px){.page{width:min(100% - 24px,1080px);padding-top:16px}.coverage-body{grid-template-columns:1fr}.coverage-map{height:360px}.coverage-head{align-items:flex-start;flex-direction:column}.coverage-legend{flex-wrap:wrap}.dashboard-chart{height:320px}.dashboard-chart--map{height:360px}.dashboard-chart-head{flex-direction:column}.dashboard-chart-layout{margin:8px 12px 16px}.map-city-summary{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -827,12 +845,40 @@ export class PublicAnalysisResultController {
       return '';
     }
 
-    const scripts = ['<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>'];
+    const scripts = ['<script src="../../analysis-assets/echarts.min.js"></script>'];
     if (sections.some((section) => this.isDashboardMapSection(section) || this.isCoverageMapSection(section))) {
-      scripts.push('<script src="https://cdn.jsdelivr.net/npm/echarts@4.9.0/map/js/china.min.js"></script>');
+      scripts.push(`<script>window.__CRM_LOCAL_CHINA_GEO_JSON__=${this.serializePublicJson(this.loadLocalChinaMapGeoJson())};</script>`);
     }
 
     return scripts.join('');
+  }
+
+  /**
+   * 读取本地中国地图数据。
+   *
+   * 参数说明：无。
+   * 返回值说明：返回 ECharts 可注册的 GeoJSON；读取失败时返回空集合，避免公开页整体报错。
+   * 调用注意事项：运行时优先读仓库内 `backend/resources/maps/china.json`，兼容源码、测试和构建后目录。
+   */
+  private loadLocalChinaMapGeoJson(): Record<string, unknown> {
+    const candidates = [
+      resolve(process.cwd(), 'backend/resources/maps/china.json'),
+      resolve(process.cwd(), 'resources/maps/china.json'),
+      resolve(__dirname, '../../../../resources/maps/china.json'),
+    ];
+
+    for (const candidate of candidates) {
+      if (!existsSync(candidate)) {
+        continue;
+      }
+      try {
+        return JSON.parse(readFileSync(candidate, 'utf8')) as Record<string, unknown>;
+      } catch {
+        return { type: 'FeatureCollection', features: [] };
+      }
+    }
+
+    return { type: 'FeatureCollection', features: [] };
   }
 
   /**
@@ -890,8 +936,11 @@ export class PublicAnalysisResultController {
       : '';
     const insightHtml = this.renderDashboardChartInsightsHtml(section);
     const inlineTableHtml = this.renderDashboardChartInlineTableHtml(section);
+    const mapDetailHtml = isMap
+      ? `<div class="modal-overlay" id="${chartId}-detail"><div class="modal-box"><button class="modal-close" type="button" id="${chartId}-detail-close">&times;</button><div class="modal-title" id="${chartId}-detail-title"></div><div class="modal-subtitle" id="${chartId}-detail-subtitle"></div><div id="${chartId}-detail-body"></div></div></div>`
+      : '';
 
-    return `<section class="section dashboard-chart-section"><div class="dashboard-chart-head"><div><h2>${this.escapeHtml(section.title)}</h2>${description}</div></div><div class="dashboard-chart-layout"><div class="${chartClass}" id="${chartId}"><div class="dashboard-chart-fallback">图表加载中；若当前网络无法访问图表脚本，请打开完整报告后刷新。</div></div>${inlineTableHtml}</div>${insightHtml}<script>${this.renderDashboardChartRuntimeScript(chartId, section.chartType, section.chartData)}</script></section>`;
+    return `<section class="section dashboard-chart-section"><div class="dashboard-chart-head"><div><h2>${this.escapeHtml(section.title)}</h2>${description}</div></div><div class="dashboard-chart-layout"><div class="${chartClass}" id="${chartId}"><div class="dashboard-chart-fallback">图表加载中；若长时间无响应，请打开完整报告后刷新。</div></div>${inlineTableHtml}</div>${insightHtml}${mapDetailHtml}<script>${this.renderDashboardChartRuntimeScript(chartId, section.chartType, section.chartData)}</script></section>`;
   }
 
   /**
@@ -983,6 +1032,69 @@ export class PublicAnalysisResultController {
       };
     });
   }
+  function registerChinaMapIfNeeded(){
+    if (chartType !== 'geo-map' || !window.echarts || !window.__CRM_LOCAL_CHINA_GEO_JSON__) {
+      return;
+    }
+    if (!window.__CRM_LOCAL_CHINA_MAP_REGISTERED__) {
+      window.echarts.registerMap('china', window.__CRM_LOCAL_CHINA_GEO_JSON__);
+      window.__CRM_LOCAL_CHINA_MAP_REGISTERED__ = true;
+    }
+  }
+  function normalizeCityGroups(region){
+    return asArray(region && region.cityGroups).map(function(group){
+      return {
+        cityName: String(group.cityName ?? '未识别地市'),
+        partnerCount: toNumber(group.partnerCount),
+        partners: asArray(group.partners).map(function(partner){ return String(partner); })
+      };
+    }).sort(function(left, right){
+      if (left.cityName === '未识别地市') return 1;
+      if (right.cityName === '未识别地市') return -1;
+      return right.partnerCount - left.partnerCount || left.cityName.localeCompare(right.cityName, 'zh-CN');
+    });
+  }
+  function showMapProvinceDetail(provinceName){
+    const modalDom = document.getElementById('${chartId}-detail');
+    const closeDom = document.getElementById('${chartId}-detail-close');
+    const titleDom = document.getElementById('${chartId}-detail-title');
+    const subtitleDom = document.getElementById('${chartId}-detail-subtitle');
+    const bodyDom = document.getElementById('${chartId}-detail-body');
+    if (!modalDom || !titleDom || !subtitleDom || !bodyDom) {
+      return;
+    }
+    const regions = asArray(chartData.regions);
+    const region = regions.find(function(item){ return String(item.name ?? '') === provinceName; });
+    const cityGroups = normalizeCityGroups(region);
+    const partnerCount = toNumber(region && region.value);
+    const coveredCityCount = toNumber(region && region.coveredCityCount);
+    const totalCityCount = toNumber(region && region.totalCityCount);
+    titleDom.innerHTML = escapeHtml(provinceName) + '<span class="modal-badge ' + (region ? 'badge-covered' : 'badge-uncovered') + '">' + (region ? '已覆盖' : '未覆盖') + '</span>';
+    subtitleDom.textContent = region
+      ? '渠道商 ' + partnerCount + ' 家，覆盖地市 ' + coveredCityCount + '/' + totalCityCount
+      : '该省份当前未覆盖渠道商';
+    if (!region || cityGroups.length === 0) {
+      bodyDom.innerHTML = '<div class="modal-no-data">暂无可下钻的地市渠道商数据</div>';
+    } else {
+      const summaryHtml = '<div class="map-city-summary"><div class="map-city-stat"><span>渠道商</span><strong>' + partnerCount + '家</strong></div><div class="map-city-stat"><span>覆盖地市</span><strong>' + coveredCityCount + '/' + totalCityCount + '</strong></div><div class="map-city-stat"><span>地市分组</span><strong>' + cityGroups.length + '组</strong></div></div>';
+      const groupHtml = cityGroups.map(function(group){
+        const partnerHtml = group.partners.length > 0
+          ? group.partners.map(function(partner){ return '<span class="map-city-partner">' + escapeHtml(partner) + '</span>'; }).join('')
+          : '<span class="map-city-partner">暂无渠道商名单</span>';
+        return '<div class="map-city-group"><div class="map-city-group-head"><span>' + escapeHtml(group.cityName) + '</span><small>' + (group.partnerCount || group.partners.length || 0) + '家</small></div><div class="map-city-partners">' + partnerHtml + '</div></div>';
+      }).join('');
+      bodyDom.innerHTML = summaryHtml + groupHtml;
+    }
+    if (closeDom) {
+      closeDom.onclick = function(){ modalDom.classList.remove('active'); };
+    }
+    modalDom.onclick = function(event){
+      if (event.target === modalDom) {
+        modalDom.classList.remove('active');
+      }
+    };
+    modalDom.classList.add('active');
+  }
   function resolveOption(){
     if (chartType === 'pie-distribution') {
       const unitLabel = chartData.unitLabel ? String(chartData.unitLabel) : '';
@@ -1058,8 +1170,12 @@ export class PublicAnalysisResultController {
       const regions = asArray(chartData.regions).map(function(item){
         return {
           name: String(item.name ?? '未命名区域'),
-          value: toNumber(item.value),
-          extra: item.extra ? String(item.extra) : ''
+          value: item.coveredCityCount !== undefined ? toNumber(item.coveredCityCount) : toNumber(item.value),
+          partnerCount: toNumber(item.value),
+          extra: item.extra ? String(item.extra) : '',
+          coveredCityCount: toNumber(item.coveredCityCount),
+          totalCityCount: toNumber(item.totalCityCount),
+          cityGroups: normalizeCityGroups(item)
         };
       });
       const maxValue = Math.max(1, ...regions.map(function(item){ return item.value; }));
@@ -1071,7 +1187,8 @@ export class PublicAnalysisResultController {
           textStyle: { color: '#333333', fontSize: 13 },
           formatter: function(params){
             const extra = params.data && params.data.extra ? '<br/><span style="font-size:12px;color:#64736d">' + escapeHtml(params.data.extra) + '</span>' : '';
-            return '<b>' + escapeHtml(params.name) + '</b><br/>命中数量：' + (params.value || 0) + unitLabel + extra;
+            const cityText = params.data ? '<br/>覆盖地市：' + (params.data.coveredCityCount || 0) + '/' + (params.data.totalCityCount || 0) : '';
+            return '<b>' + escapeHtml(params.name) + '</b><br/>渠道商：' + ((params.data && params.data.partnerCount) || 0) + unitLabel + cityText + extra;
           }
         },
         visualMap: { min: 0, max: maxValue, left: 12, bottom: 18, text: ['高', '低'], calculable: true, inRange: { color: ['#eaf6ef', '#8bc7a4', '#1f7a55'] } },
@@ -1093,6 +1210,7 @@ export class PublicAnalysisResultController {
   if (!chartDom || !window.echarts) {
     return;
   }
+  registerChinaMapIfNeeded();
   const option = resolveOption();
   if (!option) {
     return;
@@ -1100,6 +1218,11 @@ export class PublicAnalysisResultController {
   chartDom.innerHTML = '';
   const chart = window.echarts.init(chartDom, null, { renderer: 'canvas' });
   chart.setOption(option);
+  if (chartType === 'geo-map') {
+    chart.on('dblclick', function(params){
+      showMapProvinceDetail(String(params.name ?? ''));
+    });
+  }
   window.addEventListener('resize', function(){ chart.resize(); });
 })();`;
   }
@@ -1167,7 +1290,7 @@ export class PublicAnalysisResultController {
     };
     const domSuffix = this.hashPublicDomId(section.title);
 
-    return `<section class="section coverage-shell"><div class="coverage-head"><h2>${this.escapeHtml(section.title)}</h2><div class="coverage-legend"><span><i class="legend-dot" style="background:#238636"></i>已覆盖</span><span><i class="legend-dot" style="background:#fff1b8;border:1px solid #ff8a70"></i>未覆盖</span><span>双击省份查看代理商详情</span></div></div>${description}<div class="coverage-body"><aside class="coverage-overview"><div class="coverage-overview-label">覆盖概览</div><div class="coverage-overview-value">${coveredProvinceSet.size}<small>/${MAINLAND_CHINA_PROVINCE_NAMES.length}省</small></div><div class="coverage-overview-rate">覆盖率 <strong>${coverageRate}</strong></div><div class="coverage-uncovered">${this.escapeHtml(uncoveredText)}</div></aside><div class="coverage-map" id="${chartId}"><div class="coverage-map-fallback">地图加载中；若网络环境无法访问地图脚本，请稍后刷新报告页。</div></div></div><div class="modal-overlay" id="${modalId}"><div class="modal-box"><button class="modal-close" onclick="closeCoverageProvinceModal_${domSuffix}()">&times;</button><div class="modal-title" id="${modalId}-title"></div><div class="modal-subtitle" id="${modalId}-subtitle"></div><div id="${modalId}-body"></div></div></div><script>${this.renderCoverageMapRuntimeScript(chartId, modalId, domSuffix, coverageData)}</script></section>`;
+    return `<section class="section coverage-shell"><div class="coverage-head"><h2>${this.escapeHtml(section.title)}</h2><div class="coverage-legend"><span><i class="legend-dot" style="background:#238636"></i>已覆盖</span><span><i class="legend-dot" style="background:#fff1b8;border:1px solid #ff8a70"></i>未覆盖</span><span>双击省份查看代理商详情</span></div></div>${description}<div class="coverage-body"><aside class="coverage-overview"><div class="coverage-overview-label">覆盖概览</div><div class="coverage-overview-value">${coveredProvinceSet.size}<small>/${MAINLAND_CHINA_PROVINCE_NAMES.length}省</small></div><div class="coverage-overview-rate">覆盖率 <strong>${coverageRate}</strong></div><div class="coverage-uncovered">${this.escapeHtml(uncoveredText)}</div></aside><div class="coverage-map" id="${chartId}"><div class="coverage-map-fallback">地图加载中；若长时间无响应，请稍后刷新报告页。</div></div></div><div class="modal-overlay" id="${modalId}"><div class="modal-box"><button class="modal-close" onclick="closeCoverageProvinceModal_${domSuffix}()">&times;</button><div class="modal-title" id="${modalId}-title"></div><div class="modal-subtitle" id="${modalId}-subtitle"></div><div id="${modalId}-body"></div></div></div><script>${this.renderCoverageMapRuntimeScript(chartId, modalId, domSuffix, coverageData)}</script></section>`;
   }
 
   /**
@@ -1183,13 +1306,17 @@ export class PublicAnalysisResultController {
       const levelGroups = Array.isArray(row.levelGroups)
         ? row.levelGroups.map((item) => this.normalizeCoverageLevelGroup(item))
         : [];
+      const cityGroups = this.normalizeCoverageCityGroups(row.cityGroups ?? row.cities);
 
       return {
         ...row,
         province,
         label,
         partnerCount: this.toPublicFiniteNumber(row.partnerCount ?? row.agentCount ?? row.count ?? 0),
+        coveredCityCount: this.toPublicFiniteNumber(row.coveredCityCount ?? cityGroups.filter((group) => group.cityName !== '未识别地市').length),
+        totalCityCount: this.toPublicFiniteNumber(row.totalCityCount ?? cityGroups.length),
         levelGroups,
+        cityGroups,
       };
     }) as NormalizedCoverageRow[];
   }
@@ -1209,6 +1336,32 @@ export class PublicAnalysisResultController {
         ? group.agents.map((item) => String(item))
         : [],
     };
+  }
+
+  /**
+   * 标准化地图弹窗中的地市分组。
+   *
+   * 参数说明：`value` 为覆盖地图行中的城市分组。
+   * 返回值说明：返回城市、数量和渠道商名称列表。
+   */
+  private normalizeCoverageCityGroups(value: unknown): NormalizedCoverageCityGroup[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value.map((item) => {
+      const group = item as Record<string, unknown>;
+      const partners = Array.isArray(group.partners)
+        ? group.partners.map((partner) => String(partner))
+        : Array.isArray(group.agents)
+          ? group.agents.map((partner) => String(partner))
+          : [];
+      return {
+        cityName: String(group.cityName ?? group.city ?? group.name ?? '未识别地市'),
+        partnerCount: this.toPublicFiniteNumber(group.partnerCount ?? group.count ?? partners.length),
+        partners,
+      };
+    });
   }
 
   /**
@@ -1245,13 +1398,42 @@ export class PublicAnalysisResultController {
     const index = levelOrder.indexOf(level);
     return index >= 0 ? index : 999;
   }
+  function registerChinaMapIfNeeded(){
+    if (!window.echarts || !window.__CRM_LOCAL_CHINA_GEO_JSON__) {
+      return;
+    }
+    if (!window.__CRM_LOCAL_CHINA_MAP_REGISTERED__) {
+      window.echarts.registerMap('china', window.__CRM_LOCAL_CHINA_GEO_JSON__);
+      window.__CRM_LOCAL_CHINA_MAP_REGISTERED__ = true;
+    }
+  }
   window.showCoverageProvinceDetail_${domSuffix} = function(provinceName){
     const row = provinceRows.get(provinceName);
     const isCovered = Boolean(row);
     titleDom.innerHTML = escapeHtml(provinceName) + '<span class="modal-badge ' + (isCovered ? 'badge-covered' : 'badge-uncovered') + '">' + (isCovered ? '已覆盖' : '未覆盖') + '</span>';
-    subtitleDom.textContent = isCovered ? '共 ' + (row.partnerCount || 0) + ' 家代理商' : '该省份当前未覆盖代理商';
+    subtitleDom.textContent = isCovered
+      ? '共 ' + (row.partnerCount || 0) + ' 家代理商，覆盖地市 ' + (row.coveredCityCount || 0) + '/' + (row.totalCityCount || 0)
+      : '该省份当前未覆盖代理商';
     if (!isCovered) {
       bodyDom.innerHTML = '<div class="modal-no-data">该省份暂无代理商数据</div>';
+      modalDom.classList.add('active');
+      return;
+    }
+    const cityGroups = Array.isArray(row.cityGroups) ? row.cityGroups.slice().sort(function(left, right){
+      if (left.cityName === '未识别地市') return 1;
+      if (right.cityName === '未识别地市') return -1;
+      return (right.partnerCount || 0) - (left.partnerCount || 0) || String(left.cityName).localeCompare(String(right.cityName), 'zh-CN');
+    }) : [];
+    if (cityGroups.length > 0) {
+      const summaryHtml = '<div class="map-city-summary"><div class="map-city-stat"><span>渠道商</span><strong>' + (row.partnerCount || 0) + '家</strong></div><div class="map-city-stat"><span>覆盖地市</span><strong>' + (row.coveredCityCount || 0) + '/' + (row.totalCityCount || 0) + '</strong></div><div class="map-city-stat"><span>地市分组</span><strong>' + cityGroups.length + '组</strong></div></div>';
+      const cityHtml = cityGroups.map(function(group){
+        const partners = Array.isArray(group.partners) ? group.partners : [];
+        const partnerHtml = partners.length
+          ? partners.map(function(partner){ return '<span class="map-city-partner">' + escapeHtml(partner) + '</span>'; }).join('')
+          : '<span class="map-city-partner">暂无渠道商名单</span>';
+        return '<div class="map-city-group"><div class="map-city-group-head"><span>' + escapeHtml(group.cityName) + '</span><small>' + (group.partnerCount || partners.length || 0) + '家</small></div><div class="map-city-partners">' + partnerHtml + '</div></div>';
+      }).join('');
+      bodyDom.innerHTML = summaryHtml + cityHtml;
       modalDom.classList.add('active');
       return;
     }
@@ -1282,6 +1464,7 @@ export class PublicAnalysisResultController {
   if (!chartDom || !window.echarts) {
     return;
   }
+  registerChinaMapIfNeeded();
   const mapRows = (coverageData.provinces || []).map(function(province){
     const row = provinceRows.get(province);
     const covered = Boolean(row);
@@ -1308,7 +1491,7 @@ export class PublicAnalysisResultController {
         if (!row) {
           return '<b>' + escapeHtml(params.name) + '</b><br/><span style="color:#cf222e">未覆盖</span><br/>代理商：0家';
         }
-        return '<b>' + escapeHtml(params.name) + '</b><br/><span style="color:#238636">已覆盖</span><br/>代理商：' + (row.partnerCount || 0) + '家<br/><span style="font-size:12px;color:#656d76">' + escapeHtml(row.levelSummary || '') + '</span>';
+        return '<b>' + escapeHtml(params.name) + '</b><br/><span style="color:#238636">已覆盖</span><br/>代理商：' + (row.partnerCount || 0) + '家<br/>覆盖地市：' + (row.coveredCityCount || 0) + '/' + (row.totalCityCount || 0) + '<br/><span style="font-size:12px;color:#656d76">' + escapeHtml(row.levelSummary || '') + '</span>';
       }
     },
     series: [{
@@ -2019,6 +2202,48 @@ export class PublicAnalysisResultController {
       .replace(/>/gu, '&gt;')
       .replace(/"/gu, '&quot;')
       .replace(/'/gu, '&#39;');
+  }
+}
+
+@Controller('public/analysis-assets')
+export class PublicAnalysisAssetController {
+  /**
+   * 读取公开报告本地图表脚本。
+   *
+   * 参数说明：无。
+   * 返回值说明：返回随项目发布的 ECharts 压缩脚本。
+   * 调用注意事项：仅允许访问固定文件，禁止通过参数读取任意路径。
+   */
+  @Get('echarts.min.js')
+  getEchartsScript(@Res() response: Response): void {
+    const scriptPath = this.resolvePublicAssetPath('echarts.min.js');
+    if (!scriptPath || !existsSync(scriptPath)) {
+      throw new NotFoundException('未找到公开报告图表脚本。');
+    }
+
+    const stat = statSync(scriptPath);
+    if (!stat.isFile()) {
+      throw new NotFoundException('未找到公开报告图表脚本。');
+    }
+
+    response.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    response.setHeader('Content-Length', String(stat.size));
+    response.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+    createReadStream(scriptPath).pipe(response);
+  }
+
+  private resolvePublicAssetPath(filename: string): string | undefined {
+    if (filename !== 'echarts.min.js') {
+      return undefined;
+    }
+
+    const candidates = [
+      resolve(process.cwd(), 'backend/resources/public', filename),
+      resolve(process.cwd(), 'resources/public', filename),
+      resolve(__dirname, '../../../../resources/public', filename),
+    ];
+
+    return candidates.find((candidate) => existsSync(candidate));
   }
 }
 

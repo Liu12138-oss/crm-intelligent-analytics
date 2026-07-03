@@ -166,7 +166,7 @@ export function createEChartsInstance(dom: HTMLElement): echarts.ECharts {
 /**
  * 注册中国地图 GeoJSON
  * 用于 geo-map block 组件渲染 31 省覆盖地图
- * 地图数据从 CDN 按需加载，不打包进主 chunk
+ * 地图数据从项目 public/assets/maps/china.json 本地加载，避免运行时依赖外部地图脚本。
  */
 let chinaMapRegistered = false;
 export async function ensureChinaMapRegistered(): Promise<void> {
@@ -174,7 +174,10 @@ export async function ensureChinaMapRegistered(): Promise<void> {
     return;
   }
   try {
-    const response = await fetch('https://cdn.jsdelivr.net/npm/echarts@4.9.0/map/json/china.json');
+    const basePath = import.meta.env.BASE_URL.endsWith('/')
+      ? import.meta.env.BASE_URL
+      : `${import.meta.env.BASE_URL}/`;
+    const response = await fetch(`${basePath}assets/maps/china.json`, { cache: 'force-cache' });
     if (!response.ok) {
       throw new Error(`地图数据加载失败：HTTP ${response.status}`);
     }

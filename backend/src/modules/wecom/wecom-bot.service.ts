@@ -2041,11 +2041,20 @@ export class WecomBotService implements OnModuleInit {
       return {
         sectionType: 'DASHBOARD_GEO_MAP',
         title: block.title,
-        description: '全国地图基于本次 CRM 实时统计结果绘制，颜色深浅表示该区域当前命中数量。',
+        description: '全国地图基于本次 CRM 实时统计结果绘制，颜色深浅优先表示地市覆盖深度；双击省份可查看地市渠道商明细。',
+        items: [
+          `省份覆盖：${block.coveredRegionCount ?? block.regions.length}/${block.totalRegionCount ?? 31}`,
+          block.coveredCityCount !== undefined && block.totalCityCount !== undefined
+            ? `地市覆盖：${block.coveredCityCount}/${block.totalCityCount}`
+            : '',
+        ].filter((item) => item.length > 0),
         rows: block.regions.map((region) => ({
           province: region.name,
           partnerCount: region.value,
           value: region.value,
+          coveredCityCount: region.coveredCityCount,
+          totalCityCount: region.totalCityCount,
+          cityGroups: region.cityGroups ?? [],
           levelSummary: region.extra ?? '',
         })),
         chartType: 'geo-map',
@@ -2054,7 +2063,16 @@ export class WecomBotService implements OnModuleInit {
           regions: block.regions,
           totalRegionCount: block.totalRegionCount,
           coveredRegionCount: block.coveredRegionCount,
+          totalCityCount: block.totalCityCount,
+          coveredCityCount: block.coveredCityCount,
           unitLabel: block.unitLabel,
+          cityUnitLabel: block.cityUnitLabel,
+          insights: [
+            `省份覆盖：${block.coveredRegionCount ?? block.regions.length}/${block.totalRegionCount ?? 31}`,
+            block.coveredCityCount !== undefined && block.totalCityCount !== undefined
+              ? `地市覆盖：${block.coveredCityCount}/${block.totalCityCount}`
+              : '',
+          ].filter((item) => item.length > 0),
         },
       };
     }
@@ -2278,7 +2296,10 @@ export class WecomBotService implements OnModuleInit {
     const totalCount = mapBlock.totalRegionCount ?? 31;
     const leadingRegion = [...mapBlock.regions].sort((left, right) => right.value - left.value)[0];
     const coverageRate = totalCount > 0 ? `${((coveredCount / totalCount) * 100).toFixed(1)}%` : '0.0%';
-    return `覆盖：${coveredCount}/${totalCount}（${coverageRate}），领先${leadingRegion.name}${leadingRegion.value}`;
+    const cityText = mapBlock.coveredCityCount && mapBlock.totalCityCount
+      ? `，地市${mapBlock.coveredCityCount}/${mapBlock.totalCityCount}`
+      : '';
+    return `覆盖：省份${coveredCount}/${totalCount}（${coverageRate}）${cityText}，领先${leadingRegion.name}${leadingRegion.value}`;
   }
 
   /**
@@ -2843,7 +2864,8 @@ export class WecomBotService implements OnModuleInit {
       .sort((left, right) => right.value - left.value)
       .map((region) => ({
         区域: region.name,
-        数量: region.value,
+        渠道商数: region.value,
+        覆盖地市: `${region.coveredCityCount ?? 0}/${region.totalCityCount ?? 0}`,
       }));
   }
 
@@ -3226,7 +3248,10 @@ export class WecomBotService implements OnModuleInit {
         .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
         .slice(0, 5)
         .map((region) => `${region.name}${region.value}`);
-      lines.push(`省份覆盖：${mapBlock.coveredRegionCount ?? mapBlock.regions.length}/${mapBlock.totalRegionCount ?? 31}，前5为${topRegions.join('、')}。`);
+      const cityText = mapBlock.coveredCityCount && mapBlock.totalCityCount
+        ? `；地市覆盖：${mapBlock.coveredCityCount}/${mapBlock.totalCityCount}`
+        : '';
+      lines.push(`省份覆盖：${mapBlock.coveredRegionCount ?? mapBlock.regions.length}/${mapBlock.totalRegionCount ?? 31}${cityText}，前5为${topRegions.join('、')}。`);
     }
     if (barBlock && barBlock.categories.length > 0 && barBlock.series.length > 0) {
       const topItems = barBlock.categories.slice(0, 3).map((category, index) => {
@@ -3382,7 +3407,10 @@ export class WecomBotService implements OnModuleInit {
       return activeLine.replace('：', '为').replace('（', '，其中').replace('）', '。');
     }
     if (mapBlock && mapBlock.regions.length > 0) {
-      return `区域覆盖已沉淀${mapBlock.coveredRegionCount ?? mapBlock.regions.length}个省份，可继续下钻头部区域。`;
+      const cityText = mapBlock.coveredCityCount && mapBlock.totalCityCount
+        ? `、${mapBlock.coveredCityCount}/${mapBlock.totalCityCount}个地市`
+        : '';
+      return `区域覆盖已沉淀${mapBlock.coveredRegionCount ?? mapBlock.regions.length}个省份${cityText}，可继续下钻头部区域。`;
     }
     return '当前看板已返回核心经营数据，建议按区域、渠道、阶段继续下钻。';
   }

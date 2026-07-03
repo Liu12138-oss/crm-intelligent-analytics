@@ -306,6 +306,15 @@ describe('PublicAnalysisResultController', () => {
                 partnerCount: 2,
                 amount: 30000,
                 levelSummary: '一级渠道、二级渠道',
+                coveredCityCount: 1,
+                totalCityCount: 16,
+                cityGroups: [
+                  {
+                    cityName: '临沂',
+                    partnerCount: 2,
+                    partners: ['临沂普悦天诚信息科技有限公司', '临沂云数服务商'],
+                  },
+                ],
               },
               {
                 coverageKey: '华南',
@@ -343,7 +352,11 @@ describe('PublicAnalysisResultController', () => {
     });
 
     expect(html).toContain('class="coverage-map"');
-    expect(html).toContain('china.min.js');
+    expect(html).toContain('../../analysis-assets/echarts.min.js');
+    expect(html).not.toContain('china.min.js');
+    expect(html).not.toContain('cdn.jsdelivr.net');
+    expect(html).toContain('__CRM_LOCAL_CHINA_GEO_JSON__');
+    expect(html).toContain("registerMap('china'");
     expect(html).toContain('type: \'map\'');
     expect(html).toContain('省份代理商覆盖情况');
     expect(html).toContain('覆盖概览');
@@ -351,6 +364,7 @@ describe('PublicAnalysisResultController', () => {
     expect(html).toContain('未覆盖：');
     expect(html).toContain('双击省份查看代理商详情');
     expect(html).toContain('showCoverageProvinceDetail_');
+    expect(html).toContain('临沂普悦天诚信息科技有限公司');
     expect(html).not.toContain('coverage-list-wrap');
     expect(html).not.toContain('data-coverage-province');
     expect(html).toContain('山东');

@@ -191,10 +191,20 @@ export interface ManagementReportGeoMapBlock extends ManagementReportBlockBase {
     name: string; // 省份名称，如"广东"
     value: number; // 覆盖数量或金额
     extra?: string; // 附加信息，如代理商名称列表
+    coveredCityCount?: number; // 已覆盖地市数
+    totalCityCount?: number; // 该省份地市总数
+    cityGroups?: Array<{
+      cityName: string; // 地市名称
+      partnerCount: number; // 当前地市渠道商数量
+      partners: string[]; // 当前地市渠道商名单
+    }>;
   }>;
   totalRegionCount?: number; // 总省份数（如 31）
   coveredRegionCount?: number; // 已覆盖省份数
+  totalCityCount?: number; // 全国地市总数
+  coveredCityCount?: number; // 已覆盖地市数
   unitLabel?: string;
+  cityUnitLabel?: string;
 }
 
 /**

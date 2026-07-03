@@ -59,7 +59,7 @@ export type DashboardBlock =
   | { blockId: string; blockType: 'concentration'; title: string; totalValue: number; totalUnits: number; tiers: DashboardConcentrationTier[]; oneTimeCount?: number; oneTimePercentage?: number; insights: string[]; unitLabel?: string }
   | { blockId: string; blockType: 'sortable-table'; title: string; columns: DashboardTableColumn[]; rows: Array<Record<string, string | number>>; searchable?: boolean; searchPlaceholder?: string; pageSize?: number; showSummary?: boolean; summaryRow?: Record<string, string | number> }
   | { blockId: string; blockType: 'grouped-bar'; title: string; categories: string[]; series: Array<{ name: string; values: number[] }>; unitLabel?: string; description?: string }
-  | { blockId: string; blockType: 'geo-map'; title: string; mapName: string; regions: Array<{ name: string; value: number; extra?: string }>; totalRegionCount?: number; coveredRegionCount?: number; unitLabel?: string }
+  | { blockId: string; blockType: 'geo-map'; title: string; mapName: string; regions: DashboardGeoRegion[]; totalRegionCount?: number; coveredRegionCount?: number; totalCityCount?: number; coveredCityCount?: number; unitLabel?: string; cityUnitLabel?: string }
   | { blockId: string; blockType: 'composite-trend'; title: string; categories: string[]; barSeries: Array<{ name: string; values: number[] }>; lineSeries?: Array<{ name: string; values: number[] }>; barUnitLabel?: string; lineUnitLabel?: string }
   | { blockId: string; blockType: 'pie-distribution'; title: string; segments: Array<{ name: string; value: number; color?: string }>; totalValue?: number; unitLabel?: string; insights?: string[] }
   | { blockId: string; blockType: 'funnel'; title: string; stages: Array<{ name: string; value: number; amount?: number; rate?: number }>; insights?: string[] };
@@ -79,6 +79,21 @@ export interface DashboardConcentrationTier {
   value: number;
   count: number;
   percentage: number;
+}
+
+interface DashboardGeoCityGroup {
+  cityName: string;
+  partnerCount: number;
+  partners: string[];
+}
+
+interface DashboardGeoRegion {
+  name: string;
+  value: number;
+  extra?: string;
+  coveredCityCount?: number;
+  totalCityCount?: number;
+  cityGroups?: DashboardGeoCityGroup[];
 }
 
 export interface DashboardTableColumn {
@@ -112,6 +127,7 @@ interface ContributionComparisonMetric {
 interface ProvinceResolution {
   province: string;
   source: string;
+  cityName?: string;
 }
 
 const CHINA_PROVINCE_KEYWORDS: Array<{ province: string; keywords: string[] }> = [
@@ -147,6 +163,19 @@ const CHINA_PROVINCE_KEYWORDS: Array<{ province: string; keywords: string[] }> =
   { province: '宁夏', keywords: ['宁夏', '银川', '石嘴山', '吴忠', '固原', '中卫'] },
   { province: '新疆', keywords: ['新疆', '乌鲁木齐', '克拉玛依', '吐鲁番', '哈密', '昌吉', '博尔塔拉', '巴音郭楞', '阿克苏', '克孜勒苏', '喀什', '和田', '伊犁', '塔城', '阿勒泰'] },
 ];
+
+const MUNICIPALITY_NAMES = new Set(['北京', '天津', '上海', '重庆']);
+const UNKNOWN_CITY_LABEL = '未识别地市';
+const CHINA_PROVINCE_CITY_NAMES: Record<string, string[]> = Object.fromEntries(
+  CHINA_PROVINCE_KEYWORDS.map((item) => [
+    item.province,
+    MUNICIPALITY_NAMES.has(item.province)
+      ? [item.province]
+      : item.keywords.filter((keyword) => keyword !== item.province),
+  ]),
+);
+const CHINA_PREFECTURE_CITY_TOTAL = Object.values(CHINA_PROVINCE_CITY_NAMES)
+  .reduce((sum, cityNames) => sum + cityNames.length, 0);
 
 const CRM_REGION_PROVINCE_FALLBACK: Record<string, string> = {
   北京区: '北京',
@@ -748,6 +777,18 @@ export class DashboardReportComposer {
       }
     }
 
+    // 覆盖率优先按可识别地市计算；省份覆盖保留为辅助口径。
+    const coveredCityCount = this.countCoveredCities(bundle.partnerContributions);
+    if (coveredCityCount > 0) {
+      metrics.push({
+        label: '覆盖地市',
+        value: `${coveredCityCount}/${CHINA_PREFECTURE_CITY_TOTAL}`,
+        unit: '',
+        tone: 'success',
+        sublabel: `覆盖率 ${((coveredCityCount / CHINA_PREFECTURE_CITY_TOTAL) * 100).toFixed(1)}%`,
+      });
+    }
+
     // 省份覆盖必须用真实省份名称，不能把 CRM 销售区域直接当作地图省份。
     const coveredProvinceCount = this.countCoveredProvinces(bundle.partnerContributions);
     if (coveredProvinceCount > 0) {
@@ -1160,17 +1201,30 @@ export class DashboardReportComposer {
     }
 
     // 按真实省份聚合渠道数；无法识别省份的渠道不进入中国地图，避免销售区域污染地图。
-    const provinceMap = new Map<string, { count: number; crmRegions: Map<string, number> }>();
+    const provinceMap = new Map<string, {
+      count: number;
+      crmRegions: Map<string, number>;
+      cities: Map<string, { count: number; partners: Set<string> }>;
+    }>();
     for (const p of partners) {
       const resolvedProvince = this.resolvePartnerProvince(p);
       if (resolvedProvince) {
         const aggregate = provinceMap.get(resolvedProvince.province) ?? {
           count: 0,
           crmRegions: new Map<string, number>(),
+          cities: new Map<string, { count: number; partners: Set<string> }>(),
         };
         aggregate.count += 1;
         const crmRegion = p.region || '未设置区域';
         aggregate.crmRegions.set(crmRegion, (aggregate.crmRegions.get(crmRegion) ?? 0) + 1);
+        const cityName = resolvedProvince.cityName ?? UNKNOWN_CITY_LABEL;
+        const cityAggregate = aggregate.cities.get(cityName) ?? {
+          count: 0,
+          partners: new Set<string>(),
+        };
+        cityAggregate.count += 1;
+        cityAggregate.partners.add(this.readDisplayText(p.partnerName) || '未命名渠道商');
+        aggregate.cities.set(cityName, cityAggregate);
         provinceMap.set(resolvedProvince.province, aggregate);
       }
     }
@@ -1185,24 +1239,51 @@ export class DashboardReportComposer {
           .sort((left, right) => right[1] - left[1])
           .slice(0, 3)
           .map(([regionName, count]) => `${regionName}${count}家`);
+        const provinceCityNames = CHINA_PROVINCE_CITY_NAMES[name] ?? [];
+        const cityGroups = Array.from(aggregate.cities.entries())
+          .map(([cityName, cityAggregate]) => ({
+            cityName,
+            partnerCount: cityAggregate.count,
+            partners: Array.from(cityAggregate.partners).sort((left, right) => left.localeCompare(right, 'zh-CN')),
+          }))
+          .sort((left, right) => {
+            if (left.cityName === UNKNOWN_CITY_LABEL) return 1;
+            if (right.cityName === UNKNOWN_CITY_LABEL) return -1;
+            return right.partnerCount - left.partnerCount || left.cityName.localeCompare(right.cityName, 'zh-CN');
+          });
+        const coveredCityCount = cityGroups
+          .filter((group) => group.cityName !== UNKNOWN_CITY_LABEL && provinceCityNames.includes(group.cityName))
+          .length;
+        const totalCityCount = provinceCityNames.length;
+        const cityCoverageText = totalCityCount > 0
+          ? `覆盖地市：${coveredCityCount}/${totalCityCount}`
+          : undefined;
+        const regionText = topCrmRegions.length > 0 ? `CRM区域：${topCrmRegions.join('、')}` : undefined;
         return {
           name,
           value: aggregate.count,
-          extra: topCrmRegions.length > 0 ? `CRM区域：${topCrmRegions.join('、')}` : undefined,
+          extra: [cityCoverageText, regionText].filter(Boolean).join('；') || undefined,
+          coveredCityCount,
+          totalCityCount,
+          cityGroups,
         };
       })
       .sort((left, right) => right.value - left.value);
     const coveredCount = provinceMap.size;
+    const coveredCityCount = this.countCoveredCities(partners);
 
     return {
       blockId: 'dashboard-province-map',
       blockType: 'geo-map',
-      title: '省份覆盖',
+      title: '省份与地市覆盖',
       mapName: 'china',
       totalRegionCount: 31,
       coveredRegionCount: coveredCount,
+      totalCityCount: CHINA_PREFECTURE_CITY_TOTAL,
+      coveredCityCount,
       regions,
       unitLabel: '家',
+      cityUnitLabel: '个地市',
     };
   }
 
@@ -1225,11 +1306,29 @@ export class DashboardReportComposer {
   }
 
   /**
+   * 统计真实地市覆盖数。
+   *
+   * 参数说明：`partners` 为渠道贡献明细。
+   * 返回值说明：返回可识别到标准地市名称的去重数量。
+   * 调用注意事项：无法识别地市的渠道仍会出现在省份弹窗，但不进入地市覆盖率分子。
+   */
+  private countCoveredCities(partners: LianruanCrmOpenApiPartnerContributionRecord[]): number {
+    const cities = new Set<string>();
+    for (const partner of partners) {
+      const resolvedProvince = this.resolvePartnerProvince(partner);
+      if (resolvedProvince?.cityName) {
+        cities.add(`${resolvedProvince.province}::${resolvedProvince.cityName}`);
+      }
+    }
+    return cities.size;
+  }
+
+  /**
    * 解析渠道所在省份。
    *
    * 参数说明：`partner` 为 CRM 统计端点返回的渠道贡献记录。
-   * 返回值说明：能识别时返回标准省级名称和识别来源；不能识别时返回 null。
-   * 调用注意事项：优先读取渠道名称和显式省市字段，只有单省明确的 CRM 区域才作为兜底。
+   * 返回值说明：能识别时返回标准省级名称、地市名称和识别来源；不能识别时返回 null。
+   * 调用注意事项：优先读取渠道名称和显式省市字段，只有单省明确的 CRM 区域才作为省份兜底。
    */
   private resolvePartnerProvince(partner: LianruanCrmOpenApiPartnerContributionRecord): ProvinceResolution | null {
     const explicitSources = [
@@ -1242,26 +1341,37 @@ export class DashboardReportComposer {
       partner['partnerProvince'],
       partner['partnerCityName'],
       partner['partnerCity'],
-    ];
+    ].map((source) => this.readDisplayText(source));
 
-    for (const source of explicitSources) {
-      const sourceText = this.readDisplayText(source);
+    for (const sourceText of explicitSources) {
       const province = this.matchProvinceFromText(sourceText);
       if (province) {
-        return { province, source: sourceText };
+        return {
+          province,
+          cityName: this.resolvePartnerCityName(explicitSources, province) ?? undefined,
+          source: sourceText,
+        };
       }
     }
 
     const regionText = this.readDisplayText(partner.region);
     const provinceFromRegion = this.matchProvinceFromText(regionText) ?? this.resolveProvinceFromCrmRegion(regionText);
     if (provinceFromRegion) {
-      return { province: provinceFromRegion, source: regionText };
+      return {
+        province: provinceFromRegion,
+        cityName: this.resolvePartnerCityName([...explicitSources, regionText], provinceFromRegion) ?? undefined,
+        source: regionText,
+      };
     }
 
     const bigRegionText = this.readDisplayText(partner.bigRegion);
     const provinceFromBigRegion = this.resolveProvinceFromCrmRegion(bigRegionText);
     if (provinceFromBigRegion) {
-      return { province: provinceFromBigRegion, source: bigRegionText };
+      return {
+        province: provinceFromBigRegion,
+        cityName: this.resolvePartnerCityName([...explicitSources, bigRegionText], provinceFromBigRegion) ?? undefined,
+        source: bigRegionText,
+      };
     }
 
     return null;
@@ -1285,6 +1395,37 @@ export class DashboardReportComposer {
       }
     }
     return null;
+  }
+
+  /**
+   * 解析渠道所在地市。
+   *
+   * 参数说明：`sources` 为渠道名称、省市字段、区域字段等候选文本，`province` 为已确认省份。
+   * 返回值说明：命中标准地市时返回地市名称，否则返回 null。
+   */
+  private resolvePartnerCityName(sources: string[], province: string): string | null {
+    for (const sourceText of sources) {
+      const cityName = this.matchCityFromText(sourceText, province);
+      if (cityName) {
+        return cityName;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * 从文本中匹配标准地市名称。
+   *
+   * 参数说明：`text` 为渠道名称或地址字段，`province` 为限定省份。
+   * 返回值说明：命中当前省份的地市时返回地市名称，否则返回 null。
+   */
+  private matchCityFromText(text: string, province: string): string | null {
+    if (!text) {
+      return null;
+    }
+
+    const cityNames = CHINA_PROVINCE_CITY_NAMES[province] ?? [];
+    return cityNames.find((cityName) => text.includes(cityName)) ?? null;
   }
 
   /**
@@ -1849,7 +1990,11 @@ export class DashboardReportComposer {
         parts.push(`签约技术${fullCount}家、提名${developingCount}家`);
       }
     }
-    // 省份覆盖摘要与地图同源，避免把 CRM 销售区域误写成省份数量。
+    // 覆盖摘要与地图同源，优先展示地市覆盖，再补充省份覆盖。
+    const coveredCityCount = this.countCoveredCities(bundle.partnerContributions);
+    if (coveredCityCount > 0) {
+      parts.push(`覆盖${coveredCityCount}个地市`);
+    }
     const coveredProvinceCount = this.countCoveredProvinces(bundle.partnerContributions);
     if (coveredProvinceCount > 0) {
       parts.push(`覆盖${coveredProvinceCount}个省份`);

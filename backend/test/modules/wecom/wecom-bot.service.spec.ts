@@ -691,11 +691,25 @@ describe('WecomBotService', () => {
             title: '省份覆盖',
             mapName: 'china',
             regions: [
-              { name: '山东', value: 8 },
+              {
+                name: '山东',
+                value: 8,
+                coveredCityCount: 1,
+                totalCityCount: 16,
+                cityGroups: [
+                  {
+                    cityName: '济南',
+                    partnerCount: 8,
+                    partners: ['济南核心渠道商'],
+                  },
+                ],
+              },
               { name: '北京', value: 2 },
             ],
             coveredRegionCount: 2,
             totalRegionCount: 31,
+            coveredCityCount: 2,
+            totalCityCount: 321,
           },
           {
             blockId: 'dashboard-region-comparison',
@@ -819,17 +833,32 @@ describe('WecomBotService', () => {
         }),
       }),
       expect.objectContaining({
-        sectionType: 'DASHBOARD_GEO_MAP',
-        chartType: 'geo-map',
-        rows: expect.arrayContaining([
-          expect.objectContaining({ province: '山东', partnerCount: 8 }),
-        ]),
-        chartData: expect.objectContaining({
-          regions: expect.arrayContaining([
-            expect.objectContaining({ name: '山东', value: 8 }),
-          ]),
-        }),
-      }),
+            sectionType: 'DASHBOARD_GEO_MAP',
+            chartType: 'geo-map',
+            rows: expect.arrayContaining([
+              expect.objectContaining({
+                province: '山东',
+                partnerCount: 8,
+                coveredCityCount: 1,
+                cityGroups: expect.arrayContaining([
+                  expect.objectContaining({
+                    cityName: '济南',
+                    partners: ['济南核心渠道商'],
+                  }),
+                ]),
+              }),
+            ]),
+            chartData: expect.objectContaining({
+              coveredCityCount: 2,
+              regions: expect.arrayContaining([
+                expect.objectContaining({
+                  name: '山东',
+                  value: 8,
+                  coveredCityCount: 1,
+                }),
+              ]),
+            }),
+          }),
       expect.objectContaining({
         sectionType: 'DASHBOARD_CHART',
         chartType: 'pie-distribution',
@@ -1024,10 +1053,15 @@ describe('WecomBotService', () => {
     });
 
     expect(html).toContain('echarts.min.js');
-    expect(html).toContain('china.min.js');
+    expect(html).toContain('../../analysis-assets/echarts.min.js');
+    expect(html).not.toContain('china.min.js');
+    expect(html).not.toContain('cdn.jsdelivr.net');
+    expect(html).toContain('__CRM_LOCAL_CHINA_GEO_JSON__');
+    expect(html).toContain("registerMap('china'");
     expect(html).toContain("type: 'line'");
     expect(html).toContain("type: 'pie'");
     expect(html).toContain("type: 'map'");
+    expect(html).toContain("chart.on('dblclick'");
     expect(html).toContain('技术服务商全国覆盖地图');
     expect(html).toContain('dashboard-chart--map');
   });
