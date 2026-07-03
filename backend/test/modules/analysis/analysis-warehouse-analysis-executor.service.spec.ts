@@ -530,12 +530,20 @@ describe('AnalysisWarehouseAnalysisExecutorService', () => {
     });
 
     expect(result?.slice.matchedAdapter).toBe('analysis-warehouse.fixed-stale-opportunity');
-    expect(result?.slice.taskTitle).toBe('超过3个月未更新商机明细');
+    expect(result?.slice.taskTitle).toBe('超过3个月未更新商机分析');
     expect(result?.slice.appliedFilters).toEqual(
       expect.arrayContaining([
         {
           label: '统计口径',
-          value: '商机更新时间超过 90 天，且排除已成交、已失单、取消、删除状态',
+          value: '按商机更新时间识别未更新商机，用户输入的月份按 30 天换算',
+        },
+        {
+          label: '风险口径',
+          value: '本次高风险仅指商机更新时间超过 90 天，且排除已成交、已失单、取消、删除状态',
+        },
+        {
+          label: '排序口径',
+          value: '按未更新天数倒序，未更新天数相同按商机金额倒序',
         },
       ]),
     );
@@ -630,7 +638,7 @@ describe('AnalysisWarehouseAnalysisExecutorService', () => {
     });
 
     expect(result?.slice.matchedAdapter).toBe('sqlite-snapshot.fixed-stale-opportunity');
-    expect(result?.slice.taskTitle).toBe('超过3个月未更新商机明细');
+    expect(result?.slice.taskTitle).toBe('超过3个月未更新商机分析');
     expect(result?.slice.tableRows).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

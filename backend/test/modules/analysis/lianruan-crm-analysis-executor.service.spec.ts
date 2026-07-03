@@ -587,7 +587,7 @@ describe('LianruanCrmAnalysisExecutorService', () => {
     expect(result.primaryView).toEqual(
       expect.objectContaining({
         viewType: 'RANKING_TABLE',
-        title: '停滞商机明细',
+        title: '超过3个月未更新商机明细',
       }),
     );
     expect(result.primaryView).not.toHaveProperty('series');
@@ -603,7 +603,11 @@ describe('LianruanCrmAnalysisExecutorService', () => {
       expect.arrayContaining([
         {
           label: '风险口径',
-          value: '商机更新时间超过 90 天，且排除已成交、已失单、取消、删除状态',
+          value: '本次高风险仅指商机更新时间超过 90 天，且排除已成交、已失单、取消、删除状态',
+        },
+        {
+          label: '排序口径',
+          value: '按未更新天数倒序，未更新天数相同按商机金额倒序',
         },
       ]),
     );
@@ -1019,10 +1023,10 @@ describe('LianruanCrmAnalysisExecutorService', () => {
     expect(result.sql).not.toContain('GET /partners');
     expect(result.appliedFilters).toEqual(
       expect.arrayContaining([
-        { label: '数据来源', value: '本地 OpenAPI Markdown 快照' },
+        { label: '数据来源', value: 'CRM 已同步真实明细数据' },
         {
           label: '执行口径',
-          value: '正式分析只读 Markdown 快照；OpenAPI 仅用于刷新快照文件',
+          value: '正式分析复用同一批 CRM 明细结果，不在展示层重新取数',
         },
       ]),
     );
@@ -1448,7 +1452,14 @@ describe('LianruanCrmAnalysisExecutorService', () => {
       );
 
       expect(result.rowCount).toBe(1);
-      expect(result.summary).toContain('命中 1 条商机');
+      expect(result.summary).toContain('命中 1 条预计 30 天内签约但未检测到报价关联的商机');
+      expect(result.taskTitle).toBe('预计签约未报价商机分析');
+      expect(result.primaryView).toEqual(
+        expect.objectContaining({
+          viewType: 'RANKING_TABLE',
+          title: '预计签约未报价商机明细',
+        }),
+      );
       expect(result.tableRows).toEqual([
         expect.objectContaining({
           opportunityId: 'OPP_RISK_001',
@@ -1457,6 +1468,18 @@ describe('LianruanCrmAnalysisExecutorService', () => {
           riskReason: '预计 30 天内签约，但当前快照未检测到报价关联',
         }),
       ]);
+      expect(result.appliedFilters).toEqual(
+        expect.arrayContaining([
+          {
+            label: '风险口径',
+            value: '预计签约日期在未来 30 天内，且当前快照未检测到报价关联；同时排除审批中、输单、赢单、取消等无效商机',
+          },
+          {
+            label: '排序口径',
+            value: '按商机金额倒序',
+          },
+        ]),
+      );
       expect(JSON.stringify(result)).not.toContain('已报价商机');
       expect(JSON.stringify(result)).not.toContain('远期签约商机');
     } finally {

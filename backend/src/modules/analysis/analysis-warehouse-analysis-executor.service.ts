@@ -27,6 +27,10 @@ import { AnalysisWarehouseSqliteSnapshotImporterService } from '../analysis-ware
 import { AiGatewayService } from './ai-gateway.service';
 import { buildResultTemporalScope, formatTemporalScopeLabel } from './temporal-scope.util';
 import {
+  buildStaleOpportunityAnalysisTitle,
+  buildStaleOpportunityDetailTitle,
+  buildStaleOpportunityRiskScopeText,
+  buildStaleOpportunitySortScopeText,
   isStaleOpportunityQuestionText,
   resolveStaleOpportunityThreshold,
 } from './stale-opportunity-threshold.util';
@@ -5024,10 +5028,14 @@ export class AnalysisWarehouseAnalysisExecutorService {
     temporalScope?: ReturnType<typeof buildResultTemporalScope>;
     businessRegionFilter?: BusinessRegionFilter;
     statisticScopeLabel: string;
+    riskScopeLabel?: string;
+    sortScopeLabel?: string;
   }): Array<{ label: string; value: string }> {
     return [
       { label: '数据来源', value: 'AI-agent 自建分析库' },
       { label: '统计口径', value: params.statisticScopeLabel },
+      ...(params.riskScopeLabel ? [{ label: '风险口径', value: params.riskScopeLabel }] : []),
+      ...(params.sortScopeLabel ? [{ label: '排序口径', value: params.sortScopeLabel }] : []),
       { label: '权限范围', value: params.scopeSummary },
       ...(params.businessRegionFilter?.summary
         ? [{ label: '业务范围', value: params.businessRegionFilter.summary }]
@@ -5961,6 +5969,9 @@ export class AnalysisWarehouseAnalysisExecutorService {
   }): AnalysisDatasetSlice {
     const temporalScope = buildResultTemporalScope(params.temporalSlot);
     const totalAmount = this.sumNumeric(params.rows, 'amount');
+    const analysisTitle = buildStaleOpportunityAnalysisTitle(params.thresholdLabel);
+    const detailTitle = buildStaleOpportunityDetailTitle(params.thresholdLabel);
+    const riskScopeText = buildStaleOpportunityRiskScopeText(params.thresholdDays);
     const maxStaleDays = Math.max(
       0,
       ...params.rows
@@ -5971,7 +5982,7 @@ export class AnalysisWarehouseAnalysisExecutorService {
     return {
       datasetId: buildEntityId('dataset'),
       taskId: 'analysis-warehouse-stale-opportunity',
-      taskTitle: `${params.thresholdLabel}未更新商机明细`,
+      taskTitle: analysisTitle,
       resultKind: 'risk-overview',
       purpose: 'primary-summary',
       sql: params.sql,
@@ -5981,14 +5992,16 @@ export class AnalysisWarehouseAnalysisExecutorService {
       gapReason: '',
       summary:
         params.rows.length > 0
-          ? `当前权限范围内共有 ${params.rows.length} 条商机${params.thresholdLabel}未更新，涉及商机金额 ${formatWanAmount(totalAmount)}，最长未更新 ${maxStaleDays} 天。`
+          ? `当前权限范围内共有 ${params.rows.length} 条商机${params.thresholdLabel}未更新，涉及商机金额 ${formatWanAmount(totalAmount)}，最长未更新 ${maxStaleDays} 天。风险口径：${riskScopeText}。`
           : `当前权限范围内未发现${params.thresholdLabel}未更新的商机。`,
       temporalScope,
       appliedFilters: this.buildTemplateAppliedFilters({
         scopeSummary: params.scopeSummary,
         temporalScope,
         businessRegionFilter: params.businessRegionFilter,
-        statisticScopeLabel: `商机更新时间超过 ${params.thresholdDays} 天，且排除已成交、已失单、取消、删除状态`,
+        statisticScopeLabel: '按商机更新时间识别未更新商机，用户输入的月份按 30 天换算',
+        riskScopeLabel: riskScopeText,
+        sortScopeLabel: buildStaleOpportunitySortScopeText(),
       }),
       metricCards: [
         { name: '超期商机数量', value: params.rows.length },
@@ -5998,7 +6011,7 @@ export class AnalysisWarehouseAnalysisExecutorService {
       primaryView: params.rows.length
         ? {
             viewType: 'RANKING_TABLE',
-            title: `${params.thresholdLabel}未更新商机明细`,
+            title: detailTitle,
             rows: params.rows,
             columns: this.buildColumns(params.rows),
           }
@@ -6007,7 +6020,7 @@ export class AnalysisWarehouseAnalysisExecutorService {
         ? [
             {
               viewType: 'RANKING_TABLE',
-              title: `${params.thresholdLabel}未更新商机明细`,
+              title: detailTitle,
               rows: params.rows,
               columns: this.buildColumns(params.rows),
             },

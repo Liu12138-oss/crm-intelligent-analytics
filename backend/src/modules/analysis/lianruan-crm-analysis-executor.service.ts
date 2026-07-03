@@ -36,6 +36,10 @@ import {
 import type { RoutedCompiledQueryTask } from './analysis-read-tool.registry';
 import { buildResultTemporalScope } from './temporal-scope.util';
 import {
+  buildStaleOpportunityAnalysisTitle,
+  buildStaleOpportunityDetailTitle,
+  buildStaleOpportunityRiskScopeText,
+  buildStaleOpportunitySortScopeText,
   isStaleOpportunityQuestionText,
   resolveStaleOpportunityThreshold,
 } from './stale-opportunity-threshold.util';
@@ -386,11 +390,16 @@ export class LianruanCrmAnalysisExecutorService {
       emptyResultHint,
       openApiListAggregationNote,
     );
+    const displayTaskTitle = this.resolveRiskAwareTaskTitle(
+      questionText,
+      taskConfig,
+      compiledTask,
+    );
 
     return {
       datasetId: buildEntityId('dataset'),
       taskId: compiledTask.taskId,
-      taskTitle: compiledTask.taskTitle,
+      taskTitle: displayTaskTitle,
       resultKind: compiledTask.resultKind,
       purpose: compiledTask.purpose,
       sql: this.buildApiExecutionSummary(
@@ -802,7 +811,7 @@ export class LianruanCrmAnalysisExecutorService {
 
     return {
       taskId: 'crm-openapi-stale-opportunity-detail',
-      taskTitle: `${threshold.label}未更新商机明细`,
+      taskTitle: buildStaleOpportunityAnalysisTitle(threshold.label),
       purpose: 'risk-observation',
       sql: '-- 联软标准 OpenAPI /opportunities',
       params: [],
@@ -5793,6 +5802,62 @@ export class LianruanCrmAnalysisExecutorService {
   }
 
   /**
+   * 解析风险类任务的用户可见标题。
+   *
+   * 参数说明：`questionText` 为原问题，`taskConfig/compiledTask` 为当前执行上下文。
+   * 返回值说明：未更新、预计签约未报价和普通阶段风险分别返回明确标题。
+   */
+  private resolveRiskAwareTaskTitle(
+    questionText: string,
+    taskConfig: StandardApiTaskConfig,
+    compiledTask: RoutedCompiledQueryTask,
+  ): string {
+    if (taskConfig.resource !== 'opportunities' || compiledTask.resultKind !== 'risk-overview') {
+      return compiledTask.taskTitle;
+    }
+
+    if (isStaleOpportunityQuestionText(questionText)) {
+      return buildStaleOpportunityAnalysisTitle(
+        resolveStaleOpportunityThreshold(questionText).label,
+      );
+    }
+
+    if (this.isExpectedSignWithoutQuoteQuestion(questionText)) {
+      return '预计签约未报价商机分析';
+    }
+
+    return '高风险商机观察';
+  }
+
+  /**
+   * 解析风险类任务的明细表标题。
+   *
+   * 参数说明：`questionText` 为原问题，`taskConfig/compiledTask` 为当前执行上下文。
+   * 返回值说明：返回带具体风险口径的明细标题。
+   */
+  private resolveRiskAwareDetailTitle(
+    questionText: string,
+    taskConfig: StandardApiTaskConfig,
+    compiledTask: RoutedCompiledQueryTask,
+  ): string {
+    if (taskConfig.resource !== 'opportunities' || compiledTask.resultKind !== 'risk-overview') {
+      return `${compiledTask.taskTitle}明细`;
+    }
+
+    if (isStaleOpportunityQuestionText(questionText)) {
+      return buildStaleOpportunityDetailTitle(
+        resolveStaleOpportunityThreshold(questionText).label,
+      );
+    }
+
+    if (this.isExpectedSignWithoutQuoteQuestion(questionText)) {
+      return '预计签约未报价商机明细';
+    }
+
+    return '高风险商机明细';
+  }
+
+  /**
    * 构建统一分析结果。
    *
    * 参数说明：`taskConfig` 为资源配置，`compiledTask` 为当前任务，`scopeSummary` 为权限摘要，`records` 为过滤后记录，`dictionaries` 为远端字典。
@@ -5825,6 +5890,20 @@ export class LianruanCrmAnalysisExecutorService {
       taskConfig.resource === 'opportunities' &&
       compiledTask.resultKind === 'risk-overview' &&
       isStaleOpportunityQuestionText(questionText);
+    const isExpectedSignWithoutQuoteRisk =
+      taskConfig.resource === 'opportunities' &&
+      compiledTask.resultKind === 'risk-overview' &&
+      this.isExpectedSignWithoutQuoteQuestion(questionText);
+    const displayTaskTitle = this.resolveRiskAwareTaskTitle(
+      questionText,
+      taskConfig,
+      compiledTask,
+    );
+    const detailTitle = this.resolveRiskAwareDetailTitle(
+      questionText,
+      taskConfig,
+      compiledTask,
+    );
     const sourceLabel = this.openApiMarkdownSnapshotService
       ? 'CRM 已同步真实明细数据'
       : '联软标准 OpenAPI';
@@ -5835,11 +5914,15 @@ export class LianruanCrmAnalysisExecutorService {
     const baseSummary =
       rows.length > 0
         ? isStaleOpportunityRisk
-          ? `已基于${sourceLabel}完成停滞商机分析，命中 ${totalCount} 条商机${staleThreshold.label}未更新。`
-          : `已基于${sourceLabel}完成 ${compiledTask.taskTitle}，命中 ${totalCount} 条${taskConfig.subjectLabel}并聚合为 ${rows.length} 个结果分组。`
+          ? `已基于${sourceLabel}完成${displayTaskTitle}，命中 ${totalCount} 条商机${staleThreshold.label}未更新。风险口径：${buildStaleOpportunityRiskScopeText(staleThreshold.days)}。`
+          : isExpectedSignWithoutQuoteRisk
+            ? `已基于${sourceLabel}完成${displayTaskTitle}，命中 ${totalCount} 条预计 30 天内签约但未检测到报价关联的商机。`
+            : `已基于${sourceLabel}完成 ${displayTaskTitle}，命中 ${totalCount} 条${taskConfig.subjectLabel}并聚合为 ${rows.length} 个结果分组。`
         : emptyResultHint ??
           (isStaleOpportunityRisk
             ? `当前任务在${emptyScopeLabel}内未命中${staleThreshold.label}未更新的商机。`
+            : isExpectedSignWithoutQuoteRisk
+              ? `当前任务在${emptyScopeLabel}内未命中预计 30 天内签约但未检测到报价关联的商机。`
             : `当前任务在${emptyScopeLabel}内未命中${taskConfig.subjectLabel}数据。`);
 
     return {
@@ -5855,16 +5938,16 @@ export class LianruanCrmAnalysisExecutorService {
         openApiListAggregationNote,
       ),
       metricCards: this.buildMetricCards(taskConfig, compiledTask, totalAmount, totalCount, rows.length),
-      primaryView: isStaleOpportunityRisk
-        ? this.buildStaleOpportunityPrimaryView(rows)
+      primaryView: isStaleOpportunityRisk || isExpectedSignWithoutQuoteRisk
+        ? this.buildRiskDetailPrimaryView(rows, detailTitle)
         : this.buildPrimaryView(compiledTask, rows),
       secondaryViews: rows.length
         ? [
             {
               viewType: 'RANKING_TABLE',
-              title: isStaleOpportunityRisk
-                ? `${staleThreshold.label}未更新商机明细`
-                : `${compiledTask.taskTitle}明细`,
+              title: isStaleOpportunityRisk || isExpectedSignWithoutQuoteRisk
+                ? detailTitle
+                : `${displayTaskTitle}明细`,
               rows,
             },
           ]
@@ -6147,14 +6230,15 @@ export class LianruanCrmAnalysisExecutorService {
   }
 
   /**
-   * 构造停滞商机兜底主视图。
+   * 构造风险明细主视图。
    *
-   * 参数说明：`rows` 为停滞商机明细行。
+   * 参数说明：`rows` 为风险明细行，`title` 为已带口径的明细标题。
    * 返回值说明：返回明细表视图；无数据时返回 undefined。
-   * 调用注意事项：停滞商机是明细风险清单，不再强行生成负责人金额柱图，避免图表和明细粒度不一致。
+   * 调用注意事项：明细型风险不再强行生成负责人金额柱图，避免图表和明细粒度不一致。
    */
-  private buildStaleOpportunityPrimaryView(
+  private buildRiskDetailPrimaryView(
     rows: StandardApiAggregateRow[],
+    title: string,
   ): ResultView | undefined {
     if (rows.length === 0) {
       return undefined;
@@ -6162,7 +6246,7 @@ export class LianruanCrmAnalysisExecutorService {
 
     return {
       viewType: 'RANKING_TABLE',
-      title: '停滞商机明细',
+      title,
       rows,
     };
   }
@@ -6331,6 +6415,14 @@ export class LianruanCrmAnalysisExecutorService {
     openApiListAggregationNote?: string,
   ): AppliedFilter[] {
     const staleThreshold = resolveStaleOpportunityThreshold(questionText);
+    const isStaleOpportunityRisk =
+      taskConfig.resource === 'opportunities' &&
+      compiledTask.resultKind === 'risk-overview' &&
+      isStaleOpportunityQuestionText(questionText);
+    const isExpectedSignWithoutQuoteRisk =
+      taskConfig.resource === 'opportunities' &&
+      compiledTask.resultKind === 'risk-overview' &&
+      this.isExpectedSignWithoutQuoteQuestion(questionText);
     const filters: AppliedFilter[] = [
       {
         label: '分析对象',
@@ -6368,14 +6460,32 @@ export class LianruanCrmAnalysisExecutorService {
       }
     }
 
-    if (
-      taskConfig.resource === 'opportunities' &&
-      compiledTask.resultKind === 'risk-overview' &&
-      isStaleOpportunityQuestionText(questionText)
-    ) {
+    if (isStaleOpportunityRisk) {
       filters.push({
         label: '风险口径',
-        value: `商机更新时间超过 ${staleThreshold.days} 天，且排除已成交、已失单、取消、删除状态`,
+        value: buildStaleOpportunityRiskScopeText(staleThreshold.days),
+      });
+      filters.push({
+        label: '排序口径',
+        value: buildStaleOpportunitySortScopeText(),
+      });
+    } else if (isExpectedSignWithoutQuoteRisk) {
+      filters.push({
+        label: '风险口径',
+        value: '预计签约日期在未来 30 天内，且当前快照未检测到报价关联；同时排除审批中、输单、赢单、取消等无效商机',
+      });
+      filters.push({
+        label: '排序口径',
+        value: '按商机金额倒序',
+      });
+    } else if (taskConfig.resource === 'opportunities' && compiledTask.resultKind === 'risk-overview') {
+      filters.push({
+        label: '风险口径',
+        value: '商机阶段为初访、方案、谈判等推进中阶段；该口径不是“未更新商机”口径',
+      });
+      filters.push({
+        label: '排序口径',
+        value: '按风险商机金额倒序，金额相同按商机数量倒序',
       });
     }
 

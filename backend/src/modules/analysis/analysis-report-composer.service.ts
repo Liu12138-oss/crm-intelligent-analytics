@@ -2435,6 +2435,8 @@ export class AnalysisReportComposerService {
     }
 
     if (slice.resultKind === 'risk-overview') {
+      const riskMetricLabel = this.resolveRiskMetricLabel(slice);
+      const riskRecordLabel = this.resolveRiskRecordLabel(slice);
       return {
         sectionType: 'risk',
         title: slice.taskTitle,
@@ -2444,7 +2446,7 @@ export class AnalysisReportComposerService {
         rows: slice.tableRows,
         items: slice.tableRows.slice(0, 3).map((item) => {
           const label = this.resolveRowLabel(item);
-          return `${label} 当前高风险金额 ${this.formatRowValue(item)}，涉及 ${Number(item.count ?? 0)} 条商机。`;
+          return `${label} ${riskMetricLabel} ${this.formatRowValue(item)}，涉及 ${Number(item.count ?? 0)} 条${riskRecordLabel}。`;
         }),
         temporalScope,
       };
@@ -2670,9 +2672,10 @@ export class AnalysisReportComposerService {
 
       if (item.resultKind === 'risk-overview') {
         const firstRow = item.tableRows[0] ?? {};
+        const riskRecordLabel = this.resolveRiskRecordLabel(item);
         findings.push({
           title: '风险观察',
-          detail: `${item.taskTitle} 当前重点风险集中在 ${this.resolveRowLabel(firstRow)}，涉及 ${Number(firstRow.count ?? 0)} 条风险商机。`,
+          detail: `${item.taskTitle} 当前重点对象为 ${this.resolveRowLabel(firstRow)}，涉及 ${Number(firstRow.count ?? 0)} 条${riskRecordLabel}。`,
           tone: 'risk',
           datasetId: item.datasetId,
         });
@@ -3919,5 +3922,29 @@ export class AnalysisReportComposerService {
       avgTicketText: formatWanAmount(avgTicket),
       leaderGapText: formatWanAmount(leaderGap),
     };
+  }
+
+  private resolveRiskMetricLabel(slice: AnalysisDatasetSlice): string {
+    if (/未更新|未进展|停滞/u.test(slice.taskTitle)) {
+      return '未更新商机金额';
+    }
+
+    if (/预计签约未报价/u.test(slice.taskTitle)) {
+      return '预计签约未报价商机金额';
+    }
+
+    return '风险商机金额';
+  }
+
+  private resolveRiskRecordLabel(slice: AnalysisDatasetSlice): string {
+    if (/未更新|未进展|停滞/u.test(slice.taskTitle)) {
+      return '未更新商机';
+    }
+
+    if (/预计签约未报价/u.test(slice.taskTitle)) {
+      return '预计签约未报价商机';
+    }
+
+    return '风险商机';
   }
 }

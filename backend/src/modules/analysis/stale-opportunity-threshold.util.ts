@@ -78,6 +78,45 @@ export function resolveStaleOpportunityThreshold(
 }
 
 /**
+ * 构造停滞商机分析标题。
+ *
+ * 参数说明：`thresholdLabel` 为用户问题解析出的“超过 N 天/月”标签。
+ * 返回值说明：返回用户可直接理解的分析标题，避免泛化成不明口径的高风险观察。
+ */
+export function buildStaleOpportunityAnalysisTitle(thresholdLabel: string): string {
+  return `${thresholdLabel}未更新商机分析`;
+}
+
+/**
+ * 构造停滞商机明细标题。
+ *
+ * 参数说明：`thresholdLabel` 为用户问题解析出的“超过 N 天/月”标签。
+ * 返回值说明：返回明细表标题。
+ */
+export function buildStaleOpportunityDetailTitle(thresholdLabel: string): string {
+  return `${thresholdLabel}未更新商机明细`;
+}
+
+/**
+ * 构造停滞商机风险口径说明。
+ *
+ * 参数说明：`days` 为换算后的停滞阈值天数。
+ * 返回值说明：返回明确的业务口径，说明本次“高风险”只等同于该未更新条件。
+ */
+export function buildStaleOpportunityRiskScopeText(days: number): string {
+  return `本次高风险仅指商机更新时间超过 ${days} 天，且排除已成交、已失单、取消、删除状态`;
+}
+
+/**
+ * 构造停滞商机排序口径说明。
+ *
+ * 返回值说明：返回未更新商机明细的稳定排序规则。
+ */
+export function buildStaleOpportunitySortScopeText(): string {
+  return '按未更新天数倒序，未更新天数相同按商机金额倒序';
+}
+
+/**
  * 解析停滞时长中的数字。
  *
  * 参数说明：`rawAmount` 为阿拉伯数字或中文数词。

@@ -15,6 +15,10 @@ import type { RoutedCompiledQueryTask } from './analysis-read-tool.registry';
 import { CrmSqliteReadonlyService } from './crm-sqlite-readonly.service';
 import { formatOpportunityStageLabel } from './opportunity-stage-label.util';
 import {
+  buildStaleOpportunityAnalysisTitle,
+  buildStaleOpportunityDetailTitle,
+  buildStaleOpportunityRiskScopeText,
+  buildStaleOpportunitySortScopeText,
   isStaleOpportunityQuestionText,
   resolveStaleOpportunityThreshold,
 } from './stale-opportunity-threshold.util';
@@ -317,15 +321,15 @@ export class CrmSqliteReadonlyAnalysisExecutorService {
     const threshold = resolveStaleOpportunityThreshold(params.questionText);
     const rows = params.opportunities
       .map((record) => this.buildOpportunityDetailRow(record, params.partnerNameMap))
-      .filter((row) => Number(row.staleDays ?? 0) >= threshold.days)
+      .filter((row) => Number(row.staleDays ?? 0) > threshold.days)
       .sort((left, right) => Number(right.staleDays ?? 0) - Number(left.staleDays ?? 0));
     const amount = rows.reduce((sum, row) => sum + Number(row.opportunityAmount ?? 0), 0);
 
     return this.buildSlice({
       task: params.task,
-      taskTitle: `${threshold.label}未进展商机分析`,
+      taskTitle: buildStaleOpportunityAnalysisTitle(threshold.label),
       scopeSummary: params.scopeSummary,
-      summary: `当前权限范围内共有 ${rows.length} 条${threshold.label}未进展商机，涉及金额 ${formatWanAmount(amount)}。`,
+      summary: `当前权限范围内共有 ${rows.length} 条${threshold.label}未更新商机，涉及金额 ${formatWanAmount(amount)}。风险口径：${buildStaleOpportunityRiskScopeText(threshold.days)}。`,
       rows,
       metricCards: [
         { name: '停滞商机数', value: rows.length },
@@ -335,7 +339,7 @@ export class CrmSqliteReadonlyAnalysisExecutorService {
       primaryView: rows.length
         ? {
             viewType: 'RANKING_TABLE',
-            title: '停滞商机明细',
+            title: buildStaleOpportunityDetailTitle(threshold.label),
             rows,
           }
         : undefined,
@@ -343,6 +347,10 @@ export class CrmSqliteReadonlyAnalysisExecutorService {
       temporalSlot: params.task.plan.temporalSlot,
       sql: '-- CRM SQLite 只读库固定模板：停滞商机明细',
       matchedAdapter: 'crm-sqlite-readonly.opportunity-stale-detail',
+      extraFilters: [
+        { label: '风险口径', value: buildStaleOpportunityRiskScopeText(threshold.days) },
+        { label: '排序口径', value: buildStaleOpportunitySortScopeText() },
+      ],
     });
   }
 
@@ -361,6 +369,7 @@ export class CrmSqliteReadonlyAnalysisExecutorService {
     temporalSlot?: AnalysisQueryTask['plan']['temporalSlot'];
     sql: string;
     matchedAdapter: string;
+    extraFilters?: Array<{ label: string; value: string }>;
   }): AnalysisDatasetSlice {
     return {
       datasetId: buildEntityId('dataset'),
@@ -377,6 +386,7 @@ export class CrmSqliteReadonlyAnalysisExecutorService {
       temporalScope: buildResultTemporalScope(params.temporalSlot),
       appliedFilters: [
         { label: '数据来源', value: 'CRM SQLite 只读镜像库 analysis-mirror' },
+        ...(params.extraFilters ?? []),
         { label: '权限范围', value: params.scopeSummary },
       ],
       metricCards: params.metricCards,
