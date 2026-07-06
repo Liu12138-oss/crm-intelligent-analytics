@@ -17,6 +17,7 @@ import {
   CHINA_PROVINCE_CITY_NAMES,
   MAINLAND_CHINA_PROVINCE_NAMES,
   UNKNOWN_CITY_LABEL,
+  normalizeChinaCityName,
   resolveChinaCityByText,
 } from '../../shared/china-administrative-division.util';
 import { AnalysisChannelPresenterService } from './analysis-channel-presenter.service';
@@ -1362,7 +1363,8 @@ export class PublicAnalysisResultController {
         if (group.cityName === UNKNOWN_CITY_LABEL) {
           continue;
         }
-        const cityName = resolveChinaCityByText(group.cityName, province)
+        const cityName = normalizeChinaCityName(group.cityName, province)
+          ?? resolveChinaCityByText(group.cityName, province)
           ?? (cityNames.includes(group.cityName) ? group.cityName : '');
         if (!cityName) {
           continue;
@@ -1396,11 +1398,21 @@ export class PublicAnalysisResultController {
         ? row.levelGroups.map((item) => this.normalizeCoverageLevelGroup(item))
         : [];
       const explicitCityGroups = this.normalizeCoverageCityGroups(row.cityGroups ?? row.cities);
-      const cityGroups = explicitCityGroups.length > 0
+      const rawCityGroups = explicitCityGroups.length > 0
         ? explicitCityGroups
         : this.buildCoverageCityGroupsFromLegacyRow(row, levelGroups, province);
+      const cityGroups = this.normalizeCoverageCityGroupsForProvince(rawCityGroups, province);
       const provinceCityNames = CHINA_PROVINCE_CITY_NAMES[province] ?? [];
-      const derivedCoveredCityCount = cityGroups.filter((group) => group.cityName !== UNKNOWN_CITY_LABEL).length;
+      const coveredCitySet = new Set(
+        cityGroups
+          .map((group) => group.cityName === UNKNOWN_CITY_LABEL
+            ? ''
+            : normalizeChinaCityName(group.cityName, province)
+              ?? resolveChinaCityByText(group.cityName, province)
+              ?? (provinceCityNames.includes(group.cityName) ? group.cityName : ''))
+          .filter(Boolean),
+      );
+      const derivedCoveredCityCount = coveredCitySet.size;
       const configuredCoveredCityCount = this.toPublicFiniteNumber(row.coveredCityCount);
       const configuredTotalCityCount = this.toPublicFiniteNumber(row.totalCityCount);
 
@@ -1458,6 +1470,56 @@ export class PublicAnalysisResultController {
         partners,
       };
     });
+  }
+
+  /**
+   * 按省份标准化并合并地市分组。
+   *
+   * 参数说明：`groups` 为原始地市分组，`province` 为当前省份。
+   * 返回值说明：返回已归一的地市分组，无法匹配当前省份的城市统一归入“未识别地市”。
+   * 调用注意事项：用于保证弹窗分组、覆盖地市数量和地图上色使用同一套标准城市名。
+   */
+  private normalizeCoverageCityGroupsForProvince(
+    groups: NormalizedCoverageCityGroup[],
+    province: string,
+  ): NormalizedCoverageCityGroup[] {
+    if (!province) {
+      return groups;
+    }
+
+    const cityNames = CHINA_PROVINCE_CITY_NAMES[province] ?? [];
+    const cityGroupMap = new Map<string, { partnerCount: number; partners: Set<string> }>();
+    for (const group of groups) {
+      const cityName = group.cityName === UNKNOWN_CITY_LABEL
+        ? UNKNOWN_CITY_LABEL
+        : normalizeChinaCityName(group.cityName, province)
+          ?? resolveChinaCityByText(group.cityName, province)
+          ?? (cityNames.includes(group.cityName) ? group.cityName : UNKNOWN_CITY_LABEL);
+      const aggregate = cityGroupMap.get(cityName) ?? {
+        partnerCount: 0,
+        partners: new Set<string>(),
+      };
+      aggregate.partnerCount += group.partnerCount;
+      group.partners.forEach((partner) => aggregate.partners.add(partner));
+      cityGroupMap.set(cityName, aggregate);
+    }
+
+    return Array.from(cityGroupMap.entries())
+      .map(([cityName, aggregate]) => ({
+        cityName,
+        partnerCount: aggregate.partnerCount,
+        partners: Array.from(aggregate.partners).sort((left, right) => left.localeCompare(right, 'zh-CN')),
+      }))
+      .sort((left, right) => {
+        if (left.cityName === UNKNOWN_CITY_LABEL) {
+          return 1;
+        }
+        if (right.cityName === UNKNOWN_CITY_LABEL) {
+          return -1;
+        }
+
+        return right.partnerCount - left.partnerCount || left.cityName.localeCompare(right.cityName, 'zh-CN');
+      });
   }
 
   /**
@@ -1741,9 +1803,12 @@ export class PublicAnalysisResultController {
   }
   function buildCityMapRowsFromGeoJson(){
     const rowByKey = new Map();
+    function normalizeMapCityName(cityName){
+      return String(cityName || '').replace(/(市|地区|盟|自治州|特别行政区)$/u, '');
+    }
     cityRows.forEach(function(city){
       const province = String(city.province || '');
-      const cityName = String(city.cityName || '');
+      const cityName = normalizeMapCityName(city.cityName);
       if (province && cityName) {
         rowByKey.set(province + '|' + cityName, city);
       }
@@ -1760,11 +1825,25 @@ export class PublicAnalysisResultController {
       const province = String(properties.province || '');
       const mapCityName = String(properties.name || properties.cityName || '');
       const candidateNames = [properties.name, properties.cityName, properties.fullName]
-        .map(function(value){ return String(value || '').replace(/市$|地区$|盟$|自治州$/u, ''); })
+        .flatMap(function(value){
+          const rawName = String(value || '');
+          const normalizedName = normalizeMapCityName(rawName);
+          return [rawName, normalizedName];
+        })
         .filter(Boolean);
-      const row = candidateNames
+      const exactRow = candidateNames
         .map(function(cityName){ return rowByKey.get(province + '|' + cityName); })
         .find(Boolean);
+      const row = exactRow || cityRows.find(function(city){
+        const rowProvince = String(city.province || '');
+        const rowCityName = normalizeMapCityName(city.cityName);
+        if (!rowCityName) {
+          return false;
+        }
+        return rowProvince === province && candidateNames.some(function(candidateName){
+          return candidateName.includes(rowCityName) || rowCityName.includes(candidateName);
+        });
+      });
       return buildCityMapItem(province, mapCityName, Boolean(row && row.covered), row ? row.partnerCount : 0);
     });
   }

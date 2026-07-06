@@ -88,3 +88,22 @@ export function resolveChinaCityByText(text: string, province: string): string |
   const cityNames = CHINA_PROVINCE_CITY_NAMES[province] ?? [];
   return cityNames.find((cityName) => normalizedText.includes(cityName)) ?? null;
 }
+
+/**
+ * 将接口或地图数据里的地市名称归一为项目标准地市名。
+ *
+ * 参数说明：`cityName` 为 CRM 字段或地图 GeoJSON 的城市文本，`province` 为已确认省份。
+ * 返回值说明：命中当前省份标准地市时返回标准名称，否则返回空值。
+ * 调用注意事项：用于统一“深圳市”“湘西土家族苗族自治州”等全称和简称，避免统计数与地图上色不一致。
+ */
+export function normalizeChinaCityName(cityName: string, province: string): string | null {
+  const normalizedText = normalizeAdministrativeText(cityName)
+    .replace(/(市|地区|盟|自治州|特别行政区)$/u, '');
+  if (!normalizedText) {
+    return null;
+  }
+
+  const cityNames = CHINA_PROVINCE_CITY_NAMES[province] ?? [];
+  return cityNames.find((item) => item === normalizedText || item.includes(normalizedText) || normalizedText.includes(item))
+    ?? null;
+}

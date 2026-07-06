@@ -19,6 +19,7 @@ import {
   CHINA_PREFECTURE_CITY_TOTAL,
   CHINA_PROVINCE_CITY_NAMES,
   UNKNOWN_CITY_LABEL,
+  normalizeChinaCityName,
   resolveChinaCityByText,
   resolveChinaProvinceByText,
 } from '../../shared/china-administrative-division.util';
@@ -1816,7 +1817,7 @@ export class AnalysisReportComposerService {
 
     for (const row of rows) {
       const region = this.resolveRegionLabel(row) || '未返回区域';
-      const province = this.resolveChinaProvinceLabel(this.buildPartnerCoverageText(row, region));
+      const province = this.resolvePartnerProvinceLabel(row, region);
       const coverageKey = province || region;
       const current = coverageMap.get(coverageKey) ?? {
         province,
@@ -1888,7 +1889,7 @@ export class AnalysisReportComposerService {
 
     const coveredProvinceCount = new Set(
       rows
-        .map((row) => this.resolveChinaProvinceLabel(this.buildPartnerCoverageText(row, this.resolveRegionLabel(row))))
+        .map((row) => this.resolvePartnerProvinceLabel(row, this.resolveRegionLabel(row)))
         .filter(Boolean),
     ).size;
     const rankedRows = this.rankRowsByAmount(rows, PARTNER_CONTRIBUTION_AMOUNT_FIELD_KEYS);
@@ -1898,7 +1899,7 @@ export class AnalysisReportComposerService {
       rows
         .map((row) => {
           const region = this.resolveRegionLabel(row);
-          const province = this.resolveChinaProvinceLabel(this.buildPartnerCoverageText(row, region));
+          const province = this.resolvePartnerProvinceLabel(row, region);
           const cityName = province ? this.resolvePartnerCityLabel(row, province, region) : null;
           return province && cityName ? `${province}::${cityName}` : '';
         })
@@ -2176,13 +2177,13 @@ export class AnalysisReportComposerService {
   }
 
   /**
-   * 生成省份识别用文本。
+   * 构造真实位置候选文本。
    *
-   * 参数说明：`row` 为服务商明细，`region` 为已解析区域。
-   * 返回值说明：拼接省份、区域、部门、渠道商名称等文本，用于省份归一。
-   * 调用注意事项：只用于识别地图省份，不改变明细中的原始字段。
+   * 参数说明：`row` 为服务商明细。
+   * 返回值说明：返回 CRM 位置字段、地址字段和渠道商名称，不包含销售区域。
+   * 调用注意事项：销售区域如“深圳区”只能做省份兜底，不能参与地市识别，否则会把福州、厦门、南宁误归到深圳。
    */
-  private buildPartnerCoverageText(row: Record<string, unknown>, region: string): string {
+  private buildPartnerExplicitLocationTexts(row: Record<string, unknown>): string[] {
     return [
       row.city,
       row['所在城市'],
@@ -2204,16 +2205,6 @@ export class AnalysisReportComposerService {
       row.prefecture_city,
       row.prefectureCityName,
       row.prefecture_city_name,
-      row.region,
-      row.regionName,
-      row.region_name,
-      row.bigRegion,
-      row.big_region,
-      row.area,
-      row.departmentName,
-      row.department_name,
-      row.team,
-      row.teamName,
       row.address,
       row.registeredAddress,
       row.registered_address,
@@ -2221,8 +2212,25 @@ export class AnalysisReportComposerService {
       row.office_address,
       row.partnerName,
       row.partner_name,
-      region,
-    ].map((item) => String(item ?? '').trim()).filter(Boolean).join(' ');
+    ].map((item) => String(item ?? '').trim()).filter(Boolean);
+  }
+
+  /**
+   * 解析渠道商所在省份。
+   *
+   * 参数说明：`row` 为服务商明细，`region` 为 CRM 销售区域。
+   * 返回值说明：优先用真实位置字段和渠道商名称识别省份；缺少位置字段时再用销售区域兜底。
+   * 调用注意事项：不要把销售区域和渠道名称拼成一段后整体匹配，避免“深圳区 + 广西公司名”被误判成广东。
+   */
+  private resolvePartnerProvinceLabel(row: Record<string, unknown>, region: string): string {
+    for (const sourceText of this.buildPartnerExplicitLocationTexts(row)) {
+      const province = this.resolveChinaProvinceLabel(sourceText);
+      if (province) {
+        return province;
+      }
+    }
+
+    return this.resolveChinaProvinceLabel(region);
   }
 
   /**
@@ -2237,7 +2245,14 @@ export class AnalysisReportComposerService {
     province: string,
     region: string,
   ): string | null {
-    return resolveChinaCityByText(this.buildPartnerCoverageText(row, region), province);
+    for (const sourceText of this.buildPartnerExplicitLocationTexts(row)) {
+      const cityName = normalizeChinaCityName(sourceText, province) ?? resolveChinaCityByText(sourceText, province);
+      if (cityName) {
+        return cityName;
+      }
+    }
+
+    return null;
   }
 
   /**

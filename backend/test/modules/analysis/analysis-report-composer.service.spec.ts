@@ -618,6 +618,104 @@ describe('AnalysisReportComposerService', () => {
     expect(report.tableBlocks[0]?.title).toBe('渠道商类型明细');
   });
 
+  it('服务商发展运营地图应优先按所在城市归属省份，不能被深圳区销售区域污染', () => {
+    const report = service.compose(
+      {
+        workflowId: 'workflow_partner_city_coverage',
+        channel: 'wecom-bot',
+        questionText: '全国代理商发展运营数据看板',
+        normalizedQuestion: '全国代理商发展运营数据看板',
+        domain: 'customer-relationship',
+        confidence: 'HIGH',
+        requestedAction: 'READONLY_ANALYSIS',
+        missingConditions: [],
+        tasks: [{ title: '合作伙伴开拓情况' }],
+      } as never,
+      {
+        workflowId: 'workflow_partner_city_coverage',
+        scopeSummary: '全部数据范围',
+        slices: [
+          {
+            datasetId: 'dataset_partner_city_coverage',
+            taskId: 'task_partner_city_coverage',
+            taskTitle: '合作伙伴明细',
+            resultKind: 'partner-contribution',
+            purpose: 'primary-summary',
+            sql: '-- 联软标准 OpenAPI 合作伙伴明细',
+            executionMode: 'CRM_OFFICIAL_API',
+            executionSource: 'CRM_OFFICIAL_API',
+            matchedAdapter: 'crm-official-api.partners',
+            gapReason: '',
+            summary: '已读取合作伙伴明细。',
+            appliedFilters: [],
+            metricCards: [],
+            primaryView: {
+              viewType: 'DETAIL_TABLE',
+              title: '合作伙伴明细',
+              rows: [
+                { partnerName: '深圳市佰航信息技术有限公司', cityName: '深圳市', region: '深圳区' },
+                { partnerName: '广州天畅信息技术有限公司', cityName: '广州市', region: '深圳区' },
+                { partnerName: '广西唯信电子科技有限公司', cityName: '南宁市', region: '深圳区' },
+                { partnerName: '福州宝视通电子科技有限公司', cityName: '福州市', region: '深圳区' },
+                { partnerName: '厦门三绎信息科技有限公司', cityName: '厦门市', region: '深圳区' },
+              ],
+            },
+            secondaryViews: [],
+            tableRows: [
+              { partnerName: '深圳市佰航信息技术有限公司', cityName: '深圳市', region: '深圳区' },
+              { partnerName: '广州天畅信息技术有限公司', cityName: '广州市', region: '深圳区' },
+              { partnerName: '广西唯信电子科技有限公司', cityName: '南宁市', region: '深圳区' },
+              { partnerName: '福州宝视通电子科技有限公司', cityName: '福州市', region: '深圳区' },
+              { partnerName: '厦门三绎信息科技有限公司', cityName: '厦门市', region: '深圳区' },
+            ],
+            rowCount: 5,
+          },
+        ],
+        mergedRows: [],
+        totalRowCount: 5,
+        appliedFilters: [],
+      } as never,
+    );
+
+    const coverageRows = report.sections.find((item) => item.title === '省份代理商覆盖情况')?.rows ?? [];
+
+    expect(coverageRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          province: '广东',
+          partnerCount: 2,
+          coveredCityCount: 2,
+          cityGroups: expect.arrayContaining([
+            expect.objectContaining({ cityName: '深圳', partners: ['深圳市佰航信息技术有限公司'] }),
+            expect.objectContaining({ cityName: '广州', partners: ['广州天畅信息技术有限公司'] }),
+          ]),
+        }),
+        expect.objectContaining({
+          province: '广西',
+          partnerCount: 1,
+          cityGroups: [expect.objectContaining({ cityName: '南宁', partners: ['广西唯信电子科技有限公司'] })],
+        }),
+        expect.objectContaining({
+          province: '福建',
+          partnerCount: 2,
+          coveredCityCount: 2,
+          cityGroups: expect.arrayContaining([
+            expect.objectContaining({ cityName: '福州', partners: ['福州宝视通电子科技有限公司'] }),
+            expect.objectContaining({ cityName: '厦门', partners: ['厦门三绎信息科技有限公司'] }),
+          ]),
+        }),
+      ]),
+    );
+    expect(coverageRows).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          province: '广东',
+          partnerCount: 5,
+        }),
+      ]),
+    );
+  });
+
   it('服务商发展运营模板应作为默认兜底，用户明确只看区域明细时不套完整看板', () => {
     const report = service.compose(
       {

@@ -317,6 +317,21 @@ describe('PublicAnalysisResultController', () => {
                 ],
               },
               {
+                coverageKey: '广东',
+                province: '广东',
+                region: '深圳区',
+                partnerCount: 1,
+                amount: 10000,
+                levelSummary: '一级渠道',
+                cityGroups: [
+                  {
+                    cityName: '深圳市',
+                    partnerCount: 1,
+                    partners: ['深圳市佰航信息技术有限公司'],
+                  },
+                ],
+              },
+              {
                 coverageKey: '华南',
                 province: '',
                 region: '华南',
@@ -387,7 +402,7 @@ describe('PublicAnalysisResultController', () => {
     expect(html).toContain('省份代理商覆盖情况');
     expect(html).toContain('省份覆盖');
     expect(html).toContain('省份覆盖率');
-    expect(html).toContain('地市覆盖 <strong>3/');
+    expect(html).toContain('地市覆盖 <strong>4/');
     expect(html).toContain('地市覆盖率');
     expect(html).toContain('地市已覆盖');
     expect(html).toContain('地市未覆盖');
@@ -416,6 +431,8 @@ describe('PublicAnalysisResultController', () => {
     expect(html).toContain("seriesName === '省份边框' || seriesName === '省份名称'");
     expect(html).toContain('function resolveProvinceByCoordinate(coordinate)');
     expect(html).toContain('function buildCityMapRowsFromGeoJson()');
+    expect(html).toContain('function normalizeMapCityName(cityName)');
+    expect(html).toContain('candidateName.includes(rowCityName)');
     expect(html).toContain('const initialMapZoom = 1.72');
     expect(html).toContain('function applyCoverageMapZoom(nextZoom)');
     expect(html).toContain("chartDom.addEventListener('wheel'");
@@ -425,7 +442,9 @@ describe('PublicAnalysisResultController', () => {
     expect(html).toContain("chart.getZr().on('dblclick'");
     expect(html).toContain('showCoverageProvinceDetail_');
     expect(html).toContain('临沂普悦天诚信息科技有限公司');
+    expect(html).toContain('深圳市佰航信息技术有限公司');
     expect(html).toContain('"cityName":"临沂"');
+    expect(html).toContain('"province":"广东","cityName":"深圳","covered":true');
     expect(html).toContain('"cityName":"长沙"');
     expect(html).toContain('"cityName":"株洲"');
     expect(html).toContain('"totalCityCount":16');

@@ -25,6 +25,7 @@ import type { DashboardAnalyticsBundle, DashboardAnalyticsQuery } from './dashbo
 import { DashboardAnalyticsService } from './dashboard-analytics.service';
 import { formatOpportunityStageLabel } from '../analysis/opportunity-stage-label.util';
 import {
+  normalizeChinaCityName,
   resolveChinaCityByText,
   resolveChinaProvinceByText,
 } from '../../shared/china-administrative-division.util';
@@ -1348,7 +1349,6 @@ export class DashboardReportComposer {
       partner['所在省份'],
       partner['所在省'],
       partner['省份'],
-      partner.partnerName,
       partner['partnerProvinceName'],
       partner['partnerProvince'],
       partner['partner_province_name'],
@@ -1366,24 +1366,12 @@ export class DashboardReportComposer {
       partner['registered_address'],
       partner['officeAddress'],
       partner['office_address'],
+      partner.partnerName,
     ].map((source) => this.readDisplayText(source));
     const regionText = this.readDisplayText(partner.region);
     const bigRegionText = this.readDisplayText(partner.bigRegion);
-    const locationSources = [
-      ...explicitSources,
-      regionText,
-      bigRegionText,
-      this.readDisplayText(partner['regionName']),
-      this.readDisplayText(partner['region_name']),
-      this.readDisplayText(partner['regionInfo']),
-      this.readDisplayText(partner['region_info']),
-      this.readDisplayText(partner['area']),
-      this.readDisplayText(partner['departmentName']),
-      this.readDisplayText(partner['department_name']),
-      this.readDisplayText(partner['team']),
-      this.readDisplayText(partner['teamName']),
-      this.readDisplayText(partner['team_name']),
-    ];
+    // 地市只能从“所在城市”、地址或渠道商名称等位置字段识别；CRM 销售区域只允许省份兜底，避免把“深圳区”误当真实所在地。
+    const locationSources = explicitSources;
 
     for (const sourceText of explicitSources) {
       const province = this.matchProvinceFromText(sourceText);
@@ -1469,7 +1457,7 @@ export class DashboardReportComposer {
       return null;
     }
 
-    return resolveChinaCityByText(text, province);
+    return normalizeChinaCityName(text, province) ?? resolveChinaCityByText(text, province);
   }
 
   /**
@@ -1517,18 +1505,26 @@ export class DashboardReportComposer {
       gold: '金牌',
       silver: '银牌',
       diamond: '钻石',
+      none: '未设置',
+      unknown: '未设置',
+      null: '未设置',
+      undefined: '未设置',
+      '': '未设置',
     };
 
-    const segments = buckets.map((b) => ({
-      name: labelMap[b.key] ?? b.key,
-      value: b.count,
-    }));
+    const segmentMap = new Map<string, number>();
+    for (const bucket of buckets) {
+      const key = String(bucket.key ?? '').trim().toLowerCase();
+      const name = labelMap[key] ?? String(bucket.key ?? '未设置');
+      segmentMap.set(name, (segmentMap.get(name) ?? 0) + bucket.count);
+    }
+    const segments = Array.from(segmentMap.entries()).map(([name, value]) => ({ name, value }));
 
-    // 补充"未设置"（partnerSummary.totalCount - sum(buckets)）
+    // 只有接口没有返回“未设置”桶时，才用总数差额补齐，避免把 unknown/none 重复算一次。
     const totalCount = bundle.partnerSummary?.totalCount ?? 0;
     const labeledCount = segments.reduce((s, seg) => s + seg.value, 0);
     const unsetCount = totalCount - labeledCount;
-    if (unsetCount > 0) {
+    if (unsetCount > 0 && !segmentMap.has('未设置')) {
       segments.push({ name: '未设置', value: unsetCount });
     }
 
@@ -1755,7 +1751,7 @@ export class DashboardReportComposer {
   ): DashboardBlock | null {
     const buckets = new Map<string, number>();
     for (const p of partners) {
-      const level = p.cooperationLevel ?? 'unknown';
+      const level = String(p.cooperationLevel ?? '').trim().toLowerCase() || 'unknown';
       buckets.set(level, (buckets.get(level) ?? 0) + 1);
     }
     if (buckets.size === 0) {
@@ -1767,13 +1763,18 @@ export class DashboardReportComposer {
       gold: '金牌',
       silver: '银牌',
       diamond: '钻石',
+      none: '未设置',
       unknown: '未设置',
+      null: '未设置',
+      undefined: '未设置',
     };
 
-    const segments = Array.from(buckets.entries()).map(([key, count]) => ({
-      name: labelMap[key] ?? key,
-      value: count,
-    }));
+    const segmentMap = new Map<string, number>();
+    for (const [key, count] of buckets.entries()) {
+      const name = labelMap[key] ?? key;
+      segmentMap.set(name, (segmentMap.get(name) ?? 0) + count);
+    }
+    const segments = Array.from(segmentMap.entries()).map(([name, value]) => ({ name, value }));
 
     // 按数量降序排列
     segments.sort((a, b) => b.value - a.value);
