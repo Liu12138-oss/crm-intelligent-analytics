@@ -743,6 +743,7 @@ describe('AnalysisReportComposerService', () => {
                   },
                   {
                     partnerName: '山东成长服务商',
+                    city: '济南市',
                     region: '华东',
                     bigRegion: '东区',
                     teamName: '山东团队',
@@ -854,9 +855,9 @@ describe('AnalysisReportComposerService', () => {
         partnerCount: 1,
         levelSummary: '未设置 1 家',
         levelGroups: [expect.objectContaining({ level: '未设置', count: 1, agents: ['山东成长服务商'] })],
-        coveredCityCount: 0,
+        coveredCityCount: 1,
         totalCityCount: 16,
-        cityGroups: [expect.objectContaining({ cityName: '未识别地市', partnerCount: 1, partners: ['山东成长服务商'] })],
+        cityGroups: [expect.objectContaining({ cityName: '济南', partnerCount: 1, partners: ['山东成长服务商'] })],
       }),
     ]);
     expect(report.sections.map((item) => item.title)).not.toContain('技术服务人员与证书认证');

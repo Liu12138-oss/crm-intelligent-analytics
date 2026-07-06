@@ -930,6 +930,7 @@ export class OpenApiMarkdownSnapshotService {
           ['渠道商', ['partnerName', 'name']],
           ['等级', ['partnerLevelName', 'partnerLevel', 'levelName']],
           ['类型', ['partnerTypeName', 'partnerType']],
+          ['所在城市', ['city', 'cityName', 'city_name', '所在城市', '城市', '地市']],
           ['区域', ['region', 'bigRegion']],
           ['状态', ['statusName', 'status']],
         ],
@@ -1511,6 +1512,7 @@ export class OpenApiMarkdownSnapshotService {
     const updatedAt = this.readRowText(row, ['更新时间']);
     const region = this.readRowText(row, ['区域']) || this.inferRegionFromMarkdownRow(row);
     const bigRegion = this.readRowText(row, ['大区']);
+    const city = this.readRowText(row, ['所在城市', '城市', '地市']);
 
     if (resource === 'users') {
       return {
@@ -1559,6 +1561,8 @@ export class OpenApiMarkdownSnapshotService {
         amount,
         totalAmount: amount,
         totalAmt: amount,
+        city,
+        cityName: city,
         parentPartnerId: this.readRowText(row, ['父级渠道ID']),
         parentPartnerIds: this.readRowText(row, ['父级渠道链']),
         contact: this.readRowText(row, ['联系人']),
@@ -2006,6 +2010,7 @@ export class OpenApiMarkdownSnapshotService {
         ['技术服务商类型', ['technicalServiceProviderType', 'techServiceType']],
         ['父级渠道ID', ['parentPartnerId']],
         ['父级渠道链', ['parentPartnerIds']],
+        ['所在城市', ['city', 'cityName', 'city_name', '所在城市', '城市', '地市']],
         ['区域', ['region', 'regionName', 'bigRegion', 'bigRegionName', 'area', 'province']],
         ['大区', ['bigRegion', 'bigRegionName']],
         ['状态', ['statusName', 'status']],

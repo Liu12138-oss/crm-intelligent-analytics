@@ -104,7 +104,7 @@ describe('OpenApiMarkdownSnapshotService', () => {
     }
   });
 
-  it('合作伙伴 details 明细应保留类型、等级和区域字段并可反读', async () => {
+  it('合作伙伴 details 明细应保留类型、等级、所在城市和区域字段并可反读', async () => {
     const service = createService(tempDir);
     await service.generateSnapshot();
 
@@ -114,7 +114,7 @@ describe('OpenApiMarkdownSnapshotService', () => {
     );
     const partnerRecords = service.readResourceRecords('partners') ?? [];
 
-    expect(detailMarkdown).toContain('| ID | 渠道商ID | 渠道商 | 合作等级 | 渠道类型 | 是否技术服务商 | 技术服务商类型 | 区域 | 大区 | 状态 | 更新时间 |');
+    expect(detailMarkdown).toContain('| ID | 渠道商ID | 渠道商 | 合作等级 | 渠道类型 | 是否技术服务商 | 技术服务商类型 | 所在城市 | 区域 | 大区 | 状态 | 更新时间 |');
     expect(detailMarkdown).toContain('技术服务商');
     expect(partnerRecords[0]).toEqual(
       expect.objectContaining({
@@ -124,6 +124,8 @@ describe('OpenApiMarkdownSnapshotService', () => {
         partnerType: '技术服务商',
         isTechnicalServiceProvider: true,
         technicalServiceProviderType: '交付服务',
+        city: '济南市',
+        cityName: '济南市',
         region: '华南',
       }),
     );
@@ -264,6 +266,7 @@ const recordsByResource: Record<string, Array<Record<string, unknown>>> = {
       partnerTypeName: '技术服务商',
       isTechnicalServiceProvider: true,
       technicalServiceProviderType: '交付服务',
+      city: '济南市',
       region: '华南',
       bigRegion: '南区',
       status: 'active',
