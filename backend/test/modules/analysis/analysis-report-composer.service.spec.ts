@@ -743,7 +743,7 @@ describe('AnalysisReportComposerService', () => {
                   },
                   {
                     partnerName: '山东成长服务商',
-                    city: '济南市',
+                    partnerCityName: '济南市',
                     region: '华东',
                     bigRegion: '东区',
                     teamName: '山东团队',

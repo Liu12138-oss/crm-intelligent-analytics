@@ -94,6 +94,12 @@ interface SnapshotDataQualityIssue {
   message: string;
 }
 
+interface RequiredFieldCheck {
+  label: string;
+  fields: string[];
+  buildMessage?: (params: { resource: SnapshotResource; missingCount: number; totalCount: number }) => string;
+}
+
 export interface OpenApiMarkdownSnapshotManifest {
   generatedAt: string;
   outputDir: string;
@@ -495,10 +501,31 @@ export class OpenApiMarkdownSnapshotService {
   private buildRequiredFieldIssues(
     resources: Record<SnapshotResource, SnapshotRecord[]>,
   ): SnapshotDataQualityIssue[] {
-    const requiredFields: Partial<Record<SnapshotResource, Array<{ label: string; fields: string[] }>>> = {
+    const requiredFields: Partial<Record<SnapshotResource, RequiredFieldCheck[]>> = {
       partners: [
         { label: '渠道商名称', fields: ['partnerName', 'displayName', 'name'] },
         { label: '渠道商类型', fields: ['partnerTypeName', 'partnerType'] },
+        {
+          label: '所在城市',
+          fields: [
+            'city',
+            'cityName',
+            'city_name',
+            '所在城市',
+            '城市',
+            '地市',
+            'partnerCityName',
+            'partnerCity',
+            'partner_city_name',
+            'partner_city',
+            'prefectureCityName',
+            'prefectureCity',
+            'prefecture_city_name',
+            'prefecture_city',
+          ],
+          buildMessage: ({ resource, missingCount, totalCount }) =>
+            `${resource} 有 ${missingCount}/${totalCount} 条记录缺少所在城市，地图地市覆盖率只能根据渠道商名称、地址或区域文本保守兜底；若 CRM 页面已维护所在城市，请检查 OpenAPI 是否返回 city 字段。`,
+        },
       ],
       registrations: [
         { label: '客户名称', fields: ['customerName', 'customer'] },
@@ -521,7 +548,7 @@ export class OpenApiMarkdownSnapshotService {
     };
     const issues: SnapshotDataQualityIssue[] = [];
     for (const [resource, checks] of Object.entries(requiredFields) as Array<
-      [SnapshotResource, Array<{ label: string; fields: string[] }>]
+      [SnapshotResource, RequiredFieldCheck[]]
     >) {
       const records = resources[resource] ?? [];
       for (const check of checks) {
@@ -530,7 +557,9 @@ export class OpenApiMarkdownSnapshotService {
           issues.push({
             severity: missingCount === records.length && this.requiredResourceSet.has(resource) ? 'fatal' : 'warning',
             resource,
-            message: `${resource} 有 ${missingCount}/${records.length} 条记录缺少${check.label}，结果明细可能无法显示真实业务名称。`,
+            message: check.buildMessage
+              ? check.buildMessage({ resource, missingCount, totalCount: records.length })
+              : `${resource} 有 ${missingCount}/${records.length} 条记录缺少${check.label}，结果明细可能无法显示真实业务名称。`,
           });
         }
       }
@@ -930,7 +959,22 @@ export class OpenApiMarkdownSnapshotService {
           ['渠道商', ['partnerName', 'name']],
           ['等级', ['partnerLevelName', 'partnerLevel', 'levelName']],
           ['类型', ['partnerTypeName', 'partnerType']],
-          ['所在城市', ['city', 'cityName', 'city_name', '所在城市', '城市', '地市']],
+          ['所在城市', [
+            'city',
+            'cityName',
+            'city_name',
+            '所在城市',
+            '城市',
+            '地市',
+            'partnerCityName',
+            'partnerCity',
+            'partner_city_name',
+            'partner_city',
+            'prefectureCityName',
+            'prefectureCity',
+            'prefecture_city_name',
+            'prefecture_city',
+          ]],
           ['区域', ['region', 'bigRegion']],
           ['状态', ['statusName', 'status']],
         ],
@@ -2010,7 +2054,22 @@ export class OpenApiMarkdownSnapshotService {
         ['技术服务商类型', ['technicalServiceProviderType', 'techServiceType']],
         ['父级渠道ID', ['parentPartnerId']],
         ['父级渠道链', ['parentPartnerIds']],
-        ['所在城市', ['city', 'cityName', 'city_name', '所在城市', '城市', '地市']],
+        ['所在城市', [
+          'city',
+          'cityName',
+          'city_name',
+          '所在城市',
+          '城市',
+          '地市',
+          'partnerCityName',
+          'partnerCity',
+          'partner_city_name',
+          'partner_city',
+          'prefectureCityName',
+          'prefectureCity',
+          'prefecture_city_name',
+          'prefecture_city',
+        ]],
         ['区域', ['region', 'regionName', 'bigRegion', 'bigRegionName', 'area', 'province']],
         ['大区', ['bigRegion', 'bigRegionName']],
         ['状态', ['statusName', 'status']],

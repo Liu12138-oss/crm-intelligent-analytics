@@ -3244,6 +3244,10 @@ export class LianruanCrmAnalysisExecutorService {
         record['所在城市'] ??
         record['城市'] ??
         record['地市'] ??
+        record.partnerCityName ??
+        record.partnerCity ??
+        record.partner_city_name ??
+        record.partner_city ??
         record.prefectureCity ??
         record.prefectureCityName ??
         record.prefecture_city ??

@@ -266,7 +266,7 @@ const recordsByResource: Record<string, Array<Record<string, unknown>>> = {
       partnerTypeName: '技术服务商',
       isTechnicalServiceProvider: true,
       technicalServiceProviderType: '交付服务',
-      city: '济南市',
+      partnerCityName: '济南市',
       region: '华南',
       bigRegion: '南区',
       status: 'active',
