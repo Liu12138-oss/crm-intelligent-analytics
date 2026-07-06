@@ -521,6 +521,7 @@ export interface LianruanCrmOpenApiPartnerRecord extends Record<string, unknown>
   parentPartnerId?: string;
   parentPartnerIds?: string[];
   region?: string;
+  city?: string;
   bigRegion?: string;
   status?: string;
   joinDate?: string;

@@ -420,7 +420,16 @@ export class DashboardAnalyticsService {
   ): LianruanCrmOpenApiPartnerContributionRecord {
     return {
       ...contribution,
-      provinceName: contribution.provinceName ?? contribution.province ?? this.firstText([
+      provinceName: this.firstText([
+        contribution.provinceName,
+        contribution.province,
+        contribution.province_name,
+        contribution['所在省份'],
+        contribution['所在省'],
+        contribution['省份'],
+        masterRecord['所在省份'],
+        masterRecord['所在省'],
+        masterRecord['省份'],
         masterRecord.provinceName,
         masterRecord.province,
         masterRecord.province_name,
@@ -429,9 +438,18 @@ export class DashboardAnalyticsService {
         masterRecord.partner_province_name,
         masterRecord.partner_province,
       ]),
-      cityName: contribution.cityName ?? contribution.city ?? this.firstText([
-        masterRecord.cityName,
+      cityName: this.firstText([
+        contribution.city,
+        contribution['所在城市'],
+        contribution['城市'],
+        contribution['地市'],
+        contribution.cityName,
+        contribution.city_name,
         masterRecord.city,
+        masterRecord['所在城市'],
+        masterRecord['城市'],
+        masterRecord['地市'],
+        masterRecord.cityName,
         masterRecord.city_name,
         masterRecord.partnerCityName,
         masterRecord.partnerCity,

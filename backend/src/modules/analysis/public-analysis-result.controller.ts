@@ -192,6 +192,10 @@ const PUBLIC_COLUMN_LABEL_MAP: Record<string, string> = {
   regionCount: '覆盖区域数',
   coveredRegions: '覆盖区域',
   province: '省份',
+  city: '所在城市',
+  cityName: '所在城市',
+  city_name: '所在城市',
+  所在城市: '所在城市',
   coverageKey: '覆盖区域',
   levelSummary: '合作等级',
   businessSection: '经营区块',
@@ -1486,6 +1490,9 @@ export class PublicAnalysisResultController {
     for (const partnerName of partnerNames) {
       const cityName = resolveChinaCityByText([
         row.city,
+        row['所在城市'],
+        row['城市'],
+        row['地市'],
         row.cityName,
         row.city_name,
         row.prefectureCity,

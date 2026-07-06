@@ -1332,17 +1332,23 @@ export class DashboardReportComposer {
    *
    * 参数说明：`partner` 为 CRM 统计端点返回的渠道贡献记录。
    * 返回值说明：能识别时返回标准省级名称、地市名称和识别来源；不能识别时返回 null。
-   * 调用注意事项：优先读取渠道名称和显式省市字段，只有单省明确的 CRM 区域才作为省份兜底。
+   * 调用注意事项：优先读取渠道商“所在城市”标准字段，只有单省明确的 CRM 区域才作为省份兜底。
    */
   private resolvePartnerProvince(partner: LianruanCrmOpenApiPartnerContributionRecord): ProvinceResolution | null {
     const explicitSources = [
-      partner.partnerName,
+      partner['city'],
+      partner['所在城市'],
+      partner['城市'],
+      partner['地市'],
+      partner['cityName'],
+      partner['city_name'],
       partner['provinceName'],
       partner['province'],
       partner['province_name'],
-      partner['cityName'],
-      partner['city'],
-      partner['city_name'],
+      partner['所在省份'],
+      partner['所在省'],
+      partner['省份'],
+      partner.partnerName,
       partner['partnerProvinceName'],
       partner['partnerProvince'],
       partner['partner_province_name'],

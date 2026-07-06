@@ -164,6 +164,7 @@ const FIELD_CAPABILITIES: LianruanFieldCapability[] = [
   { resource: 'partners', field: 'isTechService', label: '是否技术服务商历史字段', requiredLevel: 'P1', filterable: true, sortable: false, aggregatable: true, sensitive: false, dictionaryKey: 'partnerTypes', missingBehavior: '联软旧版 SQLite 快照使用 isTechService；OpenAPI 标准字段可用时优先使用 isTechnicalServiceProvider。' },
   { resource: 'partners', field: 'techServiceType', label: '技术服务商类型历史字段', requiredLevel: 'P2', filterable: true, sortable: false, aggregatable: true, sensitive: false, dictionaryKey: 'partnerTypes', missingBehavior: '联软旧版 SQLite 快照使用 techServiceType；OpenAPI 标准字段可用时优先使用 technicalServiceProviderType。' },
   { resource: 'partners', field: 'region', label: '区域', requiredLevel: 'P0', filterable: true, sortable: false, aggregatable: true, sensitive: false, dictionaryKey: 'regions' },
+  { resource: 'partners', field: 'city', label: '所在城市', requiredLevel: 'P0', filterable: true, sortable: false, aggregatable: true, sensitive: false, missingBehavior: '渠道商所在城市用于地市覆盖率分析；缺失时地图只能退回公司名、地址或区域文本兜底识别。' },
   { resource: 'partners', field: 'bigRegion', label: '大区', requiredLevel: 'P1', filterable: true, sortable: false, aggregatable: true, sensitive: false, dictionaryKey: 'bigRegions' },
   { resource: 'partners', field: 'status', label: '服务商状态', requiredLevel: 'P0', filterable: true, sortable: true, aggregatable: true, sensitive: false },
   { resource: 'partners', field: 'parentPartnerId', label: '上级服务商ID', requiredLevel: 'P1', filterable: true, sortable: false, aggregatable: true, sensitive: false },

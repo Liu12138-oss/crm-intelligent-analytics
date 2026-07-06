@@ -2,7 +2,7 @@ import { DashboardAnalyticsService } from '../../../src/modules/crm-standard-api
 import type { LianruanCrmOpenApiClient } from '../../../src/modules/crm-standard-api/lianruan-crm-openapi.client';
 
 describe('DashboardAnalyticsService 渠道商位置补全', () => {
-  it('统计接口未返回地市时应使用渠道商主数据补齐省市字段', async () => {
+  it('统计接口未返回地市时应使用渠道商主数据的所在城市补齐地市字段', async () => {
     const openApiClient = {
       getBusinessOverviewAnalytics: jest.fn().mockResolvedValue({}),
       getFunnelAnalytics: jest.fn().mockResolvedValue(null),
@@ -10,6 +10,12 @@ describe('DashboardAnalyticsService 渠道商位置补全', () => {
         {
           partnerId: 'p1',
           partnerName: '山东诚卓信息技术有限公司',
+          region: '山东区',
+          orderCount: 0,
+        },
+        {
+          partnerId: 'p2',
+          partnerName: '青岛生态伙伴有限公司',
           region: '山东区',
           orderCount: 0,
         },
@@ -24,8 +30,13 @@ describe('DashboardAnalyticsService 渠道商位置补全', () => {
             id: 'p1',
             partnerId: 'p1',
             partnerName: '山东诚卓信息技术有限公司',
-            provinceName: '山东省',
-            cityName: '济南市',
+            city: '济南市',
+          },
+          {
+            id: 'p2',
+            partnerId: 'p2',
+            partnerName: '青岛生态伙伴有限公司',
+            所在城市: '青岛市',
           },
         ],
         pageNo: 1,
@@ -47,8 +58,11 @@ describe('DashboardAnalyticsService 渠道商位置补全', () => {
 
     expect(result.partnerContributions[0]).toMatchObject({
       partnerName: '山东诚卓信息技术有限公司',
-      provinceName: '山东省',
       cityName: '济南市',
+    });
+    expect(result.partnerContributions[1]).toMatchObject({
+      partnerName: '青岛生态伙伴有限公司',
+      cityName: '青岛市',
     });
     expect(openApiClient.listResource).toHaveBeenCalledWith(
       'partners',

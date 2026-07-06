@@ -2184,12 +2184,18 @@ export class AnalysisReportComposerService {
    */
   private buildPartnerCoverageText(row: Record<string, unknown>, region: string): string {
     return [
-      row.province,
-      row.provinceName,
-      row.province_name,
       row.city,
+      row['所在城市'],
+      row['城市'],
+      row['地市'],
       row.cityName,
       row.city_name,
+      row.province,
+      row['所在省份'],
+      row['所在省'],
+      row['省份'],
+      row.provinceName,
+      row.province_name,
       row.prefectureCity,
       row.prefecture_city,
       row.prefectureCityName,

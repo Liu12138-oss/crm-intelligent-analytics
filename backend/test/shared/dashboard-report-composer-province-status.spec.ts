@@ -15,7 +15,7 @@ function buildProvinceAndStatusBundle(): DashboardAnalyticsBundle {
     funnel: null,
     partnerContributions: [
       { partnerId: 'p1', partnerName: '临沂普悦天诚信息科技有限公司', region: '山东区', bigRegion: '大北区' },
-      { partnerId: 'p2', partnerName: '山东诚卓信息技术有限公司', cityName: '济南市', region: '山东区', bigRegion: '大北区' },
+      { partnerId: 'p2', partnerName: '山东诚卓信息技术有限公司', city: '济南市', region: '山东区', bigRegion: '大北区' },
       { partnerId: 'p3', partnerName: '北京华夏泰合科技有限公司', region: '北区（政企企业）', bigRegion: '大北区' },
       { partnerId: 'p4', partnerName: '北京意畅科技股份有限公司', region: '北区（政府企业）', bigRegion: '大北区' },
       { partnerId: 'p5', partnerName: '河北奇点信息技术服务有限公司', region: '晋冀区', bigRegion: '大北区' },
