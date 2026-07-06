@@ -494,14 +494,18 @@ export class PublicAnalysisResultController {
     .coverage-head h2{margin:0;font-size:18px;}
     .coverage-legend{display:flex;align-items:center;gap:18px;color:#64736d;font-size:12px;white-space:nowrap;}
     .legend-dot{width:12px;height:12px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-2px;}
-    .coverage-body{display:grid;grid-template-columns:190px minmax(0,1fr);gap:18px;padding:18px;}
+    .coverage-body{display:grid;grid-template-columns:210px minmax(0,1fr);gap:16px;padding:18px 22px 22px;}
     .coverage-overview{padding:12px 2px;}
     .coverage-overview-label{font-size:12px;color:#64736d;margin-bottom:6px;}
     .coverage-overview-value{font-size:34px;line-height:1;font-weight:800;color:#238636;}
     .coverage-overview-value small{font-size:16px;color:#64736d;font-weight:600;}
     .coverage-overview-rate{margin-top:8px;color:#64736d;font-size:12px;}
     .coverage-uncovered{margin-top:8px;color:#cf222e;font-size:11px;line-height:1.7;}
-    .coverage-map{width:100%;height:420px;min-height:360px;border:1px solid #e3ebe7;border-radius:16px;background:#fbfdfc;}
+    .coverage-map-shell{position:relative;min-width:0;}
+    .coverage-map{width:100%;height:560px;min-height:500px;border:1px solid #e3ebe7;border-radius:16px;background:#fbfdfc;}
+    .coverage-map-controls{position:absolute;right:12px;top:12px;z-index:5;display:flex;align-items:center;gap:6px;padding:6px;border:1px solid rgba(208,215,222,.92);border-radius:12px;background:rgba(255,255,255,.9);box-shadow:0 8px 22px rgba(31,68,58,.12);backdrop-filter:blur(6px);}
+    .coverage-map-control{width:30px;height:30px;border:1px solid #d0d7de;border-radius:9px;background:#fff;color:#20322e;font-size:14px;font-weight:900;line-height:1;cursor:pointer;}
+    .coverage-map-control:hover{border-color:#238636;color:#1a7f37;background:#f0fff4;}
     .coverage-map-fallback{display:flex;align-items:center;justify-content:center;height:100%;padding:20px;text-align:center;color:#7b8781;}
     .coverage-description{margin:0 0 12px;color:#64736d;font-size:13px;}
     .modal-overlay{display:none;position:fixed;inset:0;z-index:999;background:rgba(10,20,16,.42);align-items:center;justify-content:center;padding:24px;}
@@ -520,8 +524,8 @@ export class PublicAnalysisResultController {
     .modal-agent-list{line-height:1.9;color:#43524b;font-size:13px;}
     .agent-item{display:inline;}
     .modal-no-data{padding:18px;border-radius:12px;background:#f7faf9;color:#7b8781;text-align:center;}
-    @media (min-width: 1280px){.hero{padding:26px 28px}.grid{grid-template-columns:repeat(6,minmax(0,1fr))}.report-flow{grid-template-columns:repeat(12,minmax(0,1fr))}.report-flow>.section{grid-column:1/-1;margin:0}.report-flow>.markdown-section{grid-column:1/-1}.report-flow>.coverage-shell{grid-column:1/-1}.dashboard-chart{height:390px}.dashboard-chart--map{height:520px}.coverage-body{grid-template-columns:260px minmax(0,1fr)}.coverage-map{height:540px}}
-    @media (max-width: 980px){.page{width:min(100% - 24px,1080px);padding-top:16px}.coverage-body{grid-template-columns:1fr}.coverage-map{height:360px}.coverage-head{align-items:flex-start;flex-direction:column}.coverage-legend{flex-wrap:wrap}.dashboard-chart{height:320px}.dashboard-chart--map{height:360px}.dashboard-chart-head{flex-direction:column}.dashboard-chart-layout{margin:8px 12px 16px}.map-city-summary{grid-template-columns:1fr}}
+    @media (min-width: 1280px){.hero{padding:26px 28px}.grid{grid-template-columns:repeat(6,minmax(0,1fr))}.report-flow{grid-template-columns:repeat(12,minmax(0,1fr))}.report-flow>.section{grid-column:1/-1;margin:0}.report-flow>.markdown-section{grid-column:1/-1}.report-flow>.coverage-shell{grid-column:1/-1}.dashboard-chart{height:390px}.dashboard-chart--map{height:520px}.coverage-body{grid-template-columns:240px minmax(0,1fr)}.coverage-map{height:680px;min-height:620px}}
+    @media (max-width: 980px){.page{width:min(100% - 24px,1080px);padding-top:16px}.coverage-body{grid-template-columns:1fr}.coverage-map{height:430px;min-height:380px}.coverage-map-controls{right:10px;top:10px}.coverage-head{align-items:flex-start;flex-direction:column}.coverage-legend{flex-wrap:wrap;white-space:normal}.dashboard-chart{height:320px}.dashboard-chart--map{height:360px}.dashboard-chart-head{flex-direction:column}.dashboard-chart-layout{margin:8px 12px 16px}.map-city-summary{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -1338,7 +1342,7 @@ export class PublicAnalysisResultController {
     };
     const domSuffix = this.hashPublicDomId(section.title);
 
-    return `<section class="section coverage-shell"><div class="coverage-head"><h2>${this.escapeHtml(section.title)}</h2><div class="coverage-legend"><span><i class="legend-dot" style="background:#238636"></i>地市已覆盖</span><span><i class="legend-dot" style="background:#ffeda8;border:1px solid #e3bd61"></i>地市未覆盖</span><span><i class="legend-dot" style="background:transparent;border:2px solid #16833a"></i>省份已覆盖</span><span><i class="legend-dot" style="background:transparent;border:1px solid rgba(66,84,72,0.31)"></i>普通地市/未覆盖省份边界</span><span>双击省份查看省内地市渠道商覆盖情况</span></div></div>${description}<div class="coverage-body"><aside class="coverage-overview"><div class="coverage-overview-label">省份覆盖</div><div class="coverage-overview-value">${coveredProvinceSet.size}<small>/${MAINLAND_CHINA_PROVINCE_NAMES.length}省</small></div><div class="coverage-overview-rate">省份覆盖率 <strong>${coverageRate}</strong></div><div class="coverage-overview-rate">地市覆盖 <strong>${coveredCityCount}/${CHINA_PREFECTURE_CITY_TOTAL}</strong></div><div class="coverage-overview-rate">地市覆盖率 <strong>${cityCoverageRate}</strong></div><div class="coverage-uncovered">${this.escapeHtml(uncoveredText)}</div></aside><div class="coverage-map" id="${chartId}"><div class="coverage-map-fallback">地图加载中；若长时间无响应，请稍后刷新报告页。</div></div></div><div class="modal-overlay" id="${modalId}"><div class="modal-box"><button class="modal-close" onclick="closeCoverageProvinceModal_${domSuffix}()">&times;</button><div class="modal-title" id="${modalId}-title"></div><div class="modal-subtitle" id="${modalId}-subtitle"></div><div id="${modalId}-body"></div></div></div><script>${this.renderCoverageMapRuntimeScript(chartId, modalId, domSuffix, coverageData)}</script></section>`;
+    return `<section class="section coverage-shell"><div class="coverage-head"><h2>${this.escapeHtml(section.title)}</h2><div class="coverage-legend"><span><i class="legend-dot" style="background:#238636"></i>地市已覆盖</span><span><i class="legend-dot" style="background:#ffeda8;border:1px solid #e3bd61"></i>地市未覆盖</span><span><i class="legend-dot" style="background:transparent;border:2px solid #16833a"></i>省份已覆盖</span><span><i class="legend-dot" style="background:transparent;border:1px solid rgba(66,84,72,0.31)"></i>普通地市/未覆盖省份边界</span><span>双击省份查看省内地市渠道商覆盖情况</span></div></div>${description}<div class="coverage-body"><aside class="coverage-overview"><div class="coverage-overview-label">省份覆盖</div><div class="coverage-overview-value">${coveredProvinceSet.size}<small>/${MAINLAND_CHINA_PROVINCE_NAMES.length}省</small></div><div class="coverage-overview-rate">省份覆盖率 <strong>${coverageRate}</strong></div><div class="coverage-overview-rate">地市覆盖 <strong>${coveredCityCount}/${CHINA_PREFECTURE_CITY_TOTAL}</strong></div><div class="coverage-overview-rate">地市覆盖率 <strong>${cityCoverageRate}</strong></div><div class="coverage-uncovered">${this.escapeHtml(uncoveredText)}</div></aside><div class="coverage-map-shell"><div class="coverage-map-controls" aria-label="地图缩放"><button class="coverage-map-control" type="button" title="放大地图" data-coverage-map-target="${chartId}" data-coverage-map-control="in">+</button><button class="coverage-map-control" type="button" title="缩小地图" data-coverage-map-target="${chartId}" data-coverage-map-control="out">-</button><button class="coverage-map-control" type="button" title="重置地图缩放" data-coverage-map-target="${chartId}" data-coverage-map-control="reset">1:1</button></div><div class="coverage-map" id="${chartId}"><div class="coverage-map-fallback">地图加载中；若长时间无响应，请稍后刷新报告页。</div></div></div></div><div class="modal-overlay" id="${modalId}"><div class="modal-box"><button class="modal-close" onclick="closeCoverageProvinceModal_${domSuffix}()">&times;</button><div class="modal-title" id="${modalId}-title"></div><div class="modal-subtitle" id="${modalId}-subtitle"></div><div id="${modalId}-body"></div></div></div><script>${this.renderCoverageMapRuntimeScript(chartId, modalId, domSuffix, coverageData)}</script></section>`;
   }
 
   /**
@@ -1559,6 +1563,10 @@ export class PublicAnalysisResultController {
   const cityBorderColor = 'rgba(66,84,72,0.23)';
   const provinceCoveredBorderColor = '#16833a';
   const provincePlainBorderColor = 'rgba(66,84,72,0.31)';
+  const initialMapZoom = 1.72;
+  const mapCenter = [104, 36];
+  const minMapZoom = 1.1;
+  const maxMapZoom = 4.8;
   function escapeHtml(value){
     return String(value ?? '').replace(/[&<>"']/g, function(ch){
       return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch];
@@ -1840,12 +1848,29 @@ export class PublicAnalysisResultController {
   const provinceLabelPoints = buildProvinceLabelPoints();
   chartDom.innerHTML = '';
   const chart = window.echarts.init(chartDom, null, { renderer: 'canvas' });
+  let currentMapZoom = initialMapZoom;
+  function clampMapZoom(value){
+    return Math.max(minMapZoom, Math.min(maxMapZoom, Number(value) || initialMapZoom));
+  }
+  function applyCoverageMapZoom(nextZoom){
+    currentMapZoom = clampMapZoom(nextZoom);
+    chart.setOption({
+      geo: hasCityGeoJson ? { zoom: currentMapZoom, center: mapCenter } : undefined,
+      series: hasCityGeoJson
+        ? [
+            { id: 'coverage-province-base', zoom: currentMapZoom, center: mapCenter },
+            { id: 'coverage-city-fill', zoom: currentMapZoom, center: mapCenter },
+            { id: 'coverage-province-hit', zoom: currentMapZoom, center: mapCenter }
+          ]
+        : [{ id: 'coverage-province-fallback', zoom: currentMapZoom, center: mapCenter }]
+    });
+  }
   chart.setOption({
     geo: hasCityGeoJson ? {
       map: 'china-city-coverage',
       roam: false,
-      zoom: 1.35,
-      center: [104, 36],
+      zoom: initialMapZoom,
+      center: mapCenter,
       silent: true,
       itemStyle: {
         areaColor: 'rgba(255,255,255,0)',
@@ -1874,12 +1899,13 @@ export class PublicAnalysisResultController {
       }
     },
     series: (hasCityGeoJson ? [{
+      id: 'coverage-province-base',
       type: 'map',
       name: '省份底色',
       map: provinceMapName,
       roam: false,
-      zoom: 1.35,
-      center: [104, 36],
+      zoom: initialMapZoom,
+      center: mapCenter,
       zlevel: 0,
       silent: true,
       label: { show: false },
@@ -1902,12 +1928,13 @@ export class PublicAnalysisResultController {
         };
       })
     }, {
+      id: 'coverage-city-fill',
       type: 'map',
       name: '地市覆盖',
       map: 'china-city-coverage',
       roam: false,
-      zoom: 1.35,
-      center: [104, 36],
+      zoom: initialMapZoom,
+      center: mapCenter,
       zlevel: 1,
       silent: true,
       label: {
@@ -1926,12 +1953,13 @@ export class PublicAnalysisResultController {
       select: { disabled: true },
       data: cityMapRows
     }, {
+      id: 'coverage-province-hit',
       type: 'map',
       name: '省份边框',
       map: provinceMapName,
       roam: false,
-      zoom: 1.35,
-      center: [104, 36],
+      zoom: initialMapZoom,
+      center: mapCenter,
       zlevel: 2,
       silent: false,
       label: {
@@ -1986,12 +2014,13 @@ export class PublicAnalysisResultController {
       labelLayout: { hideOverlap: true },
       data: provinceLabelPoints
     }] : [{
+      id: 'coverage-province-fallback',
       type: 'map',
       name: '省份覆盖',
       map: 'china',
       roam: false,
-      zoom: 1.35,
-      center: [104, 36],
+      zoom: initialMapZoom,
+      center: mapCenter,
       label: {
         show: true,
         color: '#1f2328',
@@ -2012,6 +2041,20 @@ export class PublicAnalysisResultController {
       data: provinceMapRows
     }])
   });
+  document.querySelectorAll('[data-coverage-map-target="${chartId}"]').forEach(function(button){
+    button.addEventListener('click', function(){
+      const action = String(button.getAttribute('data-coverage-map-control') || '');
+      if (action === 'reset') {
+        applyCoverageMapZoom(initialMapZoom);
+        return;
+      }
+      applyCoverageMapZoom(currentMapZoom * (action === 'in' ? 1.18 : 0.86));
+    });
+  });
+  chartDom.addEventListener('wheel', function(event){
+    event.preventDefault();
+    applyCoverageMapZoom(currentMapZoom * (event.deltaY < 0 ? 1.1 : 0.9));
+  }, { passive: false });
   chart.on('dblclick', function(params){
     const data = params.data || {};
     const seriesName = String(params.seriesName || '');

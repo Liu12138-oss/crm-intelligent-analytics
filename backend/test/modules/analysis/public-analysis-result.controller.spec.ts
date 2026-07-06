@@ -366,7 +366,14 @@ describe('PublicAnalysisResultController', () => {
       },
     });
 
+    expect(html).toContain('class="coverage-map-shell"');
     expect(html).toContain('class="coverage-map"');
+    expect(html).toContain('class="coverage-map-controls"');
+    expect(html).toContain('data-coverage-map-control="in"');
+    expect(html).toContain('data-coverage-map-control="out"');
+    expect(html).toContain('data-coverage-map-control="reset"');
+    expect(html).toContain('.coverage-map{width:100%;height:560px;min-height:500px');
+    expect(html).toContain('.coverage-map{height:680px;min-height:620px}');
     expect(html).toContain('../../analysis-assets/echarts.min.js');
     expect(html).not.toContain('china.min.js');
     expect(html).not.toContain('cdn.jsdelivr.net');
@@ -409,6 +416,11 @@ describe('PublicAnalysisResultController', () => {
     expect(html).toContain("seriesName === '省份边框' || seriesName === '省份名称'");
     expect(html).toContain('function resolveProvinceByCoordinate(coordinate)');
     expect(html).toContain('function buildCityMapRowsFromGeoJson()');
+    expect(html).toContain('const initialMapZoom = 1.72');
+    expect(html).toContain('function applyCoverageMapZoom(nextZoom)');
+    expect(html).toContain("chartDom.addEventListener('wheel'");
+    expect(html).toContain("id: 'coverage-city-fill'");
+    expect(html).toContain('roam: false');
     expect(html).toContain('window.__CRM_LOCAL_CHINA_CITY_GEO_JSON__.features.map');
     expect(html).toContain("chart.getZr().on('dblclick'");
     expect(html).toContain('showCoverageProvinceDetail_');
