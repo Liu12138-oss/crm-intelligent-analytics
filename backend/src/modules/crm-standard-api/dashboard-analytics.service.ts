@@ -289,17 +289,19 @@ export class DashboardAnalyticsService {
 
     try {
       const masterRecords = await this.fetchPartnerMasterRecords(query);
-      if (masterRecords.length === 0) {
-        return contributions;
-      }
-
       const recordIndex = this.buildPartnerMasterRecordIndex(masterRecords);
-      return contributions.map((contribution) => {
+      const enrichedContributions = contributions.map((contribution) => {
         const masterRecord = this.findPartnerMasterRecord(contribution, recordIndex);
         return masterRecord
           ? this.mergePartnerLocationFields(contribution, masterRecord)
           : contribution;
       });
+
+      return this.enrichMissingPartnerLocationsByName(
+        enrichedContributions,
+        recordIndex,
+        query,
+      );
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       errors.push(`partners主数据位置补全: ${reason}`);
@@ -318,7 +320,7 @@ export class DashboardAnalyticsService {
     query: DashboardAnalyticsQuery,
   ): Promise<Array<Record<string, unknown>>> {
     const records: Array<Record<string, unknown>> = [];
-    const baseQuery = this.stripDashboardExtras(query);
+    const baseQuery = this.buildPartnerMasterLocationQuery(query);
 
     for (let pageNo = 1; pageNo <= PARTNER_MASTER_MAX_PAGES; pageNo += 1) {
       const page = await this.openApiClient.listResource<Record<string, unknown>>(
@@ -345,6 +347,92 @@ export class DashboardAnalyticsService {
   }
 
   /**
+   * 按渠道商名称补漏主数据位置。
+   *
+   * 参数说明：`contributions` 为已经做过批量补齐的统计行。
+   * 返回值说明：对仍缺少地市的行，尝试按渠道商名称回查 `/partners` 并补齐城市。
+   * 调用注意事项：只处理少量缺失行，避免无谓增加 CRM OpenAPI 压力。
+   */
+  private async enrichMissingPartnerLocationsByName(
+    contributions: LianruanCrmOpenApiPartnerContributionRecord[],
+    recordIndex: {
+      byId: Map<string, Record<string, unknown>>;
+      byName: Map<string, Record<string, unknown>>;
+    },
+    query: DashboardAnalyticsQuery,
+  ): Promise<LianruanCrmOpenApiPartnerContributionRecord[]> {
+    const baseQuery = this.buildPartnerMasterLocationQuery(query);
+    const enrichedContributions: LianruanCrmOpenApiPartnerContributionRecord[] = [];
+
+    for (const contribution of contributions) {
+      if (this.hasLocationText(contribution)) {
+        enrichedContributions.push(contribution);
+        continue;
+      }
+
+      const partnerName = this.firstText([
+        contribution.partnerName,
+        contribution.name,
+        contribution.partner_name,
+      ]);
+      if (!partnerName) {
+        enrichedContributions.push(contribution);
+        continue;
+      }
+
+      const masterRecord = await this.findPartnerMasterRecordByName(
+        partnerName,
+        recordIndex,
+        baseQuery,
+      );
+      enrichedContributions.push(
+        masterRecord
+          ? this.mergePartnerLocationFields(contribution, masterRecord)
+          : contribution,
+      );
+    }
+
+    return enrichedContributions;
+  }
+
+  /**
+   * 按渠道商名称读取主数据。
+   *
+   * 参数说明：`partnerName` 为统计行中的渠道商名称。
+   * 返回值说明：命中时返回主数据记录，否则返回空值。
+   */
+  private async findPartnerMasterRecordByName(
+    partnerName: string,
+    recordIndex: {
+      byId: Map<string, Record<string, unknown>>;
+      byName: Map<string, Record<string, unknown>>;
+    },
+    baseQuery: LianruanCrmOpenApiAnalyticsQuery,
+  ): Promise<Record<string, unknown> | null> {
+    const lookupName = this.normalizeLookupKey(partnerName);
+    const indexedRecord = lookupName ? recordIndex.byName.get(lookupName) : undefined;
+    if (indexedRecord) {
+      return indexedRecord;
+    }
+
+    const page = await this.openApiClient.listResource<Record<string, unknown>>(
+      'partners',
+      {
+        ...baseQuery,
+        partnerName,
+        pageNo: 1,
+        pageSize: 20,
+      },
+    );
+
+    for (const record of page.items) {
+      this.addPartnerMasterRecordToIndex(record, recordIndex);
+    }
+
+    return this.findBestPartnerNameMatch(partnerName, page.items);
+  }
+
+  /**
    * 构造渠道商主数据索引。
    *
    * 参数说明：`records` 为渠道商主数据列表。
@@ -358,22 +446,35 @@ export class DashboardAnalyticsService {
     const byName = new Map<string, Record<string, unknown>>();
 
     for (const record of records) {
-      for (const idValue of [record.id, record.partnerId, record.partner_id]) {
-        const id = this.normalizeLookupKey(this.readText(idValue));
-        if (id) {
-          byId.set(id, record);
-        }
-      }
-
-      for (const nameValue of [record.partnerName, record.name, record.displayName, record.shortName, record.partner_name]) {
-        const name = this.normalizeLookupKey(this.readText(nameValue));
-        if (name) {
-          byName.set(name, record);
-        }
-      }
+      this.addPartnerMasterRecordToIndex(record, { byId, byName });
     }
 
     return { byId, byName };
+  }
+
+  /**
+   * 将单条渠道商主数据加入索引。
+   */
+  private addPartnerMasterRecordToIndex(
+    record: Record<string, unknown>,
+    index: {
+      byId: Map<string, Record<string, unknown>>;
+      byName: Map<string, Record<string, unknown>>;
+    },
+  ): void {
+    for (const idValue of [record.id, record.partnerId, record.partner_id]) {
+      const id = this.normalizeLookupKey(this.readText(idValue));
+      if (id) {
+        index.byId.set(id, record);
+      }
+    }
+
+    for (const nameValue of [record.partnerName, record.name, record.displayName, record.shortName, record.partner_name]) {
+      const name = this.normalizeLookupKey(this.readText(nameValue));
+      if (name) {
+        index.byName.set(name, record);
+      }
+    }
   }
 
   /**
@@ -406,6 +507,43 @@ export class DashboardAnalyticsService {
     }
 
     return null;
+  }
+
+  /**
+   * 从模糊搜索结果中选择最匹配的渠道商。
+   */
+  private findBestPartnerNameMatch(
+    partnerName: string,
+    records: Array<Record<string, unknown>>,
+  ): Record<string, unknown> | null {
+    const targetName = this.normalizeLookupKey(partnerName);
+    if (!targetName) {
+      return null;
+    }
+
+    for (const record of records) {
+      const candidateNames = [
+        record.partnerName,
+        record.name,
+        record.displayName,
+        record.shortName,
+        record.partner_name,
+      ].map((value) => this.normalizeLookupKey(this.readText(value)));
+      if (candidateNames.some((name) => name === targetName)) {
+        return record;
+      }
+    }
+
+    return records.find((record) => {
+      const candidateNames = [
+        record.partnerName,
+        record.name,
+        record.displayName,
+        record.shortName,
+        record.partner_name,
+      ].map((value) => this.normalizeLookupKey(this.readText(value)));
+      return candidateNames.some((name) => name.includes(targetName) || targetName.includes(name));
+    }) ?? null;
   }
 
   /**
@@ -488,6 +626,21 @@ export class DashboardAnalyticsService {
   }
 
   /**
+   * 判断统计行是否已经有可用于地图地市识别的位置字段。
+   */
+  private hasLocationText(contribution: LianruanCrmOpenApiPartnerContributionRecord): boolean {
+    return Boolean(this.firstText([
+      contribution.city,
+      contribution['所在城市'],
+      contribution['城市'],
+      contribution['地市'],
+      contribution.cityName,
+      contribution.city_name,
+      contribution.address,
+    ]));
+  }
+
+  /**
    * 读取展示文本。
    */
   private readText(value: unknown): string {
@@ -508,6 +661,24 @@ export class DashboardAnalyticsService {
    */
   private stripDashboardExtras(query: DashboardAnalyticsQuery): LianruanCrmOpenApiAnalyticsQuery {
     const { limit: _limit, ...rest } = query;
+    return rest;
+  }
+
+  /**
+   * 构造渠道商位置补齐专用查询。
+   *
+   * 参数说明：`query` 为看板统计筛选条件。
+   * 返回值说明：返回用于 `/partners` 主数据查询的条件。
+   * 调用注意事项：时间字段只适用于统计口径，不适用于渠道基础资料定位。
+   */
+  private buildPartnerMasterLocationQuery(query: DashboardAnalyticsQuery): LianruanCrmOpenApiAnalyticsQuery {
+    const {
+      createdAfter: _createdAfter,
+      createdBefore: _createdBefore,
+      updatedAfter: _updatedAfter,
+      updatedBefore: _updatedBefore,
+      ...rest
+    } = this.stripDashboardExtras(query);
     return rest;
   }
 

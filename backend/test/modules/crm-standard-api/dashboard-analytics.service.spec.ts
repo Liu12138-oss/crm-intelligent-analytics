@@ -72,4 +72,84 @@ describe('DashboardAnalyticsService 渠道商位置补全', () => {
       }),
     );
   });
+
+  it('时间筛选导致批量主数据未命中时应按渠道商名称回查所在城市', async () => {
+    const listResource = jest.fn()
+      .mockResolvedValueOnce({
+        items: [],
+        pageNo: 1,
+        pageSize: 500,
+        total: 0,
+        returnedCount: 0,
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: 'p1',
+            partnerId: 'p1',
+            partnerName: '山东诚卓信息技术有限公司',
+            city: '济南市',
+            region: '山东区',
+          },
+        ],
+        pageNo: 1,
+        pageSize: 20,
+        total: 1,
+        returnedCount: 1,
+      });
+    const openApiClient = {
+      getBusinessOverviewAnalytics: jest.fn().mockResolvedValue({}),
+      getFunnelAnalytics: jest.fn().mockResolvedValue(null),
+      listPartnerContributions: jest.fn().mockResolvedValue([
+        {
+          partnerId: 'p1',
+          partnerName: '山东诚卓信息技术有限公司',
+          region: '山东区',
+          provinceName: '山东',
+          orderCount: 0,
+        },
+      ]),
+      listRegionContributions: jest.fn().mockResolvedValue([]),
+      listOwnerContributions: jest.fn().mockResolvedValue([]),
+      getPartnerProfileAnalytics: jest.fn().mockResolvedValue(null),
+      getResourceSummaryAnalytics: jest.fn().mockResolvedValue({ resource: 'partners', totalCount: 1 }),
+      listResource,
+    };
+    const logger = {
+      logStep: jest.fn(),
+      logWarn: jest.fn(),
+    };
+    const service = new DashboardAnalyticsService(
+      openApiClient as unknown as LianruanCrmOpenApiClient,
+      logger as never,
+    );
+
+    const result = await service.fetchDashboardAnalytics({
+      limit: 10,
+      createdAfter: '2026-06-01T00:00:00.000Z',
+      createdBefore: '2026-07-01T00:00:00.000Z',
+    });
+
+    expect(result.partnerContributions[0]).toMatchObject({
+      partnerName: '山东诚卓信息技术有限公司',
+      cityName: '济南市',
+    });
+    expect(listResource).toHaveBeenNthCalledWith(
+      1,
+      'partners',
+      expect.not.objectContaining({
+        createdAfter: expect.any(String),
+        createdBefore: expect.any(String),
+      }),
+    );
+    expect(listResource).toHaveBeenNthCalledWith(
+      2,
+      'partners',
+      expect.objectContaining({
+        partnerName: '山东诚卓信息技术有限公司',
+        pageNo: 1,
+        pageSize: 20,
+      }),
+    );
+  });
 });
