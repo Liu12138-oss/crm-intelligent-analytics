@@ -26,6 +26,9 @@ import type {
   LianruanCrmOpenApiResourceSummary,
 } from './lianruan-crm-openapi.types';
 
+const PARTNER_MASTER_PAGE_SIZE = 500;
+const PARTNER_MASTER_MAX_PAGES = 5;
+
 /**
  * 看板统计查询参数
  * 继承联软标准 AnalyticsQuery，补充看板常用维度
@@ -126,7 +129,7 @@ export class DashboardAnalyticsService {
     // 解析结果，失败的记录错误信息
     const businessOverview = this.resolveSettled(businessOverviewResult, 'business-overview', errors);
     const funnel = this.resolveSettled(funnelResult, 'funnel', errors);
-    const partnerContributions = this.resolveSettled(partnerContributionsResult, 'partners/contribution', errors) ?? [];
+    const rawPartnerContributions = this.resolveSettled(partnerContributionsResult, 'partners/contribution', errors) ?? [];
     const regionContributions = this.resolveSettled(regionContributionsResult, 'regions/contribution', errors) ?? [];
     const ownerContributions = this.resolveSettled(ownerContributionsResult, 'owners/contribution', errors) ?? [];
     const partnerProfile = this.resolveSettled(partnerProfileResult, 'partners/profile', errors);
@@ -135,6 +138,11 @@ export class DashboardAnalyticsService {
     const orderSummary = this.resolveSettled(orderSummaryResult, 'orders/summary', errors);
     const registrationSummary = this.resolveSettled(registrationSummaryResult, 'registrations/summary', errors);
     const quoteSummary = this.resolveSettled(quoteSummaryResult, 'quotes/summary', errors);
+    const partnerContributions = await this.enrichPartnerContributionLocations(
+      rawPartnerContributions,
+      query,
+      errors,
+    );
 
     // 全部失败时标记降级
     const allFailed =
@@ -261,6 +269,220 @@ export class DashboardAnalyticsService {
     query: LianruanCrmOpenApiAnalyticsQuery,
   ): Promise<LianruanCrmOpenApiResourceSummary> {
     return this.openApiClient.getResourceSummaryAnalytics(resource, query);
+  }
+
+  /**
+   * 用渠道商主数据补齐贡献统计中的省市字段。
+   *
+   * 参数说明：`contributions` 为统计接口返回的渠道贡献行，`query` 为本次看板筛选条件。
+   * 返回值说明：返回补齐了 `provinceName/cityName` 等字段的贡献行。
+   * 调用注意事项：补全失败不阻断看板，只记录错误并继续使用原统计结果。
+   */
+  private async enrichPartnerContributionLocations(
+    contributions: LianruanCrmOpenApiPartnerContributionRecord[],
+    query: DashboardAnalyticsQuery,
+    errors: string[],
+  ): Promise<LianruanCrmOpenApiPartnerContributionRecord[]> {
+    if (contributions.length === 0) {
+      return contributions;
+    }
+
+    try {
+      const masterRecords = await this.fetchPartnerMasterRecords(query);
+      if (masterRecords.length === 0) {
+        return contributions;
+      }
+
+      const recordIndex = this.buildPartnerMasterRecordIndex(masterRecords);
+      return contributions.map((contribution) => {
+        const masterRecord = this.findPartnerMasterRecord(contribution, recordIndex);
+        return masterRecord
+          ? this.mergePartnerLocationFields(contribution, masterRecord)
+          : contribution;
+      });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      errors.push(`partners主数据位置补全: ${reason}`);
+      return contributions;
+    }
+  }
+
+  /**
+   * 分页读取渠道商主数据。
+   *
+   * 参数说明：`query` 为看板筛选条件。
+   * 返回值说明：返回当前权限和筛选条件内的渠道商主数据。
+   * 调用注意事项：限制最多 5 页，避免看板打开时对 CRM 造成过重压力。
+   */
+  private async fetchPartnerMasterRecords(
+    query: DashboardAnalyticsQuery,
+  ): Promise<Array<Record<string, unknown>>> {
+    const records: Array<Record<string, unknown>> = [];
+    const baseQuery = this.stripDashboardExtras(query);
+
+    for (let pageNo = 1; pageNo <= PARTNER_MASTER_MAX_PAGES; pageNo += 1) {
+      const page = await this.openApiClient.listResource<Record<string, unknown>>(
+        'partners',
+        {
+          ...baseQuery,
+          pageNo,
+          pageSize: PARTNER_MASTER_PAGE_SIZE,
+        },
+      );
+      records.push(...page.items);
+
+      const total = Number(page.total ?? 0);
+      if (
+        page.items.length === 0 ||
+        page.returnedCount < page.pageSize ||
+        (total > 0 && records.length >= total)
+      ) {
+        break;
+      }
+    }
+
+    return records;
+  }
+
+  /**
+   * 构造渠道商主数据索引。
+   *
+   * 参数说明：`records` 为渠道商主数据列表。
+   * 返回值说明：返回按 ID 和名称索引的映射。
+   */
+  private buildPartnerMasterRecordIndex(records: Array<Record<string, unknown>>): {
+    byId: Map<string, Record<string, unknown>>;
+    byName: Map<string, Record<string, unknown>>;
+  } {
+    const byId = new Map<string, Record<string, unknown>>();
+    const byName = new Map<string, Record<string, unknown>>();
+
+    for (const record of records) {
+      for (const idValue of [record.id, record.partnerId, record.partner_id]) {
+        const id = this.normalizeLookupKey(this.readText(idValue));
+        if (id) {
+          byId.set(id, record);
+        }
+      }
+
+      for (const nameValue of [record.partnerName, record.name, record.displayName, record.shortName, record.partner_name]) {
+        const name = this.normalizeLookupKey(this.readText(nameValue));
+        if (name) {
+          byName.set(name, record);
+        }
+      }
+    }
+
+    return { byId, byName };
+  }
+
+  /**
+   * 查找贡献行对应的渠道商主数据。
+   *
+   * 参数说明：`contribution` 为渠道贡献行，`index` 为主数据索引。
+   * 返回值说明：命中时返回主数据，否则返回空值。
+   */
+  private findPartnerMasterRecord(
+    contribution: LianruanCrmOpenApiPartnerContributionRecord,
+    index: {
+      byId: Map<string, Record<string, unknown>>;
+      byName: Map<string, Record<string, unknown>>;
+    },
+  ): Record<string, unknown> | null {
+    for (const idValue of [contribution.partnerId, contribution.id, contribution.partner_id]) {
+      const id = this.normalizeLookupKey(this.readText(idValue));
+      const record = id ? index.byId.get(id) : undefined;
+      if (record) {
+        return record;
+      }
+    }
+
+    for (const nameValue of [contribution.partnerName, contribution.name, contribution.partner_name]) {
+      const name = this.normalizeLookupKey(this.readText(nameValue));
+      const record = name ? index.byName.get(name) : undefined;
+      if (record) {
+        return record;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * 合并渠道商位置字段。
+   *
+   * 参数说明：`contribution` 为统计行，`masterRecord` 为主数据行。
+   * 返回值说明：返回保留统计指标并补齐省市字段的新对象。
+   */
+  private mergePartnerLocationFields(
+    contribution: LianruanCrmOpenApiPartnerContributionRecord,
+    masterRecord: Record<string, unknown>,
+  ): LianruanCrmOpenApiPartnerContributionRecord {
+    return {
+      ...contribution,
+      provinceName: contribution.provinceName ?? contribution.province ?? this.firstText([
+        masterRecord.provinceName,
+        masterRecord.province,
+        masterRecord.province_name,
+        masterRecord.partnerProvinceName,
+        masterRecord.partnerProvince,
+        masterRecord.partner_province_name,
+        masterRecord.partner_province,
+      ]),
+      cityName: contribution.cityName ?? contribution.city ?? this.firstText([
+        masterRecord.cityName,
+        masterRecord.city,
+        masterRecord.city_name,
+        masterRecord.partnerCityName,
+        masterRecord.partnerCity,
+        masterRecord.partner_city_name,
+        masterRecord.partner_city,
+        masterRecord.prefectureCityName,
+        masterRecord.prefectureCity,
+        masterRecord.prefecture_city_name,
+        masterRecord.prefecture_city,
+      ]),
+      region: contribution.region ?? this.firstText([masterRecord.region, masterRecord.regionName, masterRecord.region_name]),
+      bigRegion: contribution.bigRegion ?? this.firstText([masterRecord.bigRegion, masterRecord.big_region]),
+      address: contribution.address ?? this.firstText([
+        masterRecord.address,
+        masterRecord.registeredAddress,
+        masterRecord.registered_address,
+        masterRecord.officeAddress,
+        masterRecord.office_address,
+        masterRecord.regionInfo,
+        masterRecord.region_info,
+      ]),
+    };
+  }
+
+  /**
+   * 读取第一段非空文本。
+   */
+  private firstText(values: unknown[]): string | undefined {
+    for (const value of values) {
+      const text = this.readText(value);
+      if (text) {
+        return text;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * 读取展示文本。
+   */
+  private readText(value: unknown): string {
+    return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+      ? String(value).trim()
+      : '';
+  }
+
+  /**
+   * 归一索引键。
+   */
+  private normalizeLookupKey(value: string): string {
+    return value.replace(/\s/gu, '').toLowerCase();
   }
 
   /**

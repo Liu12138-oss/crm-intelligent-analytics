@@ -15,7 +15,7 @@ function buildProvinceAndStatusBundle(): DashboardAnalyticsBundle {
     funnel: null,
     partnerContributions: [
       { partnerId: 'p1', partnerName: '临沂普悦天诚信息科技有限公司', region: '山东区', bigRegion: '大北区' },
-      { partnerId: 'p2', partnerName: '山东华安赛服智能科技有限公司', region: '山东区', bigRegion: '大北区' },
+      { partnerId: 'p2', partnerName: '山东诚卓信息技术有限公司', cityName: '济南市', region: '山东区', bigRegion: '大北区' },
       { partnerId: 'p3', partnerName: '北京华夏泰合科技有限公司', region: '北区（政企企业）', bigRegion: '大北区' },
       { partnerId: 'p4', partnerName: '北京意畅科技股份有限公司', region: '北区（政府企业）', bigRegion: '大北区' },
       { partnerId: 'p5', partnerName: '河北奇点信息技术服务有限公司', region: '晋冀区', bigRegion: '大北区' },
@@ -96,28 +96,28 @@ describe('DashboardReportComposer 省份地图和枚举中文化', () => {
       浙江: 1,
     });
     expect(geoBlock.coveredRegionCount).toBe(9);
-    expect(geoBlock.coveredCityCount).toBe(5);
+    expect(geoBlock.coveredCityCount).toBe(6);
     expect(geoBlock.totalCityCount).toBeGreaterThan(300);
 
     const shandongRegion = geoBlock.regions.find((region) => region.name === '山东');
     expect(shandongRegion?.cityGroups).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
+          cityName: '济南',
+          partnerCount: 1,
+          partners: ['山东诚卓信息技术有限公司'],
+        }),
+        expect.objectContaining({
           cityName: '临沂',
           partnerCount: 1,
           partners: ['临沂普悦天诚信息科技有限公司'],
-        }),
-        expect.objectContaining({
-          cityName: '未识别地市',
-          partnerCount: 1,
-          partners: ['山东华安赛服智能科技有限公司'],
         }),
       ]),
     );
     expect(geoBlock.regions.map((region) => region.name)).not.toEqual(
       expect.arrayContaining(['山东区', '北区（政企企业）', '晋冀区', '东北区', '浙赣区']),
     );
-    expect(result.executiveSummary).toContain('覆盖5个地市');
+    expect(result.executiveSummary).toContain('覆盖6个地市');
     expect(result.executiveSummary).toContain('覆盖9个省份');
 
     const labels = result.blocks.flatMap((block) => block.blockType === 'pie-distribution'

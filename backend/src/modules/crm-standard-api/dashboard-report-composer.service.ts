@@ -24,6 +24,10 @@ import type {
 import type { DashboardAnalyticsBundle, DashboardAnalyticsQuery } from './dashboard-analytics.service';
 import { DashboardAnalyticsService } from './dashboard-analytics.service';
 import { formatOpportunityStageLabel } from '../analysis/opportunity-stage-label.util';
+import {
+  resolveChinaCityByText,
+  resolveChinaProvinceByText,
+} from '../../shared/china-administrative-division.util';
 
 /**
  * 看板类型枚举
@@ -1335,41 +1339,71 @@ export class DashboardReportComposer {
       partner.partnerName,
       partner['provinceName'],
       partner['province'],
+      partner['province_name'],
       partner['cityName'],
       partner['city'],
+      partner['city_name'],
       partner['partnerProvinceName'],
       partner['partnerProvince'],
+      partner['partner_province_name'],
+      partner['partner_province'],
       partner['partnerCityName'],
       partner['partnerCity'],
+      partner['partner_city_name'],
+      partner['partner_city'],
+      partner['prefectureCityName'],
+      partner['prefectureCity'],
+      partner['prefecture_city_name'],
+      partner['prefecture_city'],
+      partner['address'],
+      partner['registeredAddress'],
+      partner['registered_address'],
+      partner['officeAddress'],
+      partner['office_address'],
     ].map((source) => this.readDisplayText(source));
+    const regionText = this.readDisplayText(partner.region);
+    const bigRegionText = this.readDisplayText(partner.bigRegion);
+    const locationSources = [
+      ...explicitSources,
+      regionText,
+      bigRegionText,
+      this.readDisplayText(partner['regionName']),
+      this.readDisplayText(partner['region_name']),
+      this.readDisplayText(partner['regionInfo']),
+      this.readDisplayText(partner['region_info']),
+      this.readDisplayText(partner['area']),
+      this.readDisplayText(partner['departmentName']),
+      this.readDisplayText(partner['department_name']),
+      this.readDisplayText(partner['team']),
+      this.readDisplayText(partner['teamName']),
+      this.readDisplayText(partner['team_name']),
+    ];
 
     for (const sourceText of explicitSources) {
       const province = this.matchProvinceFromText(sourceText);
       if (province) {
         return {
           province,
-          cityName: this.resolvePartnerCityName(explicitSources, province) ?? undefined,
+          cityName: this.resolvePartnerCityName(locationSources, province) ?? undefined,
           source: sourceText,
         };
       }
     }
 
-    const regionText = this.readDisplayText(partner.region);
     const provinceFromRegion = this.matchProvinceFromText(regionText) ?? this.resolveProvinceFromCrmRegion(regionText);
     if (provinceFromRegion) {
       return {
         province: provinceFromRegion,
-        cityName: this.resolvePartnerCityName([...explicitSources, regionText], provinceFromRegion) ?? undefined,
+        cityName: this.resolvePartnerCityName(locationSources, provinceFromRegion) ?? undefined,
         source: regionText,
       };
     }
 
-    const bigRegionText = this.readDisplayText(partner.bigRegion);
     const provinceFromBigRegion = this.resolveProvinceFromCrmRegion(bigRegionText);
     if (provinceFromBigRegion) {
       return {
         province: provinceFromBigRegion,
-        cityName: this.resolvePartnerCityName([...explicitSources, bigRegionText], provinceFromBigRegion) ?? undefined,
+        cityName: this.resolvePartnerCityName(locationSources, provinceFromBigRegion) ?? undefined,
         source: bigRegionText,
       };
     }
@@ -1387,6 +1421,11 @@ export class DashboardReportComposer {
   private matchProvinceFromText(text: string): string | null {
     if (!text) {
       return null;
+    }
+
+    const sharedProvince = resolveChinaProvinceByText(text);
+    if (sharedProvince) {
+      return sharedProvince;
     }
 
     for (const item of CHINA_PROVINCE_KEYWORDS) {
@@ -1424,8 +1463,7 @@ export class DashboardReportComposer {
       return null;
     }
 
-    const cityNames = CHINA_PROVINCE_CITY_NAMES[province] ?? [];
-    return cityNames.find((cityName) => text.includes(cityName)) ?? null;
+    return resolveChinaCityByText(text, province);
   }
 
   /**
