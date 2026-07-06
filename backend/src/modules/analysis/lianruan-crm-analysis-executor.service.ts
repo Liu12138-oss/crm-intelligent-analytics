@@ -2593,6 +2593,7 @@ export class LianruanCrmAnalysisExecutorService {
       const partnerName = this.resolvePartnerName(record, partnerId, partnerNameMap);
       const existing = rows.get(partnerId);
       if (existing) {
+        this.fillMissingBusinessChainPartnerLocationFields(existing, record);
         return existing;
       }
 
@@ -2611,6 +2612,7 @@ export class LianruanCrmAnalysisExecutorService {
         orderAmount: 0,
         amount: 0,
         count: 0,
+        ...this.resolveBusinessChainPartnerLocationFields(record),
       };
       rows.set(partnerId, created);
       return created;
@@ -3199,6 +3201,7 @@ export class LianruanCrmAnalysisExecutorService {
     return records.map((record) => {
       const partnerId = this.readText(record.id ?? record.partnerId);
       const totalAmount = this.resolveFiniteNumber(record.totalAmount ?? record.totalAmt ?? record.amount);
+      const locationFields = this.resolveBusinessChainPartnerLocationFields(record);
       return {
         partnerId,
         partnerName:
@@ -3218,11 +3221,80 @@ export class LianruanCrmAnalysisExecutorService {
         orderCount: this.resolveFiniteNumber(record.orderCount),
         totalAmount,
         totalAmountText: totalAmount > 0 ? formatWanAmount(totalAmount) : undefined,
+        ...locationFields,
         joinDate: this.readText(record.joinDate) || undefined,
         createdAt: this.readText(record.createdAt) || undefined,
         updatedAt: this.readText(record.updatedAt) || undefined,
       };
     });
+  }
+
+  /**
+   * 读取业务链渠道商位置字段。
+   *
+   * 参数说明：`record` 为 `/partners` 或业务对象返回的渠道商相关记录。
+   * 返回值说明：返回地图和报告识别需要的省份、地市和区域字段；原始缺失时不造假。
+   * 调用注意事项：这里不会暴露详细地址，只保留省市级分析字段。
+   */
+  private resolveBusinessChainPartnerLocationFields(record: StandardApiRecord): Record<string, unknown> {
+    const city = this.readText(
+      record.city ??
+        record.cityName ??
+        record.city_name ??
+        record['所在城市'] ??
+        record['城市'] ??
+        record['地市'] ??
+        record.prefectureCity ??
+        record.prefectureCityName ??
+        record.prefecture_city ??
+        record.prefecture_city_name,
+    );
+    const province = this.readText(
+      record.province ??
+        record.provinceName ??
+        record.province_name ??
+        record['所在省份'] ??
+        record['所在省'] ??
+        record['省份'],
+    );
+    const region = this.readText(record.region ?? record.regionName ?? record.region_name ?? record.area);
+    const bigRegion = this.readText(record.bigRegion ?? record.bigRegionName ?? record.big_region);
+    const fields: Record<string, unknown> = {};
+    if (city) {
+      fields.city = city;
+      fields.cityName = city;
+    }
+    if (province) {
+      fields.province = province;
+      fields.provinceName = province;
+    }
+    if (region) {
+      fields.region = region;
+    }
+    if (bigRegion) {
+      fields.bigRegion = bigRegion;
+    }
+    return fields;
+  }
+
+  /**
+   * 将渠道商位置字段补齐到已有贡献行。
+   *
+   * 参数说明：
+   * - `target`：已创建的渠道商贡献汇总行；
+   * - `source`：后续读到的同一渠道商记录。
+   * 返回值说明：直接修改 `target`，只补空字段，不覆盖已有字段。
+   */
+  private fillMissingBusinessChainPartnerLocationFields(
+    target: Record<string, unknown>,
+    source: StandardApiRecord,
+  ): void {
+    const locationFields = this.resolveBusinessChainPartnerLocationFields(source);
+    for (const [key, value] of Object.entries(locationFields)) {
+      if (!this.readText(target[key]) && this.readText(value)) {
+        target[key] = value;
+      }
+    }
   }
 
   /**

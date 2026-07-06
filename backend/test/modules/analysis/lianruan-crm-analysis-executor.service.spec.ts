@@ -941,6 +941,7 @@ describe('LianruanCrmAnalysisExecutorService', () => {
           id: 'P_MD_001',
           name: '广州快照生态服务商',
           level: '金牌服务商',
+          city: '广州市',
           region: '广州区',
           status: 'active',
           totalAmt: 960000,
@@ -1033,6 +1034,24 @@ describe('LianruanCrmAnalysisExecutorService', () => {
     expect(serializedResult).toContain('广州快照生态服务商');
     expect(serializedResult).toContain('广州快照商机');
     expect(serializedResult).toContain('广州快照订单');
+    expect(result.secondaryViews.find((view) => view.title === '合作伙伴明细')?.rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          partnerName: '广州快照生态服务商',
+          city: '广州市',
+          cityName: '广州市',
+        }),
+      ]),
+    );
+    expect(result.secondaryViews.find((view) => view.title === '渠道商经营贡献汇总')?.rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          partnerName: '广州快照生态服务商',
+          city: '广州市',
+          cityName: '广州市',
+        }),
+      ]),
+    );
   });
 
   it('北京区域渠道商商机订单分析应以北京渠道商为主口径，不混入北京客户下的外地渠道商', async () => {
