@@ -114,6 +114,8 @@ const option = computed<EChartsOption>(() => {
     return { series: [] } as EChartsOption;
   }
 
+  const mapName = props.block.mapName || 'china';
+
   return {
     tooltip: {
       trigger: 'item',
@@ -142,15 +144,67 @@ const option = computed<EChartsOption>(() => {
       min: 0,
       max: mapMaxValue.value,
       show: false,
+      seriesIndex: [0],
       inRange: { color: [MAP_COLORS.empty, MAP_COLORS.low, MAP_COLORS.medium, MAP_COLORS.high] },
     },
-    geo: undefined,
+    geo: [
+      {
+        map: mapName,
+        silent: true,
+        roam: false,
+        zoom: 1.18,
+        layoutCenter: ['51.6%', '52.9%'],
+        layoutSize: '96%',
+        zlevel: 0,
+        z: 0,
+        label: { show: false },
+        itemStyle: {
+          areaColor: 'rgba(2, 10, 22, 0.82)',
+          borderColor: 'transparent',
+          borderWidth: 0,
+          shadowBlur: 28,
+          shadowColor: 'rgba(8, 145, 178, 0.26)',
+        },
+        emphasis: {
+          disabled: true,
+          label: { show: false },
+          itemStyle: { areaColor: 'rgba(2, 10, 22, 0.82)' },
+        },
+      },
+      {
+        map: mapName,
+        silent: true,
+        roam: false,
+        zoom: 1.18,
+        layoutCenter: ['50.9%', '51.7%'],
+        layoutSize: '96%',
+        zlevel: 0,
+        z: 1,
+        label: { show: false },
+        itemStyle: {
+          areaColor: 'rgba(7, 48, 64, 0.8)',
+          borderColor: 'transparent',
+          borderWidth: 0,
+          shadowBlur: 22,
+          shadowColor: 'rgba(34, 211, 238, 0.22)',
+        },
+        emphasis: {
+          disabled: true,
+          label: { show: false },
+          itemStyle: { areaColor: 'rgba(7, 48, 64, 0.8)' },
+        },
+      },
+    ],
     series: [
       {
         type: 'map',
-        map: props.block.mapName || 'china',
+        map: mapName,
         roam: true,
         zoom: 1.18,
+        layoutCenter: ['50%', '50%'],
+        layoutSize: '96%',
+        zlevel: 1,
+        z: 10,
         scaleLimit: { min: 1, max: 3 },
         showLegendSymbol: false,
         selectedMode: 'single',
@@ -214,10 +268,10 @@ const option = computed<EChartsOption>(() => {
         },
         itemStyle: {
           areaColor: MAP_COLORS.empty,
-          borderColor: MAP_COLORS.border,
-          borderWidth: 0.9,
-          shadowBlur: 10,
-          shadowColor: 'rgba(34, 211, 238, 0.12)',
+          borderColor: 'rgba(165, 243, 252, 0.42)',
+          borderWidth: 1,
+          shadowBlur: 16,
+          shadowColor: 'rgba(34, 211, 238, 0.18)',
         },
       },
     ],
@@ -464,10 +518,29 @@ const selectedTotalCityCount = computed(() => selectedRegion.value?.totalCityCou
   box-shadow: inset 0 0 44px rgba(34, 211, 238, 0.1), 0 16px 40px rgba(8, 20, 38, 0.12);
 }
 
+.geo-map-block__canvas-shell::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 36%;
+  background:
+    linear-gradient(180deg, transparent, rgba(34, 211, 238, 0.08) 48%, rgba(2, 6, 23, 0.24));
+  pointer-events: none;
+  z-index: 0;
+}
+
 .geo-map-block__chart {
+  position: relative;
   height: 100%;
   min-height: 380px;
   width: 100%;
+  z-index: 1;
+}
+
+.geo-map-block__chart :deep(canvas) {
+  filter: drop-shadow(0 0 14px rgba(34, 211, 238, 0.22));
 }
 
 .geo-map-block__overview {
