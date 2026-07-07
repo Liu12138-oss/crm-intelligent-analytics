@@ -19,23 +19,93 @@ const chartRef = ref<HTMLElement | null>(null);
 const mapLoading = ref(true);
 const mapError = ref<string | null>(null);
 const selectedRegionName = ref('');
-const detailVisible = ref(false);
 
 const mapReady = computed(() => !mapLoading.value && !mapError.value);
 
 type GeoRegion = ManagementReportGeoMapBlock['regions'][number];
+type MapRegionData = {
+  name: string;
+  value: number;
+  partnerCount: number;
+  coveredCityCount: number;
+  totalCityCount: number;
+  extra?: string;
+  cityGroups: NonNullable<GeoRegion['cityGroups']>;
+};
+
+const MAP_COLORS = {
+  empty: '#0B1A2F',
+  low: '#0D5B6B',
+  medium: '#12A2B8',
+  high: '#22D3EE',
+  selected: '#F59E0B',
+  border: 'rgba(125, 211, 252, 0.32)',
+  hover: '#38BDF8',
+  label: '#D7F8FF',
+};
 
 // 构建地图数据
-const mapData = computed(() => {
-  return props.block.regions.map((item) => ({
-    name: item.name,
-    value: item.coveredCityCount ?? item.value,
-    partnerCount: item.value,
-    coveredCityCount: item.coveredCityCount ?? 0,
-    totalCityCount: item.totalCityCount ?? 0,
-    extra: item.extra,
-    cityGroups: item.cityGroups ?? [],
-  }));
+const mapData = computed<MapRegionData[]>(() => {
+  return props.block.regions.map((item) => {
+    const value = item.coveredCityCount ?? item.value;
+    const coveredCityCount = item.coveredCityCount ?? 0;
+    const totalCityCount = item.totalCityCount ?? 0;
+
+    return {
+      name: item.name,
+      value,
+      partnerCount: item.value,
+      coveredCityCount,
+      totalCityCount,
+      extra: item.extra,
+      cityGroups: item.cityGroups ?? [],
+    };
+  });
+});
+
+const coveredRegions = computed(() => {
+  return mapData.value
+    .filter((item) => item.partnerCount > 0)
+    .sort((left, right) => right.partnerCount - left.partnerCount || left.name.localeCompare(right.name, 'zh-CN'));
+});
+
+const uncoveredRegionNames = computed(() => {
+  const knownRegionNames = new Set(mapData.value.map((item) => item.name));
+  const emptyFromData = mapData.value.filter((item) => item.partnerCount <= 0).map((item) => item.name);
+  const expectedTotal = props.block.totalRegionCount ?? knownRegionNames.size;
+
+  if (knownRegionNames.size >= expectedTotal) {
+    return emptyFromData;
+  }
+
+  return [];
+});
+
+const mapMaxValue = computed(() => Math.max(...mapData.value.map((item) => item.value), 1));
+
+const defaultSelectedRegionName = computed(() => {
+  const cityDetailRegion = props.block.regions.find((item) => (item.cityGroups?.length ?? 0) > 0);
+  if (cityDetailRegion) {
+    return cityDetailRegion.name;
+  }
+
+  const coveredRegion = [...props.block.regions]
+    .filter((item) => item.value > 0)
+    .sort((left, right) => right.value - left.value || left.name.localeCompare(right.name, 'zh-CN'))[0];
+
+  return coveredRegion?.name ?? props.block.regions[0]?.name ?? '';
+});
+
+const coverageRateText = computed(() => {
+  if (props.block.coveredCityCount !== undefined && props.block.totalCityCount) {
+    return `${((props.block.coveredCityCount / props.block.totalCityCount) * 100).toFixed(1)}%`;
+  }
+
+  if (props.block.coveredRegionCount !== undefined && props.block.totalRegionCount) {
+    return `${((props.block.coveredRegionCount / props.block.totalRegionCount) * 100).toFixed(1)}%`;
+  }
+
+  return '--';
 });
 
 // 构建 ECharts option
@@ -44,49 +114,110 @@ const option = computed<EChartsOption>(() => {
     return { series: [] } as EChartsOption;
   }
 
-  const max = Math.max(...mapData.value.map((d) => d.value), 1);
-
   return {
     tooltip: {
       trigger: 'item',
+      backgroundColor: 'rgba(7, 18, 36, 0.95)',
+      borderColor: 'rgba(56, 189, 248, 0.45)',
+      borderWidth: 1,
+      padding: [10, 12],
+      textStyle: {
+        color: '#DCEFFF',
+        fontSize: 12,
+        lineHeight: 20,
+      },
+      extraCssText: 'border-radius: 12px; box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28); backdrop-filter: blur(10px);',
       formatter: (params: any) => {
         if (!params.data) {
-          return `${params.name}：未覆盖`;
+          return `<strong style="color:#FFFFFF">${params.name}</strong><br/>渠道商：0 ${props.block.unitLabel ?? '家'}<br/><span style="color:#8FB7CC">双击查看地市代理商</span>`;
         }
         const extra = params.data.extra ? `<br/>${params.data.extra}` : '';
         const cityText = params.data.totalCityCount
           ? `<br/>覆盖地市：${params.data.coveredCityCount}/${params.data.totalCityCount}`
           : '';
-        return `${params.name}<br/>渠道商：${params.data.partnerCount} ${props.block.unitLabel ?? '家'}${cityText}${extra}`;
+        return `<strong style="color:#FFFFFF">${params.name}</strong><br/>渠道商：${params.data.partnerCount} ${props.block.unitLabel ?? '家'}${cityText}${extra}<br/><span style="color:#8FB7CC">双击查看地市代理商</span>`;
       },
     },
     visualMap: {
       min: 0,
-      max,
-      text: ['地市覆盖高', '地市覆盖低'],
-      calculable: true,
-      left: 'right',
-      bottom: 20,
-      itemWidth: 14,
-      itemHeight: 14,
-      textStyle: { fontSize: 11, color: '#6B7C93' },
-      inRange: { color: ['#FCEBEB', '#8BC5FF', '#0E9F8A'] },
-      show: true,
+      max: mapMaxValue.value,
+      show: false,
+      inRange: { color: [MAP_COLORS.empty, MAP_COLORS.low, MAP_COLORS.medium, MAP_COLORS.high] },
     },
     geo: undefined,
     series: [
       {
         type: 'map',
         map: props.block.mapName || 'china',
-        roam: false,
+        roam: true,
+        zoom: 1.18,
+        scaleLimit: { min: 1, max: 3 },
+        showLegendSymbol: false,
+        selectedMode: 'single',
+        selectedMap: selectedRegionName.value ? { [selectedRegionName.value]: true } : {},
         data: mapData.value,
+        regions: selectedRegionName.value
+          ? [{
+              name: selectedRegionName.value,
+              itemStyle: {
+                areaColor: MAP_COLORS.selected,
+                borderColor: '#FDE68A',
+                borderWidth: 1.6,
+                shadowBlur: 20,
+                shadowColor: 'rgba(245, 158, 11, 0.42)',
+              },
+              label: {
+                show: true,
+                color: '#FFF7D6',
+                fontWeight: 800,
+                textBorderColor: 'rgba(8, 20, 38, 0.88)',
+                textBorderWidth: 3,
+              },
+            }]
+          : [],
+        label: {
+          show: true,
+          color: MAP_COLORS.label,
+          fontSize: 10,
+          fontWeight: 600,
+          formatter: (params: any) => {
+            const region = mapData.value.find((item) => item.name === params.name);
+            return (region && region.partnerCount > 0) || params.name === selectedRegionName.value ? params.name : '';
+          },
+        },
         emphasis: {
-          label: { show: true, color: '#0A2540' },
-          itemStyle: { areaColor: '#8BC5FF' },
+          label: { show: true, color: '#FFFFFF', fontSize: 12, fontWeight: 700 },
+          itemStyle: {
+            areaColor: MAP_COLORS.hover,
+            borderColor: '#E0F2FE',
+            borderWidth: 1.4,
+            shadowBlur: 18,
+            shadowColor: 'rgba(56, 189, 248, 0.42)',
+          },
+        },
+        select: {
+          label: {
+            show: true,
+            color: '#FFF7D6',
+            fontSize: 12,
+            fontWeight: 800,
+            textBorderColor: 'rgba(8, 20, 38, 0.88)',
+            textBorderWidth: 3,
+          },
+          itemStyle: {
+            areaColor: MAP_COLORS.selected,
+            borderColor: '#FDE68A',
+            borderWidth: 1.7,
+            shadowBlur: 22,
+            shadowColor: 'rgba(245, 158, 11, 0.46)',
+          },
         },
         itemStyle: {
-          borderColor: '#E6EBF1',
-          borderWidth: 0.5,
+          areaColor: MAP_COLORS.empty,
+          borderColor: MAP_COLORS.border,
+          borderWidth: 0.9,
+          shadowBlur: 10,
+          shadowColor: 'rgba(34, 211, 238, 0.12)',
         },
       },
     ],
@@ -115,10 +246,19 @@ watch(instance, (chart) => {
     const regionName = String(params.name ?? '');
     if (regionName) {
       selectedRegionName.value = regionName;
-      detailVisible.value = true;
     }
   });
 });
+
+watch(
+  defaultSelectedRegionName,
+  (regionName) => {
+    if (!selectedRegionName.value && regionName) {
+      selectedRegionName.value = regionName;
+    }
+  },
+  { immediate: true },
+);
 
 // 覆盖率摘要
 const coverageSummary = computed(() => {
@@ -149,9 +289,21 @@ const selectedCityGroups = computed(() => {
   });
 });
 
-function closeDetail() {
-  detailVisible.value = false;
-}
+const selectedCoverageRateText = computed(() => {
+  if (!selectedRegion.value?.totalCityCount) {
+    return '--';
+  }
+
+  return `${(((selectedRegion.value.coveredCityCount ?? 0) / selectedRegion.value.totalCityCount) * 100).toFixed(1)}%`;
+});
+
+const selectedRegionCovered = computed(() => (selectedRegion.value?.value ?? 0) > 0);
+
+const selectedRegionPartnerCount = computed(() => selectedRegion.value?.value ?? 0);
+
+const selectedCoveredCityCount = computed(() => selectedRegion.value?.coveredCityCount ?? 0);
+
+const selectedTotalCityCount = computed(() => selectedRegion.value?.totalCityCount ?? 0);
 </script>
 
 <template>
@@ -161,35 +313,57 @@ function closeDetail() {
       <span v-if="coverageSummary" class="geo-map-block__summary">{{ coverageSummary }}</span>
     </div>
 
-    <div class="geo-map-block__canvas-shell">
-      <div ref="chartRef" class="geo-map-block__chart" />
-      <div v-if="mapLoading" class="geo-map-block__overlay">
-        正在加载地图数据...
+    <div class="geo-map-block__stage">
+      <div class="geo-map-block__canvas-shell">
+        <div class="geo-map-block__overview" aria-label="覆盖概览">
+          <span>覆盖率</span>
+          <strong>{{ coverageRateText }}</strong>
+          <em v-if="block.coveredRegionCount !== undefined && block.totalRegionCount">
+            {{ block.coveredRegionCount }}/{{ block.totalRegionCount }} 省份
+          </em>
+          <em v-if="block.coveredCityCount !== undefined && block.totalCityCount">
+            {{ block.coveredCityCount }}/{{ block.totalCityCount }} 地市
+          </em>
+        </div>
+        <div ref="chartRef" class="geo-map-block__chart" />
+        <div class="geo-map-block__legend" aria-label="地图图例">
+          <span><i class="geo-map-block__legend-chip is-empty" />省份覆盖强度</span>
+          <span><i class="geo-map-block__legend-chip is-low" />地市覆盖明细</span>
+          <span><i class="geo-map-block__legend-chip is-selected" />当前下钻省份</span>
+          <strong>双击省份查看地市代理商</strong>
+        </div>
+        <div v-if="mapLoading" class="geo-map-block__overlay">
+          正在加载地图数据...
+        </div>
+        <div v-else-if="mapError" class="geo-map-block__overlay geo-map-block__overlay--error">
+          {{ mapError }}
+        </div>
       </div>
-      <div v-else-if="mapError" class="geo-map-block__overlay geo-map-block__overlay--error">
-        {{ mapError }}
-      </div>
-    </div>
 
-    <p v-if="block.description" class="geo-map-block__desc">{{ block.description }}</p>
-
-    <div v-if="detailVisible" class="geo-map-block__modal" @click.self="closeDetail">
-      <div class="geo-map-block__modal-panel">
-        <button class="geo-map-block__modal-close" type="button" @click="closeDetail">×</button>
-        <div class="geo-map-block__modal-title">
-          {{ selectedRegionName }}
-          <span :class="['geo-map-block__badge', selectedRegion ? 'is-covered' : 'is-empty']">
-            {{ selectedRegion ? '已覆盖' : '未覆盖' }}
+      <aside class="geo-map-block__drill-panel" aria-live="polite" aria-label="地市代理商明细">
+        <div class="geo-map-block__drill-title">
+          <div>
+            <span>当前下钻</span>
+            <strong>{{ selectedRegionName ? `${selectedRegionName} · 地市代理商` : '请选择省份' }}</strong>
+          </div>
+          <span :class="['geo-map-block__badge', selectedRegionCovered ? 'is-covered' : 'is-empty']">
+            {{ selectedRegionCovered ? '已覆盖' : '未覆盖' }}
           </span>
         </div>
-        <div class="geo-map-block__modal-summary">
-          <template v-if="selectedRegion">
-            渠道商 {{ selectedRegion.value }} 家，覆盖地市
-            {{ selectedRegion.coveredCityCount ?? 0 }}/{{ selectedRegion.totalCityCount ?? 0 }}
-          </template>
-          <template v-else>
-            当前省份暂无渠道商数据
-          </template>
+
+        <div v-if="selectedRegionName" class="geo-map-block__drill-summary">
+          <span>
+            <strong>{{ selectedRegionPartnerCount }}</strong>
+            {{ block.unitLabel ?? '家' }}渠道商
+          </span>
+          <span>
+            <strong>{{ selectedCoveredCityCount }}/{{ selectedTotalCityCount }}</strong>
+            地市覆盖
+          </span>
+          <span>
+            <strong>{{ selectedCoverageRateText }}</strong>
+            覆盖率
+          </span>
         </div>
 
         <div v-if="selectedCityGroups.length > 0" class="geo-map-block__city-list">
@@ -217,10 +391,24 @@ function closeDetail() {
           </section>
         </div>
         <div v-else class="geo-map-block__empty">
-          暂无可下钻的地市渠道商数据
+          {{ selectedRegionCovered ? '该省份暂无可下钻的地市渠道商数据' : '该省份当前未覆盖代理商' }}
         </div>
-      </div>
+      </aside>
     </div>
+
+    <div
+      v-if="coveredRegions.length > 0 || uncoveredRegionNames.length > 0"
+      class="geo-map-block__note"
+    >
+      <span v-if="coveredRegions.length > 0">
+        重点覆盖：{{ coveredRegions.slice(0, 4).map((item) => `${item.name}${item.partnerCount}${block.unitLabel ?? '家'}`).join('、') }}
+      </span>
+      <span v-if="uncoveredRegionNames.length > 0">
+        空白省份：{{ uncoveredRegionNames.slice(0, 8).join('、') }}
+      </span>
+    </div>
+
+    <p v-if="block.description" class="geo-map-block__desc">{{ block.description }}</p>
   </div>
 </template>
 
@@ -228,9 +416,9 @@ function closeDetail() {
 .geo-map-block {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   height: 100%;
-  min-height: 320px;
+  min-height: 380px;
 }
 
 .geo-map-block__title {
@@ -242,8 +430,8 @@ function closeDetail() {
 
 .geo-map-block__title h3 {
   margin: 0;
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 16px;
+  font-weight: 700;
   color: #0A2540;
 }
 
@@ -252,16 +440,126 @@ function closeDetail() {
   color: #6B7C93;
 }
 
+.geo-map-block__stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(288px, 340px);
+  gap: 12px;
+  flex: 1;
+  min-height: 380px;
+}
+
 .geo-map-block__canvas-shell {
   position: relative;
   flex: 1;
-  min-height: 280px;
+  min-height: 380px;
+  overflow: hidden;
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 18px;
+  background:
+    linear-gradient(rgba(56, 189, 248, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.08) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(8, 20, 38, 0.98), rgba(4, 11, 24, 0.98)),
+    #061326;
+  background-size: 42px 42px, 42px 42px, auto, auto;
+  box-shadow: inset 0 0 44px rgba(34, 211, 238, 0.1), 0 16px 40px rgba(8, 20, 38, 0.12);
 }
 
 .geo-map-block__chart {
   height: 100%;
-  min-height: 280px;
+  min-height: 380px;
   width: 100%;
+}
+
+.geo-map-block__overview {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
+  display: grid;
+  gap: 2px;
+  min-width: 132px;
+  padding: 10px 12px;
+  border: 1px solid rgba(125, 211, 252, 0.28);
+  border-radius: 14px;
+  background: rgba(7, 18, 36, 0.76);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(10px);
+}
+
+.geo-map-block__overview span {
+  color: #8FB7CC;
+  font-size: 12px;
+}
+
+.geo-map-block__overview strong {
+  color: #22D3EE;
+  font-size: 26px;
+  line-height: 1.1;
+}
+
+.geo-map-block__overview em {
+  color: #C7E6F7;
+  font-size: 11px;
+  font-style: normal;
+}
+
+.geo-map-block__legend {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  max-width: min(520px, calc(100% - 28px));
+  padding: 9px 12px;
+  border: 1px solid rgba(125, 211, 252, 0.26);
+  border-radius: 999px;
+  background: rgba(7, 18, 36, 0.76);
+  color: #C7E6F7;
+  font-size: 12px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(10px);
+}
+
+.geo-map-block__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.geo-map-block__legend strong {
+  color: #67E8F9;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.geo-map-block__legend-chip {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(224, 242, 254, 0.86);
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.28);
+}
+
+.geo-map-block__legend-chip.is-empty {
+  background: #0B1A2F;
+}
+
+.geo-map-block__legend-chip.is-low {
+  background: #12A2B8;
+}
+
+.geo-map-block__legend-chip.is-high {
+  background: #22D3EE;
+}
+
+.geo-map-block__legend-chip.is-selected {
+  background: #F59E0B;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.42);
 }
 
 .geo-map-block__overlay {
@@ -271,9 +569,9 @@ function closeDetail() {
   align-items: center;
   justify-content: center;
   font-size: 13px;
-  color: #6B7C93;
-  background: #F6F9FC;
-  border-radius: 12px;
+  color: #D7F8FF;
+  background: rgba(4, 11, 24, 0.88);
+  border-radius: 18px;
 }
 
 .geo-map-block__overlay--error {
@@ -287,72 +585,98 @@ function closeDetail() {
   line-height: 1.5;
 }
 
-.geo-map-block__modal {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
+.geo-map-block__note {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(10, 20, 16, 0.42);
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: #64748B;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
-.geo-map-block__modal-panel {
-  position: relative;
-  width: min(620px, calc(100vw - 40px));
-  max-height: min(760px, calc(100vh - 56px));
+.geo-map-block__drill-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  min-height: 380px;
+  max-height: 560px;
   overflow: auto;
-  padding: 26px 30px;
-  border: 1px solid #D8E1DC;
-  border-radius: 16px;
-  background: #FFFFFF;
-  box-shadow: 0 22px 70px rgba(15, 33, 27, 0.24);
+  padding: 16px;
+  border: 1px solid rgba(56, 189, 248, 0.24);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(8, 20, 38, 0.96), rgba(6, 18, 32, 0.98)),
+    #071224;
+  box-shadow: inset 0 0 28px rgba(34, 211, 238, 0.08), 0 16px 38px rgba(8, 20, 38, 0.1);
 }
 
-.geo-map-block__modal-close {
-  position: absolute;
-  top: 14px;
-  right: 18px;
-  border: 0;
-  background: transparent;
-  color: #6B7C93;
-  font-size: 26px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.geo-map-block__modal-title {
+.geo-map-block__drill-title {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  color: #17251F;
-  font-size: 20px;
-  font-weight: 800;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  color: #E0F2FE;
+}
+
+.geo-map-block__drill-title div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.geo-map-block__drill-title span:first-child {
+  color: #8FB7CC;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.geo-map-block__drill-title strong {
+  color: #F8FCFF;
+  font-size: 18px;
+  line-height: 1.2;
+  word-break: break-word;
 }
 
 .geo-map-block__badge {
-  padding: 2px 9px;
+  flex: 0 0 auto;
+  padding: 4px 10px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
 }
 
 .geo-map-block__badge.is-covered {
-  color: #1A7F37;
-  background: #DFF3E6;
+  color: #67E8F9;
+  background: rgba(8, 145, 178, 0.22);
 }
 
 .geo-map-block__badge.is-empty {
-  color: #C23D4B;
-  background: #FFF0F0;
+  color: #FCD34D;
+  background: rgba(245, 158, 11, 0.16);
 }
 
-.geo-map-block__modal-summary {
-  margin-bottom: 18px;
-  color: #64736D;
-  font-size: 13px;
+.geo-map-block__drill-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.geo-map-block__drill-summary span {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid rgba(125, 211, 252, 0.2);
+  border-radius: 12px;
+  background: rgba(15, 43, 68, 0.62);
+  color: #8FB7CC;
+  font-size: 12px;
+}
+
+.geo-map-block__drill-summary strong {
+  color: #67E8F9;
+  font-size: 18px;
+  line-height: 1.2;
 }
 
 .geo-map-block__city-list {
@@ -361,10 +685,10 @@ function closeDetail() {
 }
 
 .geo-map-block__city-group {
-  padding: 12px 14px;
-  border: 1px solid #E3EBE7;
-  border-radius: 13px;
-  background: #FBFDFC;
+  padding: 13px 14px;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 12px;
+  background: rgba(10, 31, 54, 0.74);
 }
 
 .geo-map-block__city-group header {
@@ -373,11 +697,11 @@ function closeDetail() {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 8px;
-  color: #20322E;
+  color: #E0F2FE;
 }
 
 .geo-map-block__city-group header span {
-  color: #64736D;
+  color: #67E8F9;
   font-size: 12px;
   font-weight: 700;
 }
@@ -392,18 +716,18 @@ function closeDetail() {
   display: inline-flex;
   align-items: center;
   max-width: 100%;
-  padding: 3px 8px;
+  padding: 4px 9px;
   border-radius: 999px;
-  background: #EEF8F4;
-  color: #315B4C;
+  background: rgba(20, 184, 166, 0.16);
+  color: #CFFAFE;
   font-size: 12px;
   word-break: break-word;
 }
 
 .geo-map-block__partner.is-empty,
 .geo-map-block__empty {
-  color: #7B8781;
-  background: #F7FAF9;
+  color: #9FC7D8;
+  background: rgba(15, 43, 68, 0.58);
 }
 
 .geo-map-block__empty {
@@ -411,5 +735,55 @@ function closeDetail() {
   border-radius: 12px;
   text-align: center;
   font-size: 13px;
+  line-height: 1.6;
+}
+
+@media (max-width: 920px) {
+  .geo-map-block__stage {
+    grid-template-columns: 1fr;
+  }
+
+  .geo-map-block__drill-panel {
+    min-height: 0;
+    max-height: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .geo-map-block {
+    min-height: 0;
+  }
+
+  .geo-map-block__stage {
+    min-height: 0;
+  }
+
+  .geo-map-block__canvas-shell {
+    min-height: 330px;
+  }
+
+  .geo-map-block__chart {
+    min-height: 330px;
+  }
+
+  .geo-map-block__overview {
+    min-width: 112px;
+    padding: 8px 10px;
+  }
+
+  .geo-map-block__overview strong {
+    font-size: 22px;
+  }
+
+  .geo-map-block__legend {
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+    border-radius: 14px;
+  }
+
+  .geo-map-block__drill-summary {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
