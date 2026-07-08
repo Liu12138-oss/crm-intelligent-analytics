@@ -506,7 +506,8 @@ export class PublicAnalysisResultController {
     .coverage-overview-rate strong{color:#0f766e;}
     .coverage-uncovered{margin-top:12px;color:#be123c;font-size:11px;line-height:1.7;}
     .coverage-map-shell{position:relative;min-width:0;}
-    .coverage-map{width:100%;height:560px;min-height:500px;border:1px solid rgba(56,189,248,.28);border-radius:18px;background:linear-gradient(rgba(56,189,248,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.08) 1px,transparent 1px),linear-gradient(180deg,rgba(8,20,38,.98),rgba(4,11,24,.98)),#061326;background-size:42px 42px,42px 42px,auto,auto;box-shadow:inset 0 0 44px rgba(34,211,238,.1),0 16px 40px rgba(8,20,38,.12);}
+    .coverage-map{width:100%;height:560px;min-height:500px;border:1px solid rgba(56,189,248,.28);border-radius:18px;background:linear-gradient(rgba(56,189,248,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.08) 1px,transparent 1px),radial-gradient(circle at 56% 48%,rgba(34,211,238,.1),transparent 34%),linear-gradient(180deg,rgba(8,20,38,.98),rgba(4,11,24,.98)),#061326;background-size:42px 42px,42px 42px,auto,auto,auto;box-shadow:inset 0 0 44px rgba(34,211,238,.1),0 16px 40px rgba(8,20,38,.12);overflow:hidden;}
+    .coverage-map canvas{filter:drop-shadow(0 0 12px rgba(34,211,238,.18));}
     .coverage-map-controls{position:absolute;right:12px;top:12px;z-index:5;display:flex;align-items:center;gap:6px;padding:6px;border:1px solid rgba(125,211,252,.26);border-radius:14px;background:rgba(7,18,36,.76);box-shadow:0 12px 30px rgba(0,0,0,.16);backdrop-filter:blur(10px);}
     .coverage-map-control{width:30px;height:30px;border:1px solid rgba(125,211,252,.34);border-radius:9px;background:rgba(15,43,68,.72);color:#d7f8ff;font-size:14px;font-weight:900;line-height:1;cursor:pointer;}
     .coverage-map-control:hover{border-color:#67e8f9;color:#67e8f9;background:rgba(8,145,178,.28);}
@@ -1647,10 +1648,12 @@ export class PublicAnalysisResultController {
   const provinceRows = new Map(rows.filter(row => row.province).map(row => [row.province, row]));
   const cityCoveredColor = '#22d3ee';
   const cityUncoveredColor = '#0b1a2f';
-  const cityBorderColor = 'rgba(125,211,252,0.24)';
-  const provinceCoveredBorderColor = '#38bdf8';
+  const cityBorderColor = 'rgba(125,211,252,0.2)';
+  const provinceCoveredBorderColor = 'rgba(56,189,248,0.82)';
   const provincePlainBorderColor = 'rgba(125,211,252,0.28)';
   const selectedProvinceColor = '#f59e0b';
+  const depthBackCenter = [103.28, 35.38];
+  const depthMidCenter = [103.62, 35.66];
   const initialMapZoom = 1.72;
   const mapCenter = [104, 36];
   const minMapZoom = 1.1;
@@ -1824,15 +1827,16 @@ export class PublicAnalysisResultController {
     window.showCoverageProvinceDetail_${domSuffix}(normalizedProvinceName);
   }
   function buildCityMapItem(province, cityName, covered, partnerCount){
+    const selected = province === selectedProvinceName;
     return {
       name: cityName,
       value: covered ? Number(partnerCount || 0) : 0,
       province: province,
       cityName: cityName,
       itemStyle: {
-        areaColor: covered ? cityCoveredColor : cityUncoveredColor,
-        borderColor: covered ? 'rgba(255,255,255,0.92)' : cityBorderColor,
-        borderWidth: covered ? 0.58 : 0.42
+        areaColor: selected ? selectedProvinceColor : (covered ? cityCoveredColor : cityUncoveredColor),
+        borderColor: selected ? '#fde68a' : (covered ? 'rgba(255,255,255,0.92)' : cityBorderColor),
+        borderWidth: selected ? 0.52 : (covered ? 0.58 : 0.42)
       }
     };
   }
@@ -1977,11 +1981,11 @@ export class PublicAnalysisResultController {
         value: item.value,
         itemStyle: selected
           ? {
-              areaColor: 'rgba(245,158,11,.42)',
-              borderColor: '#fde68a',
-              borderWidth: 1.6,
-              shadowBlur: 20,
-              shadowColor: 'rgba(245,158,11,.42)'
+              areaColor: 'rgba(255,255,255,0)',
+              borderColor: 'rgba(255,255,255,0)',
+              borderWidth: 0,
+              shadowBlur: 0,
+              shadowColor: 'rgba(0,0,0,0)'
             }
           : {
               areaColor: 'rgba(255,255,255,0)',
@@ -1997,6 +2001,7 @@ export class PublicAnalysisResultController {
     if (hasCityGeoJson) {
       chart.setOption({
         series: [
+          { id: 'coverage-city-fill', data: buildCityMapRowsFromGeoJson() },
           { id: 'coverage-province-hit', data: buildProvinceHitRows(), label: { formatter: formatProvinceLabel } },
           { id: 'coverage-province-lines', data: buildProvinceBorderLines() },
           { id: 'coverage-province-labels', label: { formatter: formatProvinceLabel } }
@@ -2022,7 +2027,8 @@ export class PublicAnalysisResultController {
       geo: hasCityGeoJson ? { zoom: currentMapZoom, center: mapCenter } : undefined,
       series: hasCityGeoJson
         ? [
-            { id: 'coverage-province-base', zoom: currentMapZoom, center: mapCenter },
+            { id: 'coverage-map-depth-back', zoom: currentMapZoom, center: depthBackCenter },
+            { id: 'coverage-map-depth-mid', zoom: currentMapZoom, center: depthMidCenter },
             { id: 'coverage-city-fill', zoom: currentMapZoom, center: mapCenter },
             { id: 'coverage-province-hit', zoom: currentMapZoom, center: mapCenter }
           ]
@@ -2066,30 +2072,65 @@ export class PublicAnalysisResultController {
       }
     },
     series: (hasCityGeoJson ? [{
-      id: 'coverage-province-base',
+      id: 'coverage-map-depth-back',
       type: 'map',
-      name: '省份底色',
-      map: provinceMapName,
+      name: '地图厚度底影',
+      map: 'china-city-coverage',
       roam: false,
       zoom: initialMapZoom,
-      center: mapCenter,
+      center: depthBackCenter,
       showLegendSymbol: false,
       zlevel: 0,
       silent: true,
       label: { show: false },
       itemStyle: {
-        areaColor: cityUncoveredColor,
+        areaColor: 'rgba(2,10,22,.9)',
         borderColor: 'rgba(255,255,255,0)',
-        borderWidth: 0
+        borderWidth: 0,
+        shadowBlur: 24,
+        shadowColor: 'rgba(2,6,23,.55)'
       },
       emphasis: { disabled: true },
       select: { disabled: true },
-      data: provinceMapRows.map(function(item){
+      data: cityMapRows.map(function(item){
         return {
           name: item.name,
           value: item.value,
           itemStyle: {
-            areaColor: cityUncoveredColor,
+            areaColor: 'rgba(2,10,22,.9)',
+            borderColor: 'rgba(255,255,255,0)',
+            borderWidth: 0
+          }
+        };
+      })
+    }, {
+      id: 'coverage-map-depth-mid',
+      type: 'map',
+      name: '地图厚度侧影',
+      map: 'china-city-coverage',
+      roam: false,
+      zoom: initialMapZoom,
+      center: depthMidCenter,
+      showLegendSymbol: false,
+      zlevel: 0,
+      z: 1,
+      silent: true,
+      label: { show: false },
+      itemStyle: {
+        areaColor: 'rgba(7,48,64,.72)',
+        borderColor: 'rgba(255,255,255,0)',
+        borderWidth: 0,
+        shadowBlur: 20,
+        shadowColor: 'rgba(34,211,238,.18)'
+      },
+      emphasis: { disabled: true },
+      select: { disabled: true },
+      data: cityMapRows.map(function(item){
+        return {
+          name: item.name,
+          value: item.value,
+          itemStyle: {
+            areaColor: 'rgba(7,48,64,.72)',
             borderColor: 'rgba(255,255,255,0)',
             borderWidth: 0
           }
@@ -2105,7 +2146,8 @@ export class PublicAnalysisResultController {
       center: mapCenter,
       showLegendSymbol: false,
       zlevel: 1,
-      silent: true,
+      z: 2,
+      silent: false,
       label: {
         show: false,
         color: '#d7f8ff',
@@ -2117,7 +2159,7 @@ export class PublicAnalysisResultController {
       itemStyle: {
         areaColor: cityUncoveredColor,
         borderColor: cityBorderColor,
-        borderWidth: 0.45
+        borderWidth: 0.38
       },
       select: { disabled: true },
       data: cityMapRows
@@ -2131,7 +2173,7 @@ export class PublicAnalysisResultController {
       center: mapCenter,
       showLegendSymbol: false,
       zlevel: 2,
-      silent: false,
+      silent: true,
       label: {
         show: true,
         color: '#d7f8ff',
@@ -2237,7 +2279,7 @@ export class PublicAnalysisResultController {
   chart.on('dblclick', function(params){
     const data = params.data || {};
     const seriesName = String(params.seriesName || '');
-    const isProvinceEvent = seriesName === '省份边框' || seriesName === '省份名称' || (!hasCityGeoJson && seriesName === '省份覆盖');
+    const isProvinceEvent = seriesName === '省份名称' || (!hasCityGeoJson && seriesName === '省份覆盖');
     if (!isProvinceEvent) {
       return;
     }

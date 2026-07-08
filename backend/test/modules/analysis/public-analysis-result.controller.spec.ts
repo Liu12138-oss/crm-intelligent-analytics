@@ -408,7 +408,8 @@ describe('PublicAnalysisResultController', () => {
     expect(html).toContain('地市未覆盖');
     expect(html).toContain('省份已覆盖');
     expect(html).toContain('省份未覆盖');
-    expect(html).toContain('普通地市/未覆盖省份边界');
+    expect(html).toContain("name: '地图厚度底影'");
+    expect(html).toContain("name: '地图厚度侧影'");
     expect(html).toContain('cityBorderColor');
     expect(html).toContain('provincePlainBorderColor');
     expect(html).not.toContain('provinceUncoveredBorderColor');
@@ -428,7 +429,8 @@ describe('PublicAnalysisResultController', () => {
     expect(html).toContain('双击省份查看省内地市渠道商覆盖情况');
     expect(html).not.toContain('双击省份或地市查看地市渠道商详情');
     expect(html).toContain("const seriesName = String(params.seriesName || '')");
-    expect(html).toContain("seriesName === '省份边框' || seriesName === '省份名称'");
+    expect(html).toContain("seriesName === '省份名称' || (!hasCityGeoJson && seriesName === '省份覆盖')");
+    expect(html).toContain("{ id: 'coverage-city-fill', data: buildCityMapRowsFromGeoJson() }");
     expect(html).toContain('function resolveProvinceByCoordinate(coordinate)');
     expect(html).toContain('function buildCityMapRowsFromGeoJson()');
     expect(html).toContain('function normalizeMapCityName(cityName)');
@@ -437,6 +439,12 @@ describe('PublicAnalysisResultController', () => {
     expect(html).toContain('function applyCoverageMapZoom(nextZoom)');
     expect(html).toContain("chartDom.addEventListener('wheel'");
     expect(html).toContain("id: 'coverage-city-fill'");
+    expect(html).toContain("id: 'coverage-map-depth-back'");
+    expect(html).toContain("id: 'coverage-map-depth-mid'");
+    expect(html).not.toContain("id: 'coverage-province-base'");
+    expect(html).toContain("map: 'china-city-coverage'");
+    expect(html).toContain('depthBackCenter');
+    expect(html).toContain('depthMidCenter');
     expect(html).toContain('roam: false');
     expect(html).toContain('window.__CRM_LOCAL_CHINA_CITY_GEO_JSON__.features.map');
     expect(html).toContain("chart.getZr().on('dblclick'");
