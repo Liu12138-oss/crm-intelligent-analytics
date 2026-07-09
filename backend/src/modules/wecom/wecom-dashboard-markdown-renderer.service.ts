@@ -89,8 +89,8 @@ export class WecomDashboardMarkdownRendererService {
     }
     lines.push(
       params.webDashboardUrl
-        ? `【企微展示说明】已通过卡片、正文和图片看板在企微内完成交付；备查报告：${params.webDashboardUrl}`
-        : '【企微展示说明】已通过卡片、正文和图片看板在企微内完成交付；当前未配置外部备查报告入口。',
+        ? `【企微展示说明】企微内展示摘要和模板卡片；完整图表与明细请打开报告页：${params.webDashboardUrl}`
+        : '【企微展示说明】企微内展示摘要和模板卡片；当前未配置外部报告页入口。',
     );
 
     return this.removeDuplicateMarkdownLines(lines).join('\n');

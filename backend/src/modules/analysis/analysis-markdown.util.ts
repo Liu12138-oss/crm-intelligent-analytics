@@ -372,7 +372,7 @@ export function buildAnalysisWecomMarkdown(
     lines.push(
       '',
       '### 企微展示',
-      '- 已生成企微模板卡片和企微图片图表；只读结果页仅作为备查入口。',
+      '- 已生成企微模板卡片和摘要；完整图表与明细请打开报告页查看。',
     );
 
     if (payload.secondaryViewSummaries && payload.secondaryViewSummaries.length > 0) {
@@ -441,7 +441,7 @@ export function buildAnalysisWecomMarkdown(
     lines.push('', '### 已生成');
     lines.push('- 企微文字摘要');
     lines.push('- 结果预览表格');
-    lines.push('- 如本次存在可图形化数据，企微会同步返回图片图表；结果页仅作为备查入口。');
+    lines.push('- 如本次存在可图形化数据，完整图表会放在报告页中。');
     const tableSection = buildWecomMarkdownTableSection(payload.rows);
     if (tableSection.length > 0) {
       lines.push('', ...tableSection);

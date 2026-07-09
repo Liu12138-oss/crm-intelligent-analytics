@@ -1451,39 +1451,46 @@ export class LianruanCrmAnalysisExecutorService {
         rows: params.opportunityRegionQuarterRows,
       },
       'region-comparison': {
-        viewType: 'RANKING_TABLE',
+        viewType: 'BAR_CHART',
         title: '区域经营对比',
         rows: params.regionComparisonRows,
+        series: this.buildBusinessChainComparisonChartSeries(params.regionComparisonRows),
       },
       'big-region-comparison': {
-        viewType: 'RANKING_TABLE',
+        viewType: 'BAR_CHART',
         title: '大区经营对比',
         rows: params.bigRegionComparisonRows,
+        series: this.buildBusinessChainComparisonChartSeries(params.bigRegionComparisonRows),
       },
       'partner-contribution': {
-        viewType: 'RANKING_TABLE',
+        viewType: 'BAR_CHART',
         title: '渠道商经营贡献汇总',
         rows: params.partnerContributionRows,
+        series: this.buildBusinessChainComparisonChartSeries(params.partnerContributionRows),
       },
       'sales-contribution': {
-        viewType: 'RANKING_TABLE',
+        viewType: 'BAR_CHART',
         title: '销售负责人经营对比',
         rows: params.salesContributionRows,
+        series: this.buildBusinessChainComparisonChartSeries(params.salesContributionRows),
       },
       'order-fulfillment-comparison': {
-        viewType: 'RANKING_TABLE',
+        viewType: 'BAR_CHART',
         title: '订单承接对比',
         rows: params.orderFulfillmentRows,
+        series: this.buildBusinessChainComparisonChartSeries(params.orderFulfillmentRows),
       },
       'distribution-hierarchy': {
-        viewType: 'RANKING_TABLE',
+        viewType: 'BAR_CHART',
         title: '分销层级健康汇总',
         rows: params.distributionHierarchyRows,
+        series: this.buildBusinessChainComparisonChartSeries(params.distributionHierarchyRows),
       },
       'technical-service-ecosystem': {
-        viewType: 'RANKING_TABLE',
+        viewType: 'BAR_CHART',
         title: '技术服务商生态对比',
         rows: params.technicalServiceRows,
+        series: this.buildBusinessChainComparisonChartSeries(params.technicalServiceRows),
       },
       'partner-detail': {
         viewType: 'DETAIL_TABLE',
@@ -1528,6 +1535,73 @@ export class LianruanCrmAnalysisExecutorService {
     )
       .map((viewKey) => viewsByKey[viewKey])
       .filter((view) => (view.rows?.length ?? 0) > 0);
+  }
+
+  /**
+   * 构造业务链对比柱状图序列。
+   *
+   * 参数说明：`rows` 为已经聚合好的区域、渠道、负责人或类型对比行。
+   * 返回值说明：返回报告页柱状图所需的标签和值，明细表仍使用原始 `rows`。
+   * 调用注意事项：只读取既有聚合字段，不重新计算数据；优先展示金额，缺金额时展示数量。
+   */
+  private buildBusinessChainComparisonChartSeries(
+    rows: Array<Record<string, unknown>>,
+  ): Array<Record<string, unknown>> {
+    return rows.slice(0, 12).map((row) => ({
+      label: this.resolveBusinessChainComparisonChartLabel(row),
+      value: this.resolveBusinessChainComparisonChartValue(row),
+      count: this.resolveFiniteNumber(row.count),
+    }));
+  }
+
+  /**
+   * 解析业务链对比柱状图标签。
+   *
+   * 参数说明：`row` 为聚合行。
+   * 返回值说明：优先返回业务名称字段，兜底为“未命名分组”。
+   */
+  private resolveBusinessChainComparisonChartLabel(row: Record<string, unknown>): string {
+    return (
+      this.readText(
+        row.bucket_label ??
+          row.ownerName ??
+          row.partnerName ??
+          row.region ??
+          row.bigRegion ??
+          row.technicalServiceType ??
+          row.hierarchyLevel,
+      ) || '未命名分组'
+    );
+  }
+
+  /**
+   * 解析业务链对比柱状图数值。
+   *
+   * 参数说明：`row` 为聚合行。
+   * 返回值说明：按订单金额、报价金额、商机金额、总金额和数量依次取第一个有效值。
+   */
+  private resolveBusinessChainComparisonChartValue(row: Record<string, unknown>): number {
+    const candidateKeys = [
+      'orderAmount',
+      'quoteAmount',
+      'opportunityAmount',
+      'amount',
+      'orderCount',
+      'quoteCount',
+      'opportunityCount',
+      'registrationCount',
+      'partnerCount',
+      'count',
+    ];
+
+    for (const key of candidateKeys) {
+      const value = this.resolveFiniteNumber(row[key]);
+      if (value > 0) {
+        return value;
+      }
+    }
+
+    return 0;
   }
 
   /**

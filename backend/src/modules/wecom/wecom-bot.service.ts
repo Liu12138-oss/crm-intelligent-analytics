@@ -1555,7 +1555,7 @@ export class WecomBotService implements OnModuleInit {
       queryId,
     });
 
-    // 图表快捷动作优先重发模板卡片，同时补发轻量图片看板；图片失败时仍保留正文和卡片。
+    // 图表快捷动作优先重发模板卡片，完整图表以报告页为主；图片失败时仍保留正文和卡片。
     if (redisplayMode === 'IMAGE') {
       const blocks =
         templateCards.length > 0
@@ -1911,7 +1911,7 @@ export class WecomBotService implements OnModuleInit {
       queryId: effectiveQueryId,
       title: dashboardTemplate.cardTitle,
       kpiItems,
-      summary: dashboardResult.executiveSummary || '已生成核心指标、经营判断、明细摘要和企微图片看板。',
+      summary: dashboardResult.executiveSummary || '已生成核心指标、经营判断和明细摘要，完整图表请打开报告页查看。',
       webDashboardUrl,
       dataSourceLabel: `${dashboardResult.scopeSummary || '当前用户权限范围'} / ${dataSourceLabel}`,
       sourceDesc: 'CRM智能助手',
@@ -2019,7 +2019,7 @@ export class WecomBotService implements OnModuleInit {
       {
         sectionType: 'DASHBOARD_TEMPLATE',
         title: `${cardTitle}展示分区`,
-        description: '本报告已按企微动态看板模板组织，卡片摘要、长连接正文、图片附件和备查报告使用同一模板识别结果；企微内优先展示指标、对比摘要和图片看板。',
+        description: '本报告已按企微动态看板模板组织，企微内优先展示指标和对比摘要；完整图表与明细集中在本报告页查看。',
         rows: dashboardResult.blocks.map((block) => ({
           blockType: block.blockType,
           title: block.title,
@@ -3099,9 +3099,9 @@ export class WecomBotService implements OnModuleInit {
     lines.push('- 查看报价转订单风险清单。');
     lines.push('- 生成经营会摘要和下一步动作。');
     if (webDashboardUrl) {
-      lines.push(`【企微展示说明】已通过卡片、正文和图片看板在企微内完成交付；备查报告：${webDashboardUrl}`);
+      lines.push(`【企微展示说明】企微内展示摘要和模板卡片；完整图表与明细请打开报告页：${webDashboardUrl}`);
     } else {
-      lines.push('【企微展示说明】已通过卡片、正文和图片看板在企微内完成交付；当前未配置外部备查报告入口。');
+      lines.push('【企微展示说明】企微内展示摘要和模板卡片；当前未配置外部报告页入口。');
     }
 
     return lines.join('\n');
@@ -11187,7 +11187,7 @@ export class WecomBotService implements OnModuleInit {
    *
    * 参数说明：`detail` 为统一分析详情，`options` 描述当前查询 ID。
    * 返回值说明：默认返回 1 张文本通知卡片；配置关闭、无报告或构造失败时返回空数组。
-   * 调用注意事项：卡片是企微分析结果主交付形态，图片附件和 Markdown 正文承载主要内容，链接仅作为只读备查。
+   * 调用注意事项：卡片是企微分析结果主交付形态，Markdown 正文承载摘要内容，完整图表放在只读报告页。
    */
   private buildAnalysisTemplateCards(
     detail: Record<string, unknown> | undefined,
@@ -11252,7 +11252,7 @@ export class WecomBotService implements OnModuleInit {
       quote_area: comparisonText
         ? {
             type: 0,
-            title: this.truncateWecomCardText(options.hasImageAttachments ? '图表与发现' : '关键发现', 13),
+            title: this.truncateWecomCardText('关键发现', 13),
             quote_text: this.truncateWecomCardText(comparisonText, 80),
           }
         : undefined,
@@ -11265,7 +11265,7 @@ export class WecomBotService implements OnModuleInit {
         })),
         {
           keyname: '展示',
-          value: options.hasImageAttachments ? `${cardHint}，已附图表` : cardHint,
+          value: `${cardHint}，报告页含图表`,
         },
       ].slice(0, 6),
       jump_list: [
@@ -11708,14 +11708,14 @@ export class WecomBotService implements OnModuleInit {
    */
   private resolveTemplateCardSubTitle(reportTitle: string, requestedSections: string[] = []): string {
     if (requestedSections.length > 0) {
-      return `已优先呈现：${requestedSections.join('、')}，企微内已附摘要和图表。`;
+      return `已优先呈现：${requestedSections.join('、')}，报告页含图表和明细。`;
     }
 
     if (this.isCompositeTemplateCardReport(reportTitle)) {
-      return '已按合作伙伴开拓、客户报备、商机和订单生成模板卡片，并在企微内附图表。';
+      return '已按合作伙伴开拓、客户报备、商机和订单生成模板卡片，报告页含图表和明细。';
     }
 
-    return '本次结果已生成模板卡片，企微内同步返回正文和图片图表。';
+    return '本次结果已生成模板卡片，完整图表和明细请打开报告页查看。';
   }
 
   /**

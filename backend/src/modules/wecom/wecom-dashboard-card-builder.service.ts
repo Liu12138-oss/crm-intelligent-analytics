@@ -250,12 +250,12 @@ export class WecomDashboardCardBuilder {
     if (findings.length > 0) {
       const findingsText = findings.slice(0, 3).map((f, i) => `${i + 1}. ${f}`).join('\n');
       chunks.push({
-        content: `分析完成，关键发现：\n${findingsText}\n\n企微内已返回卡片、正文和图片看板，报告链接仅作为备查。`,
+        content: `分析完成，关键发现：\n${findingsText}\n\n企微内已返回摘要和模板卡片，完整图表与明细请打开报告页查看。`,
         finish: true,
       });
     } else {
       chunks.push({
-        content: '分析完成，企微内已返回卡片、正文和图片看板，报告链接仅作为备查。',
+        content: '分析完成，企微内已返回摘要和模板卡片，完整图表与明细请打开报告页查看。',
         finish: true,
       });
     }
