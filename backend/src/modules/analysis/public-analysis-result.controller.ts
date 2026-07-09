@@ -506,8 +506,11 @@ export class PublicAnalysisResultController {
     .coverage-overview-rate strong{color:#0f766e;}
     .coverage-uncovered{margin-top:12px;color:#be123c;font-size:11px;line-height:1.7;}
     .coverage-map-shell{position:relative;min-width:0;}
-    .coverage-map{width:100%;height:560px;min-height:500px;border:1px solid rgba(56,189,248,.28);border-radius:18px;background:linear-gradient(rgba(56,189,248,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.08) 1px,transparent 1px),radial-gradient(circle at 56% 48%,rgba(34,211,238,.1),transparent 34%),linear-gradient(180deg,rgba(8,20,38,.98),rgba(4,11,24,.98)),#061326;background-size:42px 42px,42px 42px,auto,auto,auto;box-shadow:inset 0 0 44px rgba(34,211,238,.1),0 16px 40px rgba(8,20,38,.12);overflow:hidden;}
-    .coverage-map canvas{filter:drop-shadow(0 0 12px rgba(34,211,238,.18));}
+    .coverage-map{position:relative;width:100%;height:560px;min-height:500px;border:1px solid rgba(83,219,255,.34);border-radius:18px;background:linear-gradient(145deg,#111827 0%,#071421 46%,#020817 100%);box-shadow:inset 0 0 62px rgba(103,232,249,.13),inset 0 -24px 44px rgba(2,6,23,.54),0 18px 44px rgba(8,20,38,.16);overflow:hidden;}
+    .coverage-map::before{content:"";position:absolute;inset:-2%;z-index:0;pointer-events:none;background:linear-gradient(90deg,rgba(125,211,252,.08) 1px,transparent 1px),linear-gradient(180deg,rgba(125,211,252,.055) 1px,transparent 1px),linear-gradient(135deg,rgba(45,212,191,.08),transparent 36%,rgba(245,158,11,.045) 74%,transparent);background-size:42px 42px,42px 42px,100% 100%;opacity:.5;mix-blend-mode:screen;}
+    .coverage-map::after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(90deg,rgba(2,6,23,.68),transparent 18%,transparent 82%,rgba(2,6,23,.68)),linear-gradient(180deg,rgba(2,6,23,.46),transparent 38%,rgba(2,6,23,.5));}
+    .coverage-map>div{position:relative;z-index:2;}
+    .coverage-map canvas{filter:drop-shadow(0 26px 22px rgba(2,6,23,.62)) drop-shadow(0 0 28px rgba(103,232,249,.42));}
     .coverage-map-controls{position:absolute;right:12px;top:12px;z-index:5;display:flex;align-items:center;gap:6px;padding:6px;border:1px solid rgba(125,211,252,.26);border-radius:14px;background:rgba(7,18,36,.76);box-shadow:0 12px 30px rgba(0,0,0,.16);backdrop-filter:blur(10px);}
     .coverage-map-control{width:30px;height:30px;border:1px solid rgba(125,211,252,.34);border-radius:9px;background:rgba(15,43,68,.72);color:#d7f8ff;font-size:14px;font-weight:900;line-height:1;cursor:pointer;}
     .coverage-map-control:hover{border-color:#67e8f9;color:#67e8f9;background:rgba(8,145,178,.28);}
@@ -1368,7 +1371,7 @@ export class PublicAnalysisResultController {
     };
     const domSuffix = this.hashPublicDomId(section.title);
 
-    return `<section class="section coverage-shell"><div class="coverage-head"><h2>${this.escapeHtml(section.title)}</h2><div class="coverage-legend"><span><i class="legend-dot" style="background:#22d3ee"></i>地市已覆盖</span><span><i class="legend-dot" style="background:#0b1a2f"></i>地市未覆盖</span><span><i class="legend-dot" style="background:transparent;border:2px solid #38bdf8"></i>省份已覆盖</span><span><i class="legend-dot" style="background:#f59e0b"></i>当前下钻省份</span><span>双击省份查看省内地市渠道商覆盖情况</span></div></div>${description}<div class="coverage-body"><aside class="coverage-overview"><div class="coverage-overview-label">省份覆盖</div><div class="coverage-overview-value">${coveredProvinceSet.size}<small>/${MAINLAND_CHINA_PROVINCE_NAMES.length}省</small></div><div class="coverage-overview-rate">省份覆盖率 <strong>${coverageRate}</strong></div><div class="coverage-overview-rate">地市覆盖 <strong>${coveredCityCount}/${CHINA_PREFECTURE_CITY_TOTAL}</strong></div><div class="coverage-overview-rate">地市覆盖率 <strong>${cityCoverageRate}</strong></div><div class="coverage-uncovered">${this.escapeHtml(uncoveredText)}</div></aside><div class="coverage-map-shell"><div class="coverage-map-controls" aria-label="地图缩放"><button class="coverage-map-control" type="button" title="放大地图" data-coverage-map-target="${chartId}" data-coverage-map-control="in">+</button><button class="coverage-map-control" type="button" title="缩小地图" data-coverage-map-target="${chartId}" data-coverage-map-control="out">-</button><button class="coverage-map-control" type="button" title="重置地图缩放" data-coverage-map-target="${chartId}" data-coverage-map-control="reset">1:1</button></div><div class="coverage-map" id="${chartId}"><div class="coverage-map-fallback">地图加载中；若长时间无响应，请稍后刷新报告页。</div></div></div><aside class="coverage-drill-panel" id="${panelId}" aria-live="polite" aria-label="地市代理商明细"><div class="coverage-drill-title"><div><span>当前下钻</span><strong id="${panelId}-title">请选择省份</strong></div><span class="coverage-drill-badge is-empty" id="${panelId}-badge">未覆盖</span></div><div class="coverage-drill-summary" id="${panelId}-summary"><span><strong>0</strong>家代理商</span><span><strong>0/0</strong>地市覆盖</span><span><strong>--</strong>覆盖率</span></div><div class="coverage-drill-body" id="${panelId}-body"><div class="coverage-drill-empty">请双击省份查看地市代理商</div></div></aside></div><script>${this.renderCoverageMapRuntimeScript(chartId, panelId, domSuffix, coverageData)}</script></section>`;
+    return `<section class="section coverage-shell"><div class="coverage-head"><h2>${this.escapeHtml(section.title)}</h2><div class="coverage-legend"><span><i class="legend-dot" style="background:#22d3ee"></i>地市已覆盖</span><span><i class="legend-dot" style="background:#12304a"></i>地市未覆盖</span><span><i class="legend-dot" style="background:transparent;border:2px solid #38bdf8"></i>省份已覆盖</span><span><i class="legend-dot" style="background:#f59e0b"></i>当前下钻省份</span><span>双击省份查看省内地市渠道商覆盖情况</span></div></div>${description}<div class="coverage-body"><aside class="coverage-overview"><div class="coverage-overview-label">省份覆盖</div><div class="coverage-overview-value">${coveredProvinceSet.size}<small>/${MAINLAND_CHINA_PROVINCE_NAMES.length}省</small></div><div class="coverage-overview-rate">省份覆盖率 <strong>${coverageRate}</strong></div><div class="coverage-overview-rate">地市覆盖 <strong>${coveredCityCount}/${CHINA_PREFECTURE_CITY_TOTAL}</strong></div><div class="coverage-overview-rate">地市覆盖率 <strong>${cityCoverageRate}</strong></div><div class="coverage-uncovered">${this.escapeHtml(uncoveredText)}</div></aside><div class="coverage-map-shell"><div class="coverage-map-controls" aria-label="地图缩放"><button class="coverage-map-control" type="button" title="放大地图" data-coverage-map-target="${chartId}" data-coverage-map-control="in">+</button><button class="coverage-map-control" type="button" title="缩小地图" data-coverage-map-target="${chartId}" data-coverage-map-control="out">-</button><button class="coverage-map-control" type="button" title="重置地图缩放" data-coverage-map-target="${chartId}" data-coverage-map-control="reset">1:1</button></div><div class="coverage-map" id="${chartId}"><div class="coverage-map-fallback">地图加载中；若长时间无响应，请稍后刷新报告页。</div></div></div><aside class="coverage-drill-panel" id="${panelId}" aria-live="polite" aria-label="地市代理商明细"><div class="coverage-drill-title"><div><span>当前下钻</span><strong id="${panelId}-title">请选择省份</strong></div><span class="coverage-drill-badge is-empty" id="${panelId}-badge">未覆盖</span></div><div class="coverage-drill-summary" id="${panelId}-summary"><span><strong>0</strong>家代理商</span><span><strong>0/0</strong>地市覆盖</span><span><strong>--</strong>覆盖率</span></div><div class="coverage-drill-body" id="${panelId}-body"><div class="coverage-drill-empty">请双击省份查看地市代理商</div></div></aside></div><script>${this.renderCoverageMapRuntimeScript(chartId, panelId, domSuffix, coverageData)}</script></section>`;
   }
 
   /**
@@ -1646,15 +1649,36 @@ export class PublicAnalysisResultController {
   const rows = Array.isArray(coverageData.rows) ? coverageData.rows : [];
   const cityRows = Array.isArray(coverageData.cities) ? coverageData.cities : [];
   const provinceRows = new Map(rows.filter(row => row.province).map(row => [row.province, row]));
-  const cityCoveredColor = '#22d3ee';
-  const cityUncoveredColor = '#0b1a2f';
-  const cityBorderColor = 'rgba(125,211,252,0.2)';
-  const provinceCoveredBorderColor = 'rgba(56,189,248,0.82)';
-  const provincePlainBorderColor = 'rgba(125,211,252,0.28)';
+  const cityCoveredColor = 'rgba(125,236,255,.82)';
+  const cityUncoveredColor = 'rgba(32,88,118,.42)';
+  const cityBorderColor = 'rgba(117,231,255,0.26)';
+  const provinceCoveredBorderColor = 'rgba(125,236,255,0.96)';
+  const provincePlainBorderColor = 'rgba(126,213,238,0.68)';
   const selectedProvinceColor = '#f59e0b';
-  const depthBackCenter = [103.28, 35.38];
-  const depthMidCenter = [103.62, 35.66];
-  const initialMapZoom = 1.72;
+  const provinceLabelRich = {
+    selected: {
+      color: '#fff7ed',
+      fontSize: 11,
+      fontWeight: 900,
+      textBorderColor: 'rgba(8,20,38,.95)',
+      textBorderWidth: 3
+    },
+    covered: {
+      color: '#e8fbff',
+      fontSize: 11,
+      fontWeight: 800,
+      textBorderColor: 'rgba(8,20,38,.9)',
+      textBorderWidth: 2
+    },
+    uncovered: {
+      color: 'rgba(192,232,242,.7)',
+      fontSize: 10,
+      fontWeight: 700,
+      textBorderColor: 'rgba(8,20,38,.9)',
+      textBorderWidth: 2
+    }
+  };
+  const initialMapZoom = 1.84;
   const mapCenter = [104, 36];
   const minMapZoom = 1.1;
   const maxMapZoom = 4.8;
@@ -1727,11 +1751,172 @@ export class PublicAnalysisResultController {
           coords: ring,
           lineStyle: {
             color: selected ? '#fde68a' : (covered ? provinceCoveredBorderColor : provincePlainBorderColor),
-            width: selected ? 2.1 : (covered ? 1.45 : 0.62),
-            opacity: selected ? 1 : (covered ? 0.96 : 0.84)
+            width: selected ? 2.2 : (covered ? 1.65 : 0.82),
+            opacity: selected ? 1 : (covered ? 1 : 0.88),
+            shadowBlur: selected ? 18 : (covered ? 13 : 8),
+            shadowColor: selected ? 'rgba(245,158,11,.48)' : 'rgba(103,232,249,.5)'
           }
         };
       });
+    });
+  }
+  function buildProvinceGlowLines(){
+    const provinceGeoJson = hasGeoJsonFeatures(window.__CRM_LOCAL_CHINA_PROVINCE_GEO_JSON__)
+      ? window.__CRM_LOCAL_CHINA_PROVINCE_GEO_JSON__
+      : window.__CRM_LOCAL_CHINA_GEO_JSON__;
+    if (!hasGeoJsonFeatures(provinceGeoJson)) {
+      return [];
+    }
+    const provinceNames = new Set(coverageData.provinces || []);
+    return provinceGeoJson.features.flatMap(function(feature){
+      const provinceName = String((feature.properties && feature.properties.name) || '');
+      if (!provinceNames.has(provinceName)) {
+        return [];
+      }
+      const covered = provinceRows.has(provinceName);
+      return collectLineRings(feature.geometry).map(function(ring){
+        return {
+          name: provinceName,
+          coords: ring,
+          lineStyle: {
+            color: covered ? 'rgba(125,236,255,.42)' : 'rgba(125,211,252,.22)',
+            width: covered ? 5.4 : 3.2,
+            opacity: covered ? 0.46 : 0.26,
+            shadowBlur: covered ? 24 : 14,
+            shadowColor: 'rgba(103,232,249,.72)'
+          }
+        };
+      });
+    });
+  }
+  function buildMapDepthShadowLines(){
+    const provinceGeoJson = hasGeoJsonFeatures(window.__CRM_LOCAL_CHINA_PROVINCE_GEO_JSON__)
+      ? window.__CRM_LOCAL_CHINA_PROVINCE_GEO_JSON__
+      : window.__CRM_LOCAL_CHINA_GEO_JSON__;
+    if (!hasGeoJsonFeatures(provinceGeoJson)) {
+      return [];
+    }
+    const provinceNames = new Set(coverageData.provinces || []);
+    return provinceGeoJson.features.flatMap(function(feature){
+      const provinceName = String((feature.properties && feature.properties.name) || '');
+      if (!provinceNames.has(provinceName)) {
+        return [];
+      }
+      return collectLineRings(feature.geometry).map(function(ring){
+        return {
+          name: provinceName,
+          coords: ring,
+          lineStyle: {
+            color: 'rgba(8,47,73,.42)',
+            width: 9,
+            opacity: 0.48,
+            shadowBlur: 18,
+            shadowColor: 'rgba(2,6,23,.86)',
+            shadowOffsetY: 26
+          }
+        };
+      });
+    });
+  }
+  function buildMapExtrusionAreas(){
+    const provinceGeoJson = hasGeoJsonFeatures(window.__CRM_LOCAL_CHINA_PROVINCE_GEO_JSON__)
+      ? window.__CRM_LOCAL_CHINA_PROVINCE_GEO_JSON__
+      : window.__CRM_LOCAL_CHINA_GEO_JSON__;
+    if (!hasGeoJsonFeatures(provinceGeoJson)) {
+      return [];
+    }
+    const provinceNames = new Set(coverageData.provinces || []);
+    return provinceGeoJson.features.map(function(feature){
+      const provinceName = String((feature.properties && feature.properties.name) || '');
+      const center = feature.properties && (feature.properties.centroid || feature.properties.center);
+      if (!provinceNames.has(provinceName) || !Array.isArray(center)) {
+        return null;
+      }
+      const rings = collectLineRings(feature.geometry).filter(function(ring){
+        return Array.isArray(ring) && ring.length > 3;
+      });
+      if (rings.length === 0) {
+        return null;
+      }
+      return {
+        name: provinceName,
+        value: center,
+        covered: provinceRows.has(provinceName),
+        rings: rings
+      };
+    }).filter(Boolean);
+  }
+  function renderMapExtrusionItem(params, api){
+    const item = mapExtrusionAreas[params.dataIndex];
+    if (!item || !Array.isArray(item.rings)) {
+      return { type: 'group', children: [] };
+    }
+    const selected = item.name === selectedProvinceName;
+    const covered = Boolean(item.covered);
+    const depth = selected ? 30 : (covered ? 23 : 18);
+    const xOffset = selected ? -12 : -8;
+    const steps = selected ? 7 : 6;
+    const children = [];
+    item.rings.forEach(function(ring){
+      const points = ring.map(function(coord){
+        const point = api.coord(coord);
+        return Array.isArray(point) && Number.isFinite(point[0]) && Number.isFinite(point[1]) ? point : null;
+      }).filter(Boolean);
+      if (points.length < 3) {
+        return;
+      }
+      for (let step = steps; step >= 1; step -= 1) {
+        const ratio = step / steps;
+        const shiftedPoints = points.map(function(point){
+          return [point[0] + (xOffset * ratio), point[1] + (depth * ratio)];
+        });
+        const selectedFill = step === steps ? 'rgba(180,83,9,.28)' : 'rgba(245,158,11,.16)';
+        const coveredFill = step === steps ? 'rgba(14,116,144,.34)' : 'rgba(8,74,103,.2)';
+        const plainFill = step === steps ? 'rgba(8,47,73,.32)' : 'rgba(8,47,73,.17)';
+        children.push({
+          type: 'polygon',
+          silent: true,
+          shape: { points: shiftedPoints },
+          style: {
+            fill: selected ? selectedFill : (covered ? coveredFill : plainFill),
+            stroke: selected ? 'rgba(253,186,116,.34)' : 'rgba(103,232,249,.16)',
+            lineWidth: selected ? 0.85 : 0.55,
+            shadowBlur: selected ? 18 : 12,
+            shadowColor: selected ? 'rgba(245,158,11,.25)' : 'rgba(34,211,238,.16)'
+          }
+        });
+      }
+    });
+    return { type: 'group', silent: true, children: children };
+  }
+  function buildSelectedProvinceGlowLines(){
+    if (!selectedProvinceName) {
+      return [];
+    }
+    const provinceGeoJson = hasGeoJsonFeatures(window.__CRM_LOCAL_CHINA_PROVINCE_GEO_JSON__)
+      ? window.__CRM_LOCAL_CHINA_PROVINCE_GEO_JSON__
+      : window.__CRM_LOCAL_CHINA_GEO_JSON__;
+    if (!hasGeoJsonFeatures(provinceGeoJson)) {
+      return [];
+    }
+    const selectedFeature = provinceGeoJson.features.find(function(feature){
+      return String((feature.properties && feature.properties.name) || '') === selectedProvinceName;
+    });
+    if (!selectedFeature) {
+      return [];
+    }
+    return collectLineRings(selectedFeature.geometry).map(function(ring){
+      return {
+        name: selectedProvinceName,
+        coords: ring,
+        lineStyle: {
+          color: 'rgba(245,158,11,.72)',
+          width: 6.2,
+          opacity: 0.3,
+          shadowBlur: 18,
+          shadowColor: 'rgba(245,158,11,.56)'
+        }
+      };
     });
   }
   function buildProvinceLabelPoints(){
@@ -1754,12 +1939,56 @@ export class PublicAnalysisResultController {
       };
     }).filter(Boolean);
   }
-  function shouldShowProvinceLabel(provinceName){
-    return Boolean(provinceRows.get(provinceName)) || provinceName === selectedProvinceName;
+  function buildCoveredCityPoints(){
+    if (!hasGeoJsonFeatures(window.__CRM_LOCAL_CHINA_CITY_GEO_JSON__)) {
+      return [];
+    }
+    const rowByKey = new Map();
+    function normalizeMapCityName(cityName){
+      return String(cityName || '').replace(/(市|地区|盟|自治州|特别行政区)$/u, '');
+    }
+    cityRows.forEach(function(city){
+      const province = String(city.province || '');
+      const cityName = normalizeMapCityName(city.cityName);
+      if (province && cityName && city.covered) {
+        rowByKey.set(province + '|' + cityName, city);
+      }
+    });
+    return window.__CRM_LOCAL_CHINA_CITY_GEO_JSON__.features.map(function(feature){
+      const properties = feature.properties || {};
+      const province = String(properties.province || '');
+      const rawCityName = String(properties.name || properties.cityName || '');
+      const center = properties.centroid || properties.center;
+      const candidateNames = [properties.name, properties.cityName, properties.fullName]
+        .flatMap(function(value){
+          const rawName = String(value || '');
+          const normalizedName = normalizeMapCityName(rawName);
+          return [rawName, normalizedName];
+        })
+        .filter(Boolean);
+      const row = candidateNames
+        .map(function(cityName){ return rowByKey.get(province + '|' + cityName); })
+        .find(Boolean);
+      if (!row || !Array.isArray(center)) {
+        return null;
+      }
+      return {
+        name: rawCityName,
+        province: province,
+        cityName: rawCityName,
+        value: center.concat([Math.max(1, Number(row.partnerCount || 1))])
+      };
+    }).filter(Boolean);
   }
   function formatProvinceLabel(params){
     const provinceName = String(params && params.name || '');
-    return shouldShowProvinceLabel(provinceName) ? provinceName : '';
+    if (!provinceName) {
+      return '';
+    }
+    if (provinceName === selectedProvinceName) {
+      return '{selected|' + provinceName + '}';
+    }
+    return provinceRows.has(provinceName) ? '{covered|' + provinceName + '}' : '{uncovered|' + provinceName + '}';
   }
   function isPointInRing(point, ring){
     if (!Array.isArray(point) || !Array.isArray(ring) || ring.length < 3) {
@@ -1834,9 +2063,12 @@ export class PublicAnalysisResultController {
       province: province,
       cityName: cityName,
       itemStyle: {
-        areaColor: selected ? selectedProvinceColor : (covered ? cityCoveredColor : cityUncoveredColor),
-        borderColor: selected ? '#fde68a' : (covered ? 'rgba(255,255,255,0.92)' : cityBorderColor),
-        borderWidth: selected ? 0.52 : (covered ? 0.58 : 0.42)
+        areaColor: selected ? 'rgba(245,158,11,.84)' : (covered ? cityCoveredColor : cityUncoveredColor),
+        borderColor: selected ? 'rgba(255,237,213,.92)' : (covered ? 'rgba(255,255,255,0.82)' : cityBorderColor),
+        borderWidth: selected ? 0.56 : (covered ? 0.54 : 0.34),
+        shadowBlur: selected ? 16 : (covered ? 9 : 3),
+        shadowColor: selected ? 'rgba(245,158,11,.34)' : (covered ? 'rgba(125,236,255,.2)' : 'rgba(2,6,23,.22)'),
+        shadowOffsetY: selected ? 8 : (covered ? 5 : 3)
       }
     };
   }
@@ -1884,6 +2116,20 @@ export class PublicAnalysisResultController {
         });
       });
       return buildCityMapItem(province, mapCityName, Boolean(row && row.covered), row ? row.partnerCount : 0);
+    });
+  }
+  function buildCityGeoRegions(){
+    if (!hasGeoJsonFeatures(window.__CRM_LOCAL_CHINA_CITY_GEO_JSON__)) {
+      return [];
+    }
+    return buildCityMapRowsFromGeoJson().map(function(item){
+      return {
+        name: item.name,
+        itemStyle: item.itemStyle,
+        label: { show: false },
+        emphasis: { disabled: true },
+        select: { disabled: true }
+      };
     });
   }
   window.showCoverageProvinceDetail_${domSuffix} = function(provinceName){
@@ -1948,9 +2194,6 @@ export class PublicAnalysisResultController {
   }
   registerCoverageMapsIfNeeded();
   const hasCityGeoJson = hasGeoJsonFeatures(window.__CRM_LOCAL_CHINA_CITY_GEO_JSON__);
-  const provinceMapName = hasGeoJsonFeatures(window.__CRM_LOCAL_CHINA_PROVINCE_GEO_JSON__)
-    ? 'china-province-coverage'
-    : 'china';
   function buildProvinceMapRows(){
     return (coverageData.provinces || []).map(function(province){
       const row = provinceRows.get(province);
@@ -1969,29 +2212,21 @@ export class PublicAnalysisResultController {
       };
     });
   }
-  const provinceMapRows = buildProvinceMapRows();
-  const cityMapRows = buildCityMapRowsFromGeoJson();
+  const coveredCityPoints = buildCoveredCityPoints();
+  const mapExtrusionAreas = buildMapExtrusionAreas();
+  const mapDepthShadowLines = buildMapDepthShadowLines();
+  const provinceGlowLines = buildProvinceGlowLines();
   const provinceBorderLines = buildProvinceBorderLines();
   const provinceLabelPoints = buildProvinceLabelPoints();
   function buildProvinceHitRows(){
-    return buildProvinceMapRows().map(function(item){
-      const selected = item.name === selectedProvinceName;
+    return provinceLabelPoints.map(function(item){
+      const provinceName = item.name;
       return {
-        name: item.name,
+        name: provinceName,
+        province: provinceName,
         value: item.value,
-        itemStyle: selected
-          ? {
-              areaColor: 'rgba(255,255,255,0)',
-              borderColor: 'rgba(255,255,255,0)',
-              borderWidth: 0,
-              shadowBlur: 0,
-              shadowColor: 'rgba(0,0,0,0)'
-            }
-          : {
-              areaColor: 'rgba(255,255,255,0)',
-              borderColor: 'rgba(255,255,255,0)',
-              borderWidth: 0
-            }
+        itemStyle: { color: 'rgba(255,255,255,0)' },
+        emphasis: { disabled: true }
       };
     });
   }
@@ -2000,11 +2235,16 @@ export class PublicAnalysisResultController {
   function updateSelectedProvinceStyle(){
     if (hasCityGeoJson) {
       chart.setOption({
+        geo: { regions: buildCityGeoRegions() },
         series: [
-          { id: 'coverage-city-fill', data: buildCityMapRowsFromGeoJson() },
-          { id: 'coverage-province-hit', data: buildProvinceHitRows(), label: { formatter: formatProvinceLabel } },
+          { id: 'coverage-map-extrusion', data: mapExtrusionAreas, renderItem: renderMapExtrusionItem },
+          { id: 'coverage-province-hit', data: buildProvinceHitRows() },
+          { id: 'coverage-map-depth-shadow', data: buildMapDepthShadowLines() },
+          { id: 'coverage-province-glow-lines', data: buildProvinceGlowLines() },
           { id: 'coverage-province-lines', data: buildProvinceBorderLines() },
-          { id: 'coverage-province-labels', label: { formatter: formatProvinceLabel } }
+          { id: 'coverage-selected-province-glow', data: buildSelectedProvinceGlowLines() },
+          { id: 'coverage-covered-city-points', data: buildCoveredCityPoints() },
+          { id: 'coverage-province-labels', label: { formatter: formatProvinceLabel, rich: provinceLabelRich } }
         ]
       });
       return;
@@ -2023,32 +2263,35 @@ export class PublicAnalysisResultController {
   }
   function applyCoverageMapZoom(nextZoom){
     currentMapZoom = clampMapZoom(nextZoom);
+    if (hasCityGeoJson) {
+      chart.setOption({
+        geo: { zoom: currentMapZoom, center: mapCenter }
+      });
+      return;
+    }
     chart.setOption({
-      geo: hasCityGeoJson ? { zoom: currentMapZoom, center: mapCenter } : undefined,
-      series: hasCityGeoJson
-        ? [
-            { id: 'coverage-map-depth-back', zoom: currentMapZoom, center: depthBackCenter },
-            { id: 'coverage-map-depth-mid', zoom: currentMapZoom, center: depthMidCenter },
-            { id: 'coverage-city-fill', zoom: currentMapZoom, center: mapCenter },
-            { id: 'coverage-province-hit', zoom: currentMapZoom, center: mapCenter }
-          ]
-        : [{ id: 'coverage-province-fallback', zoom: currentMapZoom, center: mapCenter }]
+      series: [{ id: 'coverage-province-fallback', zoom: currentMapZoom, center: mapCenter }]
     });
   }
   chart.setOption({
     geo: hasCityGeoJson ? {
       map: 'china-city-coverage',
+      zlevel: 2,
+      z: 2,
       roam: false,
       zoom: initialMapZoom,
       center: mapCenter,
       silent: true,
       itemStyle: {
-        areaColor: 'rgba(255,255,255,0)',
-        borderColor: 'rgba(255,255,255,0)',
-        borderWidth: 0
+        areaColor: cityUncoveredColor,
+        borderColor: cityBorderColor,
+        borderWidth: 0.34,
+        shadowBlur: 5,
+        shadowColor: 'rgba(2,6,23,.28)'
       },
       emphasis: { disabled: true },
-      label: { show: false }
+      label: { show: false },
+      regions: buildCityGeoRegions()
     } : undefined,
     tooltip: {
       trigger: 'item',
@@ -2062,8 +2305,9 @@ export class PublicAnalysisResultController {
         const data = params.data || {};
         const provinceName = String(data.province || params.name || '');
         const row = provinceRows.get(provinceName);
-        if (params.seriesName === '地市覆盖') {
-          return '<b style="color:#ffffff">' + escapeHtml(provinceName) + ' - ' + escapeHtml(params.name) + '</b><br/><span style="color:' + (data.value > 0 ? '#67e8f9' : '#8fb7cc') + '">' + (data.value > 0 ? '地市已覆盖' : '地市未覆盖') + '</span><br/>渠道商：' + (data.value || 0) + '家';
+        if (params.seriesName === '覆盖地市点位') {
+          const partnerCount = Array.isArray(data.value) ? Number(data.value[2] || 0) : 0;
+          return '<b style="color:#ffffff">' + escapeHtml(provinceName) + ' - ' + escapeHtml(data.cityName || params.name) + '</b><br/><span style="color:#67e8f9">地市已覆盖</span><br/>渠道商：' + partnerCount + '家';
         }
         if (!row) {
           return '<b style="color:#ffffff">' + escapeHtml(params.name) + '</b><br/><span style="color:#8fb7cc">省份未覆盖</span><br/>渠道商：0家';
@@ -2072,130 +2316,44 @@ export class PublicAnalysisResultController {
       }
     },
     series: (hasCityGeoJson ? [{
-      id: 'coverage-map-depth-back',
-      type: 'map',
-      name: '地图厚度底影',
-      map: 'china-city-coverage',
-      roam: false,
-      zoom: initialMapZoom,
-      center: depthBackCenter,
-      showLegendSymbol: false,
-      zlevel: 0,
+      id: 'coverage-map-extrusion',
+      type: 'custom',
+      name: '地图立体侧壁',
+      coordinateSystem: 'geo',
+      renderItem: renderMapExtrusionItem,
       silent: true,
-      label: { show: false },
-      itemStyle: {
-        areaColor: 'rgba(2,10,22,.9)',
-        borderColor: 'rgba(255,255,255,0)',
-        borderWidth: 0,
-        shadowBlur: 24,
-        shadowColor: 'rgba(2,6,23,.55)'
-      },
-      emphasis: { disabled: true },
-      select: { disabled: true },
-      data: cityMapRows.map(function(item){
-        return {
-          name: item.name,
-          value: item.value,
-          itemStyle: {
-            areaColor: 'rgba(2,10,22,.9)',
-            borderColor: 'rgba(255,255,255,0)',
-            borderWidth: 0
-          }
-        };
-      })
-    }, {
-      id: 'coverage-map-depth-mid',
-      type: 'map',
-      name: '地图厚度侧影',
-      map: 'china-city-coverage',
-      roam: false,
-      zoom: initialMapZoom,
-      center: depthMidCenter,
-      showLegendSymbol: false,
-      zlevel: 0,
-      z: 1,
-      silent: true,
-      label: { show: false },
-      itemStyle: {
-        areaColor: 'rgba(7,48,64,.72)',
-        borderColor: 'rgba(255,255,255,0)',
-        borderWidth: 0,
-        shadowBlur: 20,
-        shadowColor: 'rgba(34,211,238,.18)'
-      },
-      emphasis: { disabled: true },
-      select: { disabled: true },
-      data: cityMapRows.map(function(item){
-        return {
-          name: item.name,
-          value: item.value,
-          itemStyle: {
-            areaColor: 'rgba(7,48,64,.72)',
-            borderColor: 'rgba(255,255,255,0)',
-            borderWidth: 0
-          }
-        };
-      })
-    }, {
-      id: 'coverage-city-fill',
-      type: 'map',
-      name: '地市覆盖',
-      map: 'china-city-coverage',
-      roam: false,
-      zoom: initialMapZoom,
-      center: mapCenter,
-      showLegendSymbol: false,
       zlevel: 1,
-      z: 2,
-      silent: false,
-      label: {
-        show: false,
-        color: '#d7f8ff',
-        fontSize: 7,
-        formatter: function(params){ return params.name; }
-      },
-      labelLayout: { hideOverlap: true },
-      emphasis: { disabled: true },
-      itemStyle: {
-        areaColor: cityUncoveredColor,
-        borderColor: cityBorderColor,
-        borderWidth: 0.38
-      },
-      select: { disabled: true },
-      data: cityMapRows
+      z: 1,
+      data: mapExtrusionAreas
     }, {
       id: 'coverage-province-hit',
-      type: 'map',
+      type: 'scatter',
       name: '省份边框',
-      map: provinceMapName,
-      roam: false,
-      zoom: initialMapZoom,
-      center: mapCenter,
-      showLegendSymbol: false,
+      coordinateSystem: 'geo',
       zlevel: 2,
-      silent: true,
-      label: {
-        show: true,
-        color: '#d7f8ff',
-        fontSize: 10,
-        fontWeight: 700,
-        formatter: formatProvinceLabel
-      },
-      emphasis: {
-        label: { color: '#ffffff', fontSize: 13, fontWeight: 'bold' },
-        itemStyle: { areaColor: 'rgba(56,189,248,.24)', borderColor: '#e0f2fe', borderWidth: 1.1 }
-      },
-      itemStyle: {
-        areaColor: 'rgba(255,255,255,0)',
-        borderColor: 'rgba(255,255,255,0)',
-        borderWidth: 0
-      },
-      select: { disabled: true },
+      symbolSize: 38,
+      silent: false,
+      itemStyle: { color: 'rgba(255,255,255,0)' },
+      emphasis: { disabled: true },
       data: buildProvinceHitRows()
     }, {
-      id: 'coverage-province-lines',
+      id: 'coverage-map-depth-shadow',
       type: 'lines',
-      name: '省份边界',
+      name: '地图厚度阴影',
+      coordinateSystem: 'geo',
+      polyline: true,
+      silent: true,
+      zlevel: 2,
+      lineStyle: {
+        type: 'solid',
+        cap: 'round',
+        join: 'round'
+      },
+      data: mapDepthShadowLines
+    }, {
+      id: 'coverage-province-glow-lines',
+      type: 'lines',
+      name: '省份轮廓光晕',
       coordinateSystem: 'geo',
       polyline: true,
       silent: true,
@@ -2205,13 +2363,65 @@ export class PublicAnalysisResultController {
         cap: 'round',
         join: 'round'
       },
+      data: provinceGlowLines
+    }, {
+      id: 'coverage-province-lines',
+      type: 'lines',
+      name: '省份边界',
+      coordinateSystem: 'geo',
+      polyline: true,
+      silent: true,
+      zlevel: 4,
+      lineStyle: {
+        type: 'solid',
+        cap: 'round',
+        join: 'round'
+      },
       data: provinceBorderLines
+    }, {
+      id: 'coverage-selected-province-glow',
+      type: 'lines',
+      name: '当前下钻省份光晕',
+      coordinateSystem: 'geo',
+      polyline: true,
+      silent: true,
+      zlevel: 5,
+      lineStyle: {
+        type: 'solid',
+        cap: 'round',
+        join: 'round'
+      },
+      data: buildSelectedProvinceGlowLines()
+    }, {
+      id: 'coverage-covered-city-points',
+      type: 'effectScatter',
+      name: '覆盖地市点位',
+      coordinateSystem: 'geo',
+      zlevel: 6,
+      silent: true,
+      showEffectOn: 'render',
+      rippleEffect: {
+        brushType: 'stroke',
+        scale: 2.6,
+        period: 4
+      },
+      symbol: 'circle',
+      symbolSize: function(value){
+        return Math.max(5, Math.min(13, 4 + Math.sqrt(Number(value && value[2] || 1)) * 2));
+      },
+      itemStyle: {
+        color: '#7df3ff',
+        shadowBlur: 18,
+        shadowColor: 'rgba(125,243,255,.72)'
+      },
+      emphasis: { disabled: true },
+      data: coveredCityPoints
     }, {
       id: 'coverage-province-labels',
       type: 'scatter',
       name: '省份名称',
       coordinateSystem: 'geo',
-      zlevel: 4,
+      zlevel: 7,
       symbolSize: 1,
       silent: false,
       itemStyle: { color: 'rgba(0,0,0,0)' },
@@ -2219,11 +2429,7 @@ export class PublicAnalysisResultController {
         show: true,
         formatter: formatProvinceLabel,
         position: 'top',
-        color: '#d7f8ff',
-        fontSize: 11,
-        fontWeight: 800,
-        textBorderColor: 'rgba(8,20,38,.88)',
-        textBorderWidth: 2
+        rich: provinceLabelRich
       },
       labelLayout: { hideOverlap: true },
       data: provinceLabelPoints
@@ -2241,7 +2447,8 @@ export class PublicAnalysisResultController {
         color: '#d7f8ff',
         fontSize: 10,
         fontWeight: 700,
-        formatter: formatProvinceLabel
+        formatter: formatProvinceLabel,
+        rich: provinceLabelRich
       },
       emphasis: {
         label: { color: '#ffffff', fontSize: 13, fontWeight: 'bold' },
@@ -2279,7 +2486,7 @@ export class PublicAnalysisResultController {
   chart.on('dblclick', function(params){
     const data = params.data || {};
     const seriesName = String(params.seriesName || '');
-    const isProvinceEvent = seriesName === '省份名称' || (!hasCityGeoJson && seriesName === '省份覆盖');
+    const isProvinceEvent = seriesName === '省份名称' || seriesName === '省份边框' || (!hasCityGeoJson && seriesName === '省份覆盖');
     if (!isProvinceEvent) {
       return;
     }
@@ -2295,7 +2502,9 @@ export class PublicAnalysisResultController {
       openCoverageProvinceDetail(resolveProvinceByCoordinate(coordinate));
     });
   }
-  window.addEventListener('resize', function(){ chart.resize(); });
+  window.addEventListener('resize', function(){
+    chart.resize();
+  });
 })();`;
   }
 
@@ -2988,7 +3197,11 @@ export class PublicAnalysisAssetController {
    */
   @Get('echarts.min.js')
   getEchartsScript(@Res() response: Response): void {
-    const scriptPath = this.resolvePublicAssetPath('echarts.min.js');
+    this.sendPublicScript(response, 'echarts.min.js');
+  }
+
+  private sendPublicScript(response: Response, filename: string): void {
+    const scriptPath = this.resolvePublicAssetPath(filename);
     if (!scriptPath || !existsSync(scriptPath)) {
       throw new NotFoundException('未找到公开报告图表脚本。');
     }
