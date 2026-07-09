@@ -49,6 +49,9 @@ import { OpenApiMarkdownSnapshotService } from './openapi-markdown-snapshot.serv
 export type StandardApiRecord = Record<string, unknown>;
 type BusinessChainSnapshotResource = 'partners' | 'registrations' | 'opportunities' | 'quotes' | 'orders';
 type BusinessChainSecondaryViewKey =
+  | 'registration-monthly-trend'
+  | 'opportunity-monthly-trend'
+  | 'order-monthly-trend'
   | 'opportunity-quarter-comparison'
   | 'opportunity-region-quarter-matrix'
   | 'big-region-comparison'
@@ -692,6 +695,7 @@ export class LianruanCrmAnalysisExecutorService {
       orderFulfillmentRows,
       distributionHierarchyRows,
       technicalServiceRows,
+      temporalSlot: effectiveTemporalSlot,
       partnerRows,
       registrationRows,
       opportunityStageRows,
@@ -724,7 +728,11 @@ export class LianruanCrmAnalysisExecutorService {
     const primaryRows = useOpportunityQuarterPrimary
       ? opportunityQuarterComparisonRows
       : summaryRows;
-    const primaryView = useOpportunityQuarterPrimary
+    const monthlyPrimaryView = this.resolveBusinessChainMonthlyPrimaryView(secondaryViews, params.questionText);
+    const visibleSecondaryViews = monthlyPrimaryView
+      ? secondaryViews.filter((view) => view.title !== monthlyPrimaryView.title)
+      : secondaryViews;
+    const primaryView = monthlyPrimaryView ?? (useOpportunityQuarterPrimary
       ? {
           viewType: 'LINE_CHART' as const,
           title: '商机季度对比',
@@ -742,7 +750,7 @@ export class LianruanCrmAnalysisExecutorService {
               value: row.count,
             })),
           }
-        : undefined;
+        : undefined);
 
     return {
       datasetId: buildEntityId('dataset'),
@@ -770,7 +778,7 @@ export class LianruanCrmAnalysisExecutorService {
       ],
       metricCards,
       primaryView,
-      secondaryViews,
+      secondaryViews: visibleSecondaryViews,
       tableRows: primaryRows,
       rowCount: primaryRows.length,
     };
@@ -1427,6 +1435,7 @@ export class LianruanCrmAnalysisExecutorService {
     orderFulfillmentRows: Array<Record<string, unknown>>;
     distributionHierarchyRows: Array<Record<string, unknown>>;
     technicalServiceRows: Array<Record<string, unknown>>;
+    temporalSlot?: AnalysisIntent['temporalSlot'];
     partnerRows: Array<Record<string, unknown>>;
     registrationRows: Array<Record<string, unknown>>;
     opportunityStageRows: Array<Record<string, unknown>>;
@@ -1434,7 +1443,36 @@ export class LianruanCrmAnalysisExecutorService {
     quoteRows: Array<Record<string, unknown>>;
     orderRows: Array<Record<string, unknown>>;
   }): ResultView[] {
+    const monthlyTrendViews = this.buildBusinessChainMonthlyTrendViews({
+      questionText: params.questionText,
+      temporalSlot: params.temporalSlot,
+      resources: params.resources,
+      registrationRows: params.registrationRows,
+      opportunityRows: params.opportunityRows,
+      orderRows: params.orderRows,
+    });
+    const monthlyTrendViewsByKey = new Map(
+      monthlyTrendViews.map((view) => [this.resolveBusinessChainMonthlyViewKey(view.title), view]),
+    );
     const viewsByKey: Record<BusinessChainSecondaryViewKey, ResultView> = {
+      'registration-monthly-trend': monthlyTrendViewsByKey.get('registration-monthly-trend') ?? {
+        viewType: 'BAR_CHART',
+        title: '客户报备月度趋势',
+        rows: [],
+        series: [],
+      },
+      'opportunity-monthly-trend': monthlyTrendViewsByKey.get('opportunity-monthly-trend') ?? {
+        viewType: 'BAR_CHART',
+        title: '商机月度趋势',
+        rows: [],
+        series: [],
+      },
+      'order-monthly-trend': monthlyTrendViewsByKey.get('order-monthly-trend') ?? {
+        viewType: 'BAR_CHART',
+        title: '订单月度趋势',
+        rows: [],
+        series: [],
+      },
       'opportunity-quarter-comparison': {
         viewType: 'LINE_CHART',
         title: '商机季度对比',
@@ -1538,6 +1576,414 @@ export class LianruanCrmAnalysisExecutorService {
   }
 
   /**
+   * 构造业务链月度趋势柱形图。
+   *
+   * 参数说明：`questionText` 用于识别最近 N 个月和月度趋势诉求，三类明细行为已按权限、区域和时间过滤后的记录。
+   * 返回值说明：用户明确要求月度趋势时返回客户报备、商机、订单的独立柱形图；否则返回空数组。
+   * 调用注意事项：这里只补齐展示月份，不扩大取数范围，空月份计为 0，避免把区域/渠道商横向对比误当时间趋势。
+   */
+  private buildBusinessChainMonthlyTrendViews(params: {
+    questionText: string;
+    temporalSlot?: AnalysisIntent['temporalSlot'];
+    resources: BusinessChainSnapshotResource[];
+    registrationRows: Array<Record<string, unknown>>;
+    opportunityRows: Array<Record<string, unknown>>;
+    orderRows: Array<Record<string, unknown>>;
+  }): ResultView[] {
+    if (!this.isBusinessChainMonthlyTrendQuestion(params.questionText)) {
+      return [];
+    }
+
+    const monthLabels = this.resolveBusinessChainMonthlyTrendBuckets(
+      params.questionText,
+      params.temporalSlot,
+    );
+    const monthCountLabel = `${monthLabels.length}个月`;
+    const views: ResultView[] = [];
+    if (params.resources.includes('registrations')) {
+      views.push(this.buildBusinessChainMonthlyTrendView({
+        title: `客户报备最近${monthCountLabel}月度趋势`,
+        rows: params.registrationRows,
+        monthLabels,
+        countKey: 'registrationCount',
+        countLabel: '客户报备数',
+        dateFields: ['createdAt', 'approvedAt', 'updatedAt'],
+      }));
+    }
+    if (params.resources.includes('opportunities')) {
+      views.push(this.buildBusinessChainMonthlyTrendView({
+        title: `商机最近${monthCountLabel}月度趋势`,
+        rows: params.opportunityRows,
+        monthLabels,
+        countKey: 'opportunityCount',
+        countLabel: '商机数',
+        dateFields: ['createdAt', 'updatedAt'],
+        amountKey: 'opportunityAmount',
+      }));
+    }
+    if (params.resources.includes('orders')) {
+      views.push(this.buildBusinessChainMonthlyTrendView({
+        title: `订单最近${monthCountLabel}月度趋势`,
+        rows: params.orderRows,
+        monthLabels,
+        countKey: 'orderCount',
+        countLabel: '订单数',
+        dateFields: ['dealAt', 'completedAt', 'createdAt', 'updatedAt'],
+        amountKey: 'orderAmount',
+      }));
+    }
+
+    return views;
+  }
+
+  /**
+   * 构造单个对象的月度趋势柱形图。
+   *
+   * 参数说明：固定传入月份桶、日期字段优先级、数量字段名和可选金额字段名。
+   * 返回值说明：返回带 `rows` 和 `series` 的柱形图，`series` 始终以数量为纵轴。
+   * 调用注意事项：同一对象按明细行计数，渠道商名称只作为辅助列展示，不参与去重。
+   */
+  private buildBusinessChainMonthlyTrendView(params: {
+    title: string;
+    rows: Array<Record<string, unknown>>;
+    monthLabels: string[];
+    countKey: string;
+    countLabel: string;
+    dateFields: string[];
+    amountKey?: string;
+  }): ResultView {
+    const monthlyRows = new Map<string, Record<string, unknown>>();
+    const partnerNamesByMonth = new Map<string, Set<string>>();
+    for (const monthLabel of params.monthLabels) {
+      monthlyRows.set(monthLabel, {
+        ownerId: monthLabel,
+        ownerName: monthLabel,
+        bucket_label: monthLabel,
+        month_label: monthLabel,
+        monthLabel,
+        [params.countKey]: 0,
+        count: 0,
+        ...(params.amountKey ? { [params.amountKey]: 0, amount: 0, amountText: formatWanAmount(0) } : {}),
+      });
+      partnerNamesByMonth.set(monthLabel, new Set<string>());
+    }
+
+    for (const row of params.rows) {
+      const monthLabel = this.resolveBusinessChainRecordMonth(row, params.dateFields);
+      if (!monthLabel || !monthlyRows.has(monthLabel)) {
+        continue;
+      }
+
+      const current = monthlyRows.get(monthLabel);
+      if (!current) {
+        continue;
+      }
+
+      current[params.countKey] = this.resolveFiniteNumber(current[params.countKey]) + 1;
+      current.count = this.resolveFiniteNumber(current.count) + 1;
+      if (params.amountKey) {
+        const amount = this.resolveFiniteNumber(row.amount);
+        current[params.amountKey] = this.resolveFiniteNumber(current[params.amountKey]) + amount;
+        current.amount = this.resolveFiniteNumber(current.amount) + amount;
+        current.amountText = formatWanAmount(this.resolveFiniteNumber(current.amount));
+      }
+
+      const partnerName = this.readText(row.partnerName);
+      if (partnerName && partnerName !== '未填写渠道商') {
+        partnerNamesByMonth.get(monthLabel)?.add(partnerName);
+      }
+    }
+
+    const rows: Array<Record<string, unknown>> = params.monthLabels.map((monthLabel) => {
+      const row = monthlyRows.get(monthLabel) ?? {};
+      const partnerNames = [...(partnerNamesByMonth.get(monthLabel) ?? new Set<string>())];
+      return {
+        ...row,
+        metricName: params.countLabel,
+        partnerNames: partnerNames.join('、') || '本月无关联渠道商',
+      };
+    });
+
+    return {
+      viewType: 'BAR_CHART',
+      title: params.title,
+      description: `按月展示${params.countLabel}，月份为空时按 0 计入。`,
+      rows,
+      series: rows.map((row) => ({
+        label: row.month_label,
+        value: row[params.countKey],
+        count: row[params.countKey],
+      })),
+    };
+  }
+
+  /**
+   * 判断用户是否明确要求业务链月度趋势。
+   *
+   * 参数说明：`questionText` 为用户原始问题。
+   * 返回值说明：同时具备时间趋势表达和月度表达时返回 `true`。
+   */
+  private isBusinessChainMonthlyTrendQuestion(questionText: string): boolean {
+    const hasBusinessObject = /(客户|报备|商机|订单|下单|成单|签单|成交)/u.test(questionText);
+    const hasTrendIntent = /(趋势|走势|变化|按月|月度|逐月|每月|月份|月环比|月度对比|柱形图|柱状图)/u.test(
+      questionText,
+    );
+    const hasMonthScope = /(最近|近|过去|当前|本)?\s*([0-9一二两三四五六七八九十]+)\s*个?月|月度|按月|逐月|每月/u.test(
+      questionText,
+    );
+    return hasBusinessObject && hasTrendIntent && hasMonthScope;
+  }
+
+  /**
+   * 解析业务链月度趋势需要展示的月份桶。
+   *
+   * 参数说明：优先使用用户明确的“最近 N 个月”，否则使用时间口径，仍缺失时默认最近 6 个月。
+   * 返回值说明：按 `YYYY-MM` 升序返回月份标签。
+   * 调用注意事项：月份桶只影响图表补零，不改变已经过滤好的真实明细。
+   */
+  private resolveBusinessChainMonthlyTrendBuckets(
+    questionText: string,
+    temporalSlot?: AnalysisIntent['temporalSlot'],
+  ): string[] {
+    const explicitMonthCount = this.resolveBusinessChainExplicitMonthCount(questionText);
+    const effectiveMonthCount = explicitMonthCount > 0 ? explicitMonthCount : 6;
+    if (explicitMonthCount > 0 || !temporalSlot?.startAt || !temporalSlot?.endAt) {
+      const endMonth = this.resolveBusinessChainTrendEndMonth(temporalSlot?.endAt);
+      return this.buildContinuousMonthLabels(endMonth, effectiveMonthCount);
+    }
+
+    const startMonth = this.resolveBusinessChainMonthLabel(temporalSlot.startAt);
+    const endMonth = this.resolveBusinessChainTrendEndMonth(temporalSlot.endAt);
+    if (!startMonth || !endMonth) {
+      return this.buildContinuousMonthLabels(this.resolveBusinessChainTrendEndMonth(undefined), effectiveMonthCount);
+    }
+
+    return this.buildMonthLabelsBetween(startMonth, endMonth).slice(-24);
+  }
+
+  /**
+   * 从用户问题中读取“最近 N 个月”的 N。
+   *
+   * 参数说明：`questionText` 为原始问题文本。
+   * 返回值说明：识别成功返回 1 到 24 的整数，未识别返回 0。
+   */
+  private resolveBusinessChainExplicitMonthCount(questionText: string): number {
+    const match = questionText.match(/(?:最近|近|过去|当前|本)?\s*([0-9一二两三四五六七八九十]+)\s*个?月/u);
+    if (!match) {
+      return 0;
+    }
+
+    const count = this.parseBusinessChainChineseNumber(match[1]);
+    return count > 0 ? Math.min(count, 24) : 0;
+  }
+
+  /**
+   * 解析中文或阿拉伯数字。
+   *
+   * 参数说明：`value` 为形如 `6`、`六`、`十二` 的月份数量。
+   * 返回值说明：解析失败返回 0。
+   */
+  private parseBusinessChainChineseNumber(value: string): number {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) {
+      return Math.trunc(numeric);
+    }
+
+    const digitMap: Record<string, number> = {
+      一: 1,
+      二: 2,
+      两: 2,
+      三: 3,
+      四: 4,
+      五: 5,
+      六: 6,
+      七: 7,
+      八: 8,
+      九: 9,
+    };
+    if (value === '十') {
+      return 10;
+    }
+    if (value.startsWith('十')) {
+      return 10 + (digitMap[value.slice(1)] ?? 0);
+    }
+    if (value.includes('十')) {
+      const [left, right] = value.split('十');
+      return (digitMap[left] ?? 0) * 10 + (digitMap[right] ?? 0);
+    }
+
+    return digitMap[value] ?? 0;
+  }
+
+  /**
+   * 解析趋势图结束月份。
+   *
+   * 参数说明：`endAt` 为上游时间口径结束时间，通常为开区间边界。
+   * 返回值说明：返回 `YYYY-MM`；当结束时间刚好是月初零点时，按上一个完整月份处理。
+   */
+  private resolveBusinessChainTrendEndMonth(endAt?: string): string {
+    if (!endAt) {
+      return this.formatBusinessChainMonthLabel(new Date(Date.now()));
+    }
+
+    const endDate = this.parseBusinessChainDate(endAt);
+    if (!endDate) {
+      return this.formatBusinessChainMonthLabel(new Date(Date.now()));
+    }
+
+    const isMonthBoundary = /-\d{2}-01(?:T00:00:00(?:\.000)?Z?)?$/u.test(endAt);
+    if (isMonthBoundary) {
+      endDate.setUTCMonth(endDate.getUTCMonth() - 1);
+    }
+
+    return this.formatBusinessChainMonthLabel(endDate);
+  }
+
+  /**
+   * 解析记录所属月份。
+   *
+   * 参数说明：`record` 为明细行，`dateFields` 为按业务口径排列的时间字段候选。
+   * 返回值说明：能解析时返回 `YYYY-MM`，否则返回空字符串。
+   */
+  private resolveBusinessChainRecordMonth(
+    record: Record<string, unknown>,
+    dateFields: string[],
+  ): string {
+    for (const field of dateFields) {
+      const monthLabel = this.resolveBusinessChainMonthLabel(record[field]);
+      if (monthLabel) {
+        return monthLabel;
+      }
+    }
+
+    return '';
+  }
+
+  /**
+   * 将任意日期值转换为月份标签。
+   *
+   * 参数说明：`value` 支持 ISO 字符串、普通日期字符串或 Date。
+   * 返回值说明：成功返回 `YYYY-MM`，失败返回空字符串。
+   */
+  private resolveBusinessChainMonthLabel(value: unknown): string {
+    if (value instanceof Date && Number.isFinite(value.getTime())) {
+      return this.formatBusinessChainMonthLabel(value);
+    }
+
+    const text = this.readText(value);
+    const directMatch = text.match(/^(\d{4})-(\d{2})/u);
+    if (directMatch) {
+      return `${directMatch[1]}-${directMatch[2]}`;
+    }
+
+    const date = this.parseBusinessChainDate(text);
+    return date ? this.formatBusinessChainMonthLabel(date) : '';
+  }
+
+  /**
+   * 解析日期字符串。
+   *
+   * 参数说明：`value` 为日期文本。
+   * 返回值说明：可解析时返回 Date，否则返回 null。
+   */
+  private parseBusinessChainDate(value: string): Date | null {
+    const time = Date.parse(value);
+    if (!Number.isFinite(time)) {
+      return null;
+    }
+
+    return new Date(time);
+  }
+
+  /**
+   * 格式化月份标签。
+   *
+   * 参数说明：`date` 为有效日期。
+   * 返回值说明：返回 UTC 口径的 `YYYY-MM`，与 ISO 快照时间保持一致。
+   */
+  private formatBusinessChainMonthLabel(date: Date): string {
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  }
+
+  /**
+   * 从结束月份反推连续月份。
+   *
+   * 参数说明：`endMonth` 为 `YYYY-MM`，`count` 为月份数量。
+   * 返回值说明：返回按月份升序排列的标签。
+   */
+  private buildContinuousMonthLabels(endMonth: string, count: number): string[] {
+    const [yearText, monthText] = endMonth.split('-');
+    const endDate = new Date(Date.UTC(Number(yearText), Number(monthText) - 1, 1));
+    const labels: string[] = [];
+    for (let offset = count - 1; offset >= 0; offset -= 1) {
+      const date = new Date(endDate);
+      date.setUTCMonth(endDate.getUTCMonth() - offset);
+      labels.push(this.formatBusinessChainMonthLabel(date));
+    }
+
+    return labels;
+  }
+
+  /**
+   * 构造起止月份之间的连续月份。
+   *
+   * 参数说明：`startMonth/endMonth` 均为 `YYYY-MM`。
+   * 返回值说明：返回闭区间月份列表。
+   */
+  private buildMonthLabelsBetween(startMonth: string, endMonth: string): string[] {
+    const [startYear, startMonthNumber] = startMonth.split('-').map((item) => Number(item));
+    const [endYear, endMonthNumber] = endMonth.split('-').map((item) => Number(item));
+    const cursor = new Date(Date.UTC(startYear, startMonthNumber - 1, 1));
+    const endDate = new Date(Date.UTC(endYear, endMonthNumber - 1, 1));
+    const labels: string[] = [];
+    while (cursor.getTime() <= endDate.getTime()) {
+      labels.push(this.formatBusinessChainMonthLabel(cursor));
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+
+    return labels;
+  }
+
+  /**
+   * 根据月度视图标题解析内部视图键。
+   *
+   * 参数说明：`title` 为月度趋势图标题。
+   * 返回值说明：返回对应二级视图键；无法识别时返回空字符串。
+   */
+  private resolveBusinessChainMonthlyViewKey(title: string): BusinessChainSecondaryViewKey | '' {
+    if (title.includes('客户报备')) {
+      return 'registration-monthly-trend';
+    }
+    if (title.includes('商机')) {
+      return 'opportunity-monthly-trend';
+    }
+    if (title.includes('订单')) {
+      return 'order-monthly-trend';
+    }
+
+    return '';
+  }
+
+  /**
+   * 选择月度趋势主视图。
+   *
+   * 参数说明：`views` 为已按展示顺序生成的二级视图，`questionText` 为原始问题。
+   * 返回值说明：月度趋势问题返回第一张月度柱形图，否则返回 undefined。
+   */
+  private resolveBusinessChainMonthlyPrimaryView(
+    views: ResultView[],
+    questionText: string,
+  ): ResultView | undefined {
+    if (!this.isBusinessChainMonthlyTrendQuestion(questionText)) {
+      return undefined;
+    }
+
+    return views.find((view) => view.viewType === 'BAR_CHART' && view.title.includes('月度趋势'));
+  }
+
+  /**
    * 构造业务链对比柱状图序列。
    *
    * 参数说明：`rows` 为已经聚合好的区域、渠道、负责人或类型对比行。
@@ -1629,7 +2075,8 @@ export class LianruanCrmAnalysisExecutorService {
     const hasBigRegionQuestion = /(大区|大北|大东|大南|大西|华北|华东|华南|华西)/u.test(questionText);
     const hasSalesQuestion = /(销售|销售负责人|负责人|人员|个人|团队|跟进人|归属人)/u.test(questionText);
     const hasOrderQuestion = /(订单|下单|成单|签单|成交|订单承接|回款)/u.test(questionText);
-    const hasQuarterComparisonQuestion = /(季度|按季|一季度|二季度|三季度|四季度|Q[1-4]|对比|比较|差异|相比)/iu.test(questionText);
+    const hasMonthlyTrendQuestion = this.isBusinessChainMonthlyTrendQuestion(questionText);
+    const hasQuarterComparisonQuestion = /(季度|按季|一季度|二季度|三季度|四季度|Q[1-4])/iu.test(questionText);
     const hasRegionQuarterComparison = hasRegionQuestion && hasQuarterComparisonQuestion;
     const hasDistributionQuestion = /(一级渠道|二级渠道|分销|上级|层级|父级|一级确认)/u.test(questionText);
     const hasTechnicalServiceQuestion = /(技术服务商|签约技术|提名技术|交付生态|交付能力|技术服务能力)/u.test(questionText);
@@ -1642,6 +2089,17 @@ export class LianruanCrmAnalysisExecutorService {
 
     if (hasPartner && explicitPartnerList && !hasDependentBusiness) {
       add('partner-detail');
+    }
+    if (hasMonthlyTrendQuestion) {
+      if (resources.includes('registrations')) {
+        add('registration-monthly-trend');
+      }
+      if (resources.includes('opportunities')) {
+        add('opportunity-monthly-trend');
+      }
+      if (resources.includes('orders')) {
+        add('order-monthly-trend');
+      }
     }
     if (resources.includes('opportunities') && hasQuarterComparisonQuestion) {
       if (hasOrderQuestion && resources.includes('orders')) {
@@ -1680,10 +2138,10 @@ export class LianruanCrmAnalysisExecutorService {
       { key: 'region-comparison', index: this.findBusinessChainSignalIndex(questionText, /(区域|大区|省份|地区|覆盖)/u) },
       { key: 'sales-contribution', index: this.findBusinessChainSignalIndex(questionText, /(销售|销售负责人|负责人|人员|个人|团队|跟进人|归属人)/u) },
       { key: 'order-fulfillment-comparison', index: this.findBusinessChainSignalIndex(questionText, /(订单|下单|成单|签单|成交|订单承接|回款)/u) },
-      { key: 'opportunity-region-quarter-matrix', index: this.findBusinessChainSignalIndex(questionText, /(区域|大区|季度|按季|一季度|二季度|三季度|四季度|Q[1-4]|对比|比较|差异|相比)/iu) },
+      { key: 'opportunity-region-quarter-matrix', index: this.findBusinessChainSignalIndex(questionText, /(区域.*季度|大区.*季度|季度|按季|一季度|二季度|三季度|四季度|Q[1-4])/iu) },
       { key: 'distribution-hierarchy', index: this.findBusinessChainSignalIndex(questionText, /(一级渠道|二级渠道|分销|上级|层级|父级|一级确认)/u) },
       { key: 'technical-service-ecosystem', index: this.findBusinessChainSignalIndex(questionText, /(技术服务商|签约技术|提名技术|交付生态|交付能力|技术服务能力)/u) },
-      { key: 'opportunity-quarter-comparison', index: this.findBusinessChainSignalIndex(questionText, /(季度|按季|一季度|二季度|三季度|四季度|Q[1-4]|对比|比较|差异|相比)/iu) },
+      { key: 'opportunity-quarter-comparison', index: this.findBusinessChainSignalIndex(questionText, /(季度|按季|一季度|二季度|三季度|四季度|Q[1-4])/iu) },
       { key: 'registration-detail', index: this.findBusinessChainSignalIndex(questionText, /(客户商机报备|客户报备|报备情况|报备)/u) },
       { key: 'opportunity-stage', index: this.findBusinessChainSignalIndex(questionText, /(商机阶段|阶段分布|阶段|漏斗|分布)/u) },
       { key: 'opportunity-detail', index: this.findBusinessChainSignalIndex(questionText, /(重点商机|商机|机会)/u) },
@@ -1752,6 +2210,9 @@ export class LianruanCrmAnalysisExecutorService {
     resources: BusinessChainSnapshotResource[],
   ): boolean {
     const resourceByViewKey: Record<BusinessChainSecondaryViewKey, BusinessChainSnapshotResource> = {
+      'registration-monthly-trend': 'registrations',
+      'opportunity-monthly-trend': 'opportunities',
+      'order-monthly-trend': 'orders',
       'opportunity-quarter-comparison': 'opportunities',
       'opportunity-region-quarter-matrix': 'opportunities',
       'big-region-comparison': 'partners',

@@ -1364,6 +1364,174 @@ describe('LianruanCrmAnalysisExecutorService', () => {
     );
   });
 
+  it('业务链月度趋势问题应分别输出客户报备商机订单最近6个月柱形图', async () => {
+    const readBusinessChainSnapshot = jest.fn(() => ({
+      generatedAt: '2026-06-16T00:00:00.000Z',
+      scopeSummary: '本地 OpenAPI Markdown 快照，生成时间：2026-06-16T00:00:00.000Z',
+      partners: [
+        {
+          partnerId: 'P_JS_001',
+          partnerName: '南京渠道商',
+          region: '江苏',
+          status: 'active',
+        },
+        {
+          partnerId: 'P_JS_002',
+          partnerName: '苏州渠道商',
+          region: '江苏',
+          status: 'active',
+        },
+      ],
+      registrations: [
+        {
+          registrationId: 'REG_JS_001',
+          customerName: '江苏一月客户',
+          partnerId: 'P_JS_001',
+          partnerName: '南京渠道商',
+          statusName: '已通过',
+          createdAt: '2026-01-12T00:00:00.000Z',
+        },
+        {
+          registrationId: 'REG_JS_002',
+          customerName: '江苏三月客户',
+          partnerId: 'P_JS_002',
+          partnerName: '苏州渠道商',
+          statusName: '已通过',
+          createdAt: '2026-03-05T00:00:00.000Z',
+        },
+        {
+          registrationId: 'REG_JS_003',
+          customerName: '江苏六月客户',
+          partnerId: 'P_JS_001',
+          partnerName: '南京渠道商',
+          statusName: '已通过',
+          createdAt: '2026-06-20T00:00:00.000Z',
+        },
+      ],
+      opportunities: [
+        {
+          opportunityId: 'OPP_JS_001',
+          opportunityName: '江苏二月商机',
+          customerName: '江苏二月客户',
+          partnerId: 'P_JS_001',
+          partnerName: '南京渠道商',
+          stage: 'proposal',
+          amount: 100000,
+          createdAt: '2026-02-10T00:00:00.000Z',
+        },
+        {
+          opportunityId: 'OPP_JS_002',
+          opportunityName: '江苏三月商机',
+          customerName: '江苏三月客户',
+          partnerId: 'P_JS_002',
+          partnerName: '苏州渠道商',
+          stage: 'proposal',
+          amount: 200000,
+          createdAt: '2026-03-18T00:00:00.000Z',
+        },
+      ],
+      orders: [
+        {
+          orderId: 'ORD_JS_001',
+          orderName: '江苏四月订单',
+          customerName: '江苏四月客户',
+          partnerId: 'P_JS_001',
+          partnerName: '南京渠道商',
+          amount: 80000,
+          dealAt: '2026-04-06T00:00:00.000Z',
+        },
+        {
+          orderId: 'ORD_JS_002',
+          orderName: '江苏六月订单',
+          customerName: '江苏六月客户',
+          partnerId: 'P_JS_002',
+          partnerName: '苏州渠道商',
+          amount: 120000,
+          dealAt: '2026-06-02T00:00:00.000Z',
+        },
+      ],
+    }));
+    const service = new LianruanCrmAnalysisExecutorService(
+      {
+        isEnabled: jest.fn(() => true),
+        getBootstrapSnapshot: jest.fn(),
+      } as never,
+      {
+        listByResource: jest.fn(),
+      } as never,
+      undefined,
+      {
+        readBusinessChainSnapshot,
+      } as never,
+    );
+
+    const result = await service.executeBusinessChainSnapshotTask({
+      questionText: '帮我输出江苏区域最近6个月的客户、商机报备和订单下单的趋势图，月度对比',
+      user: {
+        id: 'A030',
+        name: '刘龙海',
+      } as never,
+      scopeSummary: '全部权限',
+      temporalSlot: {
+        rawText: '最近6个月',
+        normalizedLabel: '最近6个月',
+        startAt: '2026-01-01T00:00:00.000Z',
+        endAt: '2026-07-01T00:00:00.000Z',
+        timezone: 'Asia/Shanghai',
+        granularity: 'month',
+        relativity: 'relative',
+        inclusivity: {
+          start: 'inclusive',
+          end: 'exclusive',
+        },
+        confidence: 'HIGH',
+      },
+      resources: ['partners', 'registrations', 'opportunities', 'orders'],
+    });
+
+    const allViews = [result.primaryView, ...result.secondaryViews].filter(Boolean);
+    const registrationTrendView = allViews.find((view) => view?.title === '客户报备最近6个月月度趋势');
+    const opportunityTrendView = allViews.find((view) => view?.title === '商机最近6个月月度趋势');
+    const orderTrendView = allViews.find((view) => view?.title === '订单最近6个月月度趋势');
+
+    expect(result.primaryView).toEqual(
+      expect.objectContaining({
+        viewType: 'BAR_CHART',
+        title: '客户报备最近6个月月度趋势',
+      }),
+    );
+    expect(result.secondaryViews.map((view) => view.title)).not.toContain('客户报备最近6个月月度趋势');
+    expect(registrationTrendView?.series).toEqual([
+      expect.objectContaining({ label: '2026-01', value: 1 }),
+      expect.objectContaining({ label: '2026-02', value: 0 }),
+      expect.objectContaining({ label: '2026-03', value: 1 }),
+      expect.objectContaining({ label: '2026-04', value: 0 }),
+      expect.objectContaining({ label: '2026-05', value: 0 }),
+      expect.objectContaining({ label: '2026-06', value: 1 }),
+    ]);
+    expect(opportunityTrendView?.series).toEqual([
+      expect.objectContaining({ label: '2026-01', value: 0 }),
+      expect.objectContaining({ label: '2026-02', value: 1 }),
+      expect.objectContaining({ label: '2026-03', value: 1 }),
+      expect.objectContaining({ label: '2026-04', value: 0 }),
+      expect.objectContaining({ label: '2026-05', value: 0 }),
+      expect.objectContaining({ label: '2026-06', value: 0 }),
+    ]);
+    expect(orderTrendView?.series).toEqual([
+      expect.objectContaining({ label: '2026-01', value: 0 }),
+      expect.objectContaining({ label: '2026-02', value: 0 }),
+      expect.objectContaining({ label: '2026-03', value: 0 }),
+      expect.objectContaining({ label: '2026-04', value: 1 }),
+      expect.objectContaining({ label: '2026-05', value: 0 }),
+      expect.objectContaining({ label: '2026-06', value: 1 }),
+    ]);
+    expect(result.secondaryViews.map((view) => view.title).indexOf('商机最近6个月月度趋势')).toBeLessThan(
+      result.secondaryViews.map((view) => view.title).indexOf('渠道商经营贡献汇总'),
+    );
+    expect(JSON.stringify(result)).toContain('南京渠道商');
+    expect(JSON.stringify(result)).toContain('苏州渠道商');
+  });
+
   it('预计 30 天内签约但未报价问题应输出商机风险明细', async () => {
     const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-06-30T00:00:00.000Z'));
     const readResourceRecords = jest.fn((resource: string) =>
